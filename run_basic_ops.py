@@ -1,10 +1,15 @@
+from timeit import default_timer as timer
+
 import numpy as np
 from matplotlib import pyplot as plt
-from linear_model import GaussianDensity, BasicLinearModel
+
+from basic import GaussianDensity
+from linear_models import BasicLinearModel
+from learners_mcmc import MCMCLearnerForBasicModelWithMNIWPrior
 
 plt.close('all')
 
-K = 100
+K = 10
 ds = 2
 do = 1
 
@@ -17,6 +22,7 @@ params['R'] = np.array([[1]])
 prior = GaussianDensity(np.array([0,0]), np.array([[100,0],[0,100]]))
 model = BasicLinearModel(ds, do, prior, params)
 
+np.random.seed(0)
 state, observ = model.simulate_data(K)
 
 fig = plt.figure()
@@ -29,8 +35,18 @@ for dd in range(do):
     ax = fig.add_subplot(do,1,dd+1)
     ax.plot(observ[:,dd])
 
+
+# Kalman filter
+t0 = timer()
 flt, prd, lhood = model.kalman_filter(observ)
+filter_time = timer()-t0
+print("Filtering took {}s.".format(filter_time))
+
+# Kalman smoother
+t0 = timer()
 smt = model.rts_smoother(flt, prd)
+smoother_time = timer()-t0
+print("Smoothing took {}s.".format(smoother_time))
 
 fig = plt.figure()
 for dd in range(ds):
@@ -45,3 +61,7 @@ for dd in range(ds):
     ax.plot(smt.mn[:,dd], 'g-')
     ax.plot(smt.mn[:,dd]+2*np.sqrt(smt.vr[:,dd,dd]), 'g:')
     ax.plot(smt.mn[:,dd]-2*np.sqrt(smt.vr[:,dd,dd]), 'g:')
+
+np.random.seed(0)
+state, observ = model.simulate_data(K)
+smp = model.sample_posterior(observ)

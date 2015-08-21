@@ -2,10 +2,9 @@
 from abc import ABCMeta, abstractmethod
 import collections
 
-# Nuerical modules
+# Numerical modules
 import numpy as np
 from scipy.stats import multivariate_normal as mvn
-from scipy import linalg as la
 
 class GaussianDensity(collections.namedtuple('GaussianSequence', ['mn', 'vr'])):
     """
@@ -15,12 +14,12 @@ class GaussianDensity(collections.namedtuple('GaussianSequence', ['mn', 'vr'])):
     
     @property
     def dim(self):
-        return len(self.mn)
+        return self.mn.shape[0]
 
 
-class GaussianDensitySequence:
+class GaussianDensityTimeSeries:
     """
-    Gaussian density sequence class.
+    Gaussian density time series class.
     When Kalman filtering or smoothing is conducted, a sequence of Gaussian
     densities is generated, one for each time instant. This class provides
     efficient and convenient access.
@@ -40,32 +39,8 @@ class GaussianDensitySequence:
         self.vr[idx,:,:] = density.vr
 
 
-def predict(dens, A, Q):
-    """Kalman filter prediction"""
-    prd_mn = np.dot(A,dens.mn)
-    prd_vr = np.dot(A, np.dot(dens.vr,A.T) ) + Q
-    prd_vr = (prd_vr+prd_vr.T)/2
-    return GaussianDensity(prd_mn,prd_vr)
-
-def correct(dens, y, H, R):
-    """Kalman filter correction"""
-    mu = np.dot(H,dens.mn)
-    S = R + np.dot(H, np.dot(dens.vr,H.T) )
-    S = (S+S.T)/2
-    G = np.dot(dens.vr, la.solve(S,H,check_finite=False).T )
-    I = np.identity(dens.dim)
-    upd_vr = np.dot( I-np.dot(G,H), dens.vr)
-    upd_vr = (upd_vr+upd_vr.T)/2
-    upd_mn = dens.mn + np.dot(G, y-mu )
-    return GaussianDensity(upd_mn,upd_vr), GaussianDensity(mu,S)
-    
-def update(flt, nxt_smt, nxt_prd, A):
-    """Rauch-Tung-Striebel smoother update"""
-    G = np.dot(flt.vr, la.solve(nxt_prd.vr,A,sym_pos=True,check_finite=False).T )
-    smt_vr = flt.vr + np.dot(G, np.dot( nxt_smt.vr-nxt_prd.vr ,G.T) )
-    smt_mn = flt.mn + np.dot(G, nxt_smt.mn-nxt_prd.mn )
-    return GaussianDensity(smt_mn,smt_vr)
-    
+# Import Kalman filter/smoother operations
+import kalman as kal
 
 class AbstractLinearModel:
     __metaclass__ = ABCMeta
@@ -80,7 +55,7 @@ class AbstractLinearModel:
                  state_dimension,
                  observation_dimension,
                  initial_state_prior,
-                 model_parameters):
+                 parameters):
         """Initialise with model parameters"""
         
         # Consistency checks
@@ -95,11 +70,12 @@ class AbstractLinearModel:
         self.ds = state_dimension
         self.do = observation_dimension
         self.initial_state_prior = initial_state_prior
-        self.model_parameters = model_parameters
+        self.parameters = parameters
     
-    @abstractmethod
+    
     def copy(self):
-        pass
+        return self.__class__(self.ds, self.do, self.initial_state_prior,
+                                                         dict(self.parameters))
     
     
     @abstractmethod
@@ -176,8 +152,8 @@ class AbstractLinearModel:
         
         # Initialise arrays of Gaussian densities and (log-)likelihood
         num_time_instants = len(observ)
-        flt = GaussianDensitySequence(num_time_instants, self.ds)
-        prd = GaussianDensitySequence(num_time_instants, self.ds)
+        flt = GaussianDensityTimeSeries(num_time_instants, self.ds)
+        prd = GaussianDensityTimeSeries(num_time_instants, self.ds)
         lhood = 0
         
         # Loop through time instants
@@ -185,13 +161,13 @@ class AbstractLinearModel:
             
             # Prediction
             if kk > 0:
-                prd_kk = predict(flt.get_instant(kk-1), F, Q)
+                prd_kk = kal.predict(flt.get_instant(kk-1), F, Q)
             else:
                 prd_kk = self.initial_state_prior
             prd.set_instant(kk, prd_kk)
             
             # Correction
-            flt_kk,innov = correct(prd.get_instant(kk), observ[kk], H, R)
+            flt_kk,innov = kal.correct(prd.get_instant(kk), observ[kk], H, R)
             flt.set_instant(kk, flt_kk)
             lhood = lhood + mvn.logpdf(observ[kk], innov.mn, innov.vr)
             
@@ -205,14 +181,14 @@ class AbstractLinearModel:
         
         # Initialise arrays of Gaussian densities and (log-)likelihood
         num_time_instants = flt.num_time_instants
-        smt = GaussianDensitySequence(num_time_instants, self.ds)
+        smt = GaussianDensityTimeSeries(num_time_instants, self.ds)
         
         # Loop through time instants
         for kk in reversed(range(num_time_instants)):
             
             # RTS update
             if kk<num_time_instants-1:
-                smt_kk = update(flt.get_instant(kk), smt.get_instant(kk+1), 
+                smt_kk = kal.update(flt.get_instant(kk), smt.get_instant(kk+1), 
                                                       prd.get_instant(kk+1), F)
             else:
                 smt_kk = flt.get_instant(kk)
@@ -234,7 +210,7 @@ class AbstractLinearModel:
         # Loop through time instatnts, sampling each state
         for kk in reversed(range(num_time_instants)):
             if kk < num_time_instants-1:
-                samp_dens,_ = correct(flt.get_instant(kk), x[kk+1], F, Q)
+                samp_dens,_ = kal.correct(flt.get_instant(kk), x[kk+1], F, Q)
             else:
                 samp_dens = flt.get_instant(kk)
             x[kk] = mvn.rvs(mean=samp_dens.mn, cov=samp_dens.vr)
@@ -248,19 +224,27 @@ class AbstractLinearModel:
         return x
 
 
-class BasicLinearModel(AbstractLinearModel):
-    
-    def transition_matrix(self):
-        return self.model_parameters['F']
 
-    def transition_covariance(self):
-        return self.model_parameters['Q']
-        
-    def observation_matrix(self):
-        return self.model_parameters['H']
-        
-    def observation_covariance(self):
-        return self.model_parameters['R']
+class AbstractMCMCLearner:
+    """
+    Abstract Container class for MCMC system learning algorithms.
+    Sub-class this and implement methods to perform individual MCMC sampling 
+    steps. These will depend on the type of linear model and the choice of
+    prior distribusion.
+    """
+    
+    def __init__(self, initial_model_estimate, observ, hyperparams):
+        self.model = initial_model_estimate
+        self.observ = observ
+        self.hyperparams = hyperparams
+        self.chain = []
+    
+    def save_link(self):
+        """Save the current state of the model as a link in the chain"""
+        self.chain.append(self.model.copy())
+
+
+
 
 #import numpy as np
 #import kalman as kal
