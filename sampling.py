@@ -33,32 +33,42 @@ def sample_matrix_normal(M, U, V):
     X = np.reshape(Xv,M.T.shape).T
     return X
 
+def evaluate_sufficient_statistics(x):
+    """
+    Calculate the required sufficient statistics from the state trajectory
+    """
+    K,ds = x.shape
+    
+    # Create arrays
+    suffStats = list()
+    suffStats.append( 0 )
+    suffStats.append( np.zeros((ds,ds)) )
+    suffStats.append( np.zeros((ds,ds)) )
+    suffStats.append( np.zeros((ds,ds)) )
+    
+    # Loop through time incrementing stats
+    for kk in range(1,K):
+        suffStats[0] += 1
+        suffStats[1] += np.outer(x[kk-1], x[kk-1])
+        suffStats[2] += np.outer(x[kk], x[kk-1])
+        suffStats[3] += np.outer(x[kk], x[kk])
+    
+    return suffStats
+    
 
-def sample_basic_transition_mniw_conditional(x, nu0, Psi0, M0, V0):
+
+def sample_basic_transition_mniw_conditional(suffStats, nu0, Psi0, M0, V0):
     """
     Sample transition model matrices from matrix-normal-inverse-wishart
     posterior conditional distribution.
     """
-
-    ds = M0.shape[0]
-    K = len(x)
     invV0 = la.inv(V0)
     
-    # Sufficient stats
-    SS0 = 0
-    SS1 = np.zeros((ds,ds))
-    SS2 = np.zeros((ds,ds))
-    SS3 = np.zeros((ds,ds))
-    for kk in range(1,K):
-        SS0 += 1
-        SS1 += np.outer(x[kk-1], x[kk-1])
-        SS2 += np.outer(x[kk], x[kk-1])
-        SS3 += np.outer(x[kk], x[kk])
-    
-    nu  = nu0 + SS0
-    V   = la.inv( invV0 + SS1 )
-    M   = np.dot( np.dot(M0,invV0)+SS2 , V)
-    Psi = Psi0 + SS3 - np.dot(M, la.solve(V,M.T) ) + np.dot(M0, la.solve(V0,M0.T) )
+    # Posterior hyperparameters    
+    nu  = nu0 + suffStats[0]
+    V   = la.inv( invV0 + suffStats[1] )
+    M   = np.dot( np.dot(M0,invV0)+suffStats[2] , V)
+    Psi = Psi0 + suffStats[3] - np.dot(M, la.solve(V,M.T) ) + np.dot(M0, la.solve(V0,M0.T) )
     
     # Sample
     Q = la.inv(sample_wishart(nu, la.inv(Psi)))
@@ -67,68 +77,53 @@ def sample_basic_transition_mniw_conditional(x, nu0, Psi0, M0, V0):
     return F, Q
 
 
-def sample_basic_transition_independent_conditional(x, nu0, Psi0, M0, alpha, F=None, Q=None):
+def sample_basic_transition_matrix_independent_conditional(suffStats, M0, 
+                                                                     alpha, Q):
     """
-    Sample transition model matrices from posterior conditional distributions
-    arising from independent matrix normal and inverse wishart priors
+    Sample transition matrix from posterior conditional distribution arising 
+    from isotropic matrix normal prior
+    """
+    ds = Q.shape[0]
+    
+    # Eigendecompositions
+    QeVal,QeVec = la.eigh(Q)
+    ss1eVal, ss1eVec = la.eigh(suffStats[1])
+    
+    # Hyperparameters of rotated transition matrix
+    ss2rot = np.dot(np.dot(QeVec.T, suffStats[2]), ss1eVec)
+    M0rot = np.dot(np.dot(QeVec.T, M0), ss1eVec)
+    P = 1./( 1./alpha + np.kron(1./QeVal, ss1eVal) )
+    m = P*( (np.dot(np.diag(1./QeVal), ss2rot)+M0rot/alpha).flatten() )
+    
+    # Sample rotated, flattened transition matrix
+    Frotflat = stats.norm.rvs(loc=m,scale=np.sqrt(P))
+    
+    # Reshape into a matrix
+    Frot = Frotflat.reshape((ds,ds))
+    
+    # Rotate to get the final transition matrix
+    F = np.dot(np.dot(QeVec, Frot), ss1eVec.T)
+    
+    return F
+
+
+def sample_basic_transition_covariance_independent_conditional(suffStats, nu0,
+                                                                      Psi0, F):
+    """
+    Sample transition covariance from posterior conditional distribution
+    arising from inverse wishart prior
     """
     
-    if (F is None) and (Q is None):
-        raise ValueError("Must supply one of F and Q.")
+    # Update covariance hyperparameters
+    nu  = nu0 + suffStats[0]
+    Psi = Psi0 + suffStats[3] - np.dot(F,suffStats[2].T) \
+                - np.dot(suffStats[2],F.T) + np.dot(np.dot(F,suffStats[1]),F.T)
     
-    ds = Psi0.shape[0]
-    K = len(x)
+    # Sample
+    Q = la.inv(sample_wishart(nu, la.inv(Psi)))
     
-    # Sufficient stats
-    SS0 = 0
-    SS1 = np.zeros((ds,ds))
-    SS2 = np.zeros((ds,ds))
-    SS3 = np.zeros((ds,ds))
-    for kk in range(1,K):
-        SS0 += 1
-        SS1 += np.outer(x[kk-1], x[kk-1])
-        SS2 += np.outer(x[kk], x[kk-1])
-        SS3 += np.outer(x[kk], x[kk])
+    return Q
     
-    Fdone = False
-    Qdone = False
-    
-    while (Fdone==False) or (Qdone==False):
-        
-        if (F is not None) and (Qdone==False):
-            
-            # Update covariance hyperparameters
-            nu  = nu0 + SS0
-            Psi = Psi0 + SS3 - np.dot(F,SS2.T) - np.dot(SS2,F.T) + \
-                                                      np.dot(np.dot(F,SS1),F.T)
-            
-            # Sample
-            Q = la.inv(sample_wishart(nu, la.inv(Psi)))
-            Qdone = True
-        
-        if (Q is not None) and (Fdone==False):
-            
-            # Eigendecompositions
-            QeVal,QeVec = la.eigh(Q)
-            SS1eVal,SS1eVec = la.eigh(SS1)
-            
-            # Hyperparameters of rotated transition matrix
-            SS2rot = np.dot(np.dot(QeVec.T, SS2), SS1eVec)
-            M0rot = np.dot(np.dot(QeVec.T, M0), SS1eVec)
-            P = 1./( 1./alpha + np.kron(1./QeVal, SS1eVal) )
-            m = P*( (np.dot(np.diag(1./QeVal), SS2rot)+M0rot/alpha).flatten() )
-            
-            # Sample rotated, flattened transition matrix
-            Frotflat = stats.norm.rvs(loc=m,scale=np.sqrt(P))
-            
-            # Reshape into a matrix
-            Frot = Frotflat.reshape((ds,ds))
-            
-            # Rotate to get the final transition matrix
-            F = np.dot(np.dot(QeVec, Frot), SS1eVec.T)
-            Fdone = True
-    
-    return F, Q
 
 
 

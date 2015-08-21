@@ -3,10 +3,12 @@ from abc import ABCMeta, abstractmethod
 
 # Numerical modules
 import numpy as np
+import scipy.linalg as la
 from scipy.stats import multivariate_normal as mvn
 
 # Import from other module files
 import kalman as kal
+import givens as giv
 from kalman import GaussianDensityTimeSeries
 
 
@@ -246,11 +248,25 @@ class DegenerateLinearModel(AbstractLinearModel):
         return self.parameters['F']
 
     def transition_covariance(self):
-        return np.dot(self.parameters['vec'], \
-          np.dot(np.diag(1./self.parameters['val']), self.parameters['vec'].T))
+        eVec = self.parameters['vec']
+        eVal = np.diag(1./self.parameters['val'])
+        return np.dot(eVec, np.dot(eVal, eVec.T))
         
     def observation_matrix(self):
         return self.parameters['H']
         
     def observation_covariance(self):
         return self.parameters['R']
+    
+    def convert_to_givens_form(self):
+        Uc,E,Ur = giv.givensise(self.parameters['vec'])
+        EUr = np.dot(E,Ur)
+        D = np.dot(np.dot(EUr, self.parameters['val']), EUr.T)
+        return Uc, D
+    
+    def update_from_givens_form(self, U, D):
+        eVal, eVec = la.eigh(D)
+        self.parameters['vec'] = np.dot(U, eVec)
+        self.parameters['val'] = eVal
+        
+        

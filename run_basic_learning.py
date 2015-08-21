@@ -27,18 +27,19 @@ state, observ = model.simulate_data(K)
 
 est_params = dict()
 est_params['F'] = np.array([[0.5,0],[0,0.5]])
+est_params['rank'] = 2
 est_params['vec'] = np.identity(ds)
-est_params['val'] = np.identity(ds)
+est_params['val'] = np.ones(ds)
 est_params['H'] = np.identity(do)#np.array([[1,0]])
 est_params['R'] = np.identity(do)#np.array([[1]])
-est_model = BasicLinearModel(ds, do, prior, est_params)
+est_model = DegenerateLinearModel(ds, do, prior, est_params)
 
 hyperparams = dict()
 hyperparams['nu0'] = 4
 hyperparams['Psi0'] = (hyperparams['nu0']-ds-1)*np.identity(ds)
 hyperparams['M0'] = np.zeros(ds)
 hyperparams['alpha'] = 100
-learner = MCMCLearnerForBasicModelWithIndependentPriors(est_model, observ, hyperparams)
+learner = MCMCLearnerForDegenerateModelWithIndependentPriors(est_model, observ, hyperparams)
 
 num_iter = 200
 num_burn = int(num_iter/5)

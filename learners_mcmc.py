@@ -109,9 +109,12 @@ class MCMCLearnerForBasicModelWithMNIWPrior(AbstractMCMCLearner):
         # First sample the state sequence
         x = self.model.sample_posterior(self.observ)
         
+        # Calculate sufficient statistics
+        suffStats = smp.evaluate_sufficient_statistics(x)
+        
         # Sample a new transition matrix and transition covariance
         self.model.parameters['F'], self.model.parameters['Q'] = \
-             smp.sample_basic_transition_mniw_conditional(x,
+             smp.sample_basic_transition_mniw_conditional(suffStats,
                                                     self.hyperparams['nu0'],
                                                     self.hyperparams['Psi0'],
                                                     self.hyperparams['M0'],
@@ -132,14 +135,24 @@ class MCMCLearnerForBasicModelWithIndependentPriors(AbstractMCMCLearner):
         # First sample the state sequence
         x = self.model.sample_posterior(self.observ)
         
-        # Sample a new transition matrix and transition covariance
-        self.model.parameters['F'], self.model.parameters['Q'] = \
-             smp.sample_basic_transition_independent_conditional(x,
+        # Calculate sufficient statistics
+        suffStats = smp.evaluate_sufficient_statistics(x)
+        
+        # Sample a new transition covariance
+        self.model.parameters['Q'] = \
+             smp.sample_basic_transition_covariance_independent_conditional(
+                                                suffStats,
                                                 self.hyperparams['nu0'],
                                                 self.hyperparams['Psi0'],
+                                                self.model.parameters['F'])
+        
+        # Sample a new transition matrix
+        self.model.parameters['F'] = \
+             smp.sample_basic_transition_matrix_independent_conditional(
+                                                suffStats,
                                                 self.hyperparams['M0'],
                                                 self.hyperparams['alpha'],
-                                                F=self.model.parameters['F'])
+                                                self.model.parameters['Q'])
 
 class MCMCLearnerForDegenerateModelWithIndependentPriors(AbstractMCMCLearner):
     """
@@ -156,16 +169,19 @@ class MCMCLearnerForDegenerateModelWithIndependentPriors(AbstractMCMCLearner):
         # First sample the state sequence
         x = self.model.sample_posterior(self.observ)
         
+        # Convert to Givens factorisation form
+        U,D = self.model.convert_to_givens_form()
+        
         # Sample a new transition matrix and transition covariance
-#        self.model.parameters['F'], self.model.parameters['Q'] = \
-#             smp.sample_basic_transition_independent_conditional(x,
-#                                                self.hyperparams['nu0'],
-#                                                self.hyperparams['Psi0'],
-#                                                self.hyperparams['M0'],
-#                                                self.hyperparams['alpha'],
-#                                                F=self.model.parameters['F'])
-
-
+        self.model.parameters['F'], D = \
+             smp.sample_degenerate_transition_independent_conditional(x, U,
+                                                self.hyperparams['psi0'],
+                                                self.hyperparams['M0'],
+                                                self.hyperparams['alpha'],
+                                                F=self.model.parameters['F'])
+        
+        # Convert back to eigen-decomposition form
+        self.model.update_from_givens_form(U, D)
 
 
 

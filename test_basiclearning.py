@@ -10,7 +10,7 @@ class BasicModelLearningTestCase(unittest.TestCase):
     def setUp(self):
         
         # Basic parameters
-        self.K = 10
+        self.K = 100
         self.ds = 2
         self.do = 2
         
@@ -58,7 +58,6 @@ class MNIWPriorLearning(BasicModelLearningTestCase):
         # MCMC
         for ii in range(self.num_iter):
             print("Running iteration {} of {}.".format(ii+1,self.num_iter))
-            
             learner.iterate_transition()
             learner.save_link()
         
@@ -83,7 +82,6 @@ class IndependentPriorsLearning(BasicModelLearningTestCase):
         # MCMC
         for ii in range(self.num_iter):
             print("Running iteration {} of {}.".format(ii+1,self.num_iter))
-            
             learner.iterate_transition()
             learner.save_link()
         
