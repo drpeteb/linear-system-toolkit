@@ -12,7 +12,7 @@ def sample_wishart(nu, P):
     Sample from a Wishart distribution.
     
     N.B. There is a function in scipy 0.17, the development version,
-    but not the current 0.15. Probably worth updating when it gets released.
+    but not the current 0.16. Probably worth updating when it gets released.
     """
     dim = P.shape[0]
     cholP = la.cholesky(P,lower=True)

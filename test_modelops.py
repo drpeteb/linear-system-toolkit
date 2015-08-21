@@ -2,7 +2,7 @@ import unittest
 
 import numpy as np
 
-from basic import GaussianDensity
+from kalman import GaussianDensity
 from linear_models import BasicLinearModel
 
 class LinearModelOperationsTestCase(unittest.TestCase):

@@ -1,6 +1,41 @@
+import collections
 import numpy as np
 from scipy import linalg as la
-from basic import GaussianDensity
+
+class GaussianDensity(collections.namedtuple('GaussianSequence', ['mn', 'vr'])):
+    """
+    Gaussian density class.
+    Parameterised by mean and covariance matrix
+    """
+    
+    @property
+    def dim(self):
+        return self.mn.shape[0]
+
+
+class GaussianDensityTimeSeries:
+    """
+    Gaussian density time series class.
+    When Kalman filtering or smoothing is conducted, a sequence of Gaussian
+    densities is generated, one for each time instant. This class provides
+    efficient and convenient access.
+    """
+    
+    def __init__(self, num_time_instants, state_dimension):
+        self.num_time_instants = num_time_instants
+        self.state_dimension = state_dimension
+        self.mn = np.zeros((num_time_instants,state_dimension))
+        self.vr = np.zeros((num_time_instants,state_dimension,state_dimension))
+                
+    def get_instant(self, idx):
+        return GaussianDensity(self.mn[idx,:], self.vr[idx,:,:])
+    
+    def set_instant(self, idx, density):
+        self.mn[idx,:] = density.mn
+        self.vr[idx,:,:] = density.vr
+
+
+### KALMAN FILTER AND SMOOTHER OPERATIONS ###
 
 def predict(dens, A, Q):
     """Kalman filter prediction"""
@@ -27,3 +62,5 @@ def update(flt, nxt_smt, nxt_prd, A):
     smt_vr = flt.vr + np.dot(G, np.dot( nxt_smt.vr-nxt_prd.vr ,G.T) )
     smt_mn = flt.mn + np.dot(G, nxt_smt.mn-nxt_prd.mn )
     return GaussianDensity(smt_mn,smt_vr)
+
+

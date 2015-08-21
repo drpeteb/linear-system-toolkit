@@ -1,5 +1,98 @@
-from basic import AbstractMCMCLearner
+# Operational modules
+from abc import ABCMeta, abstractmethod
+import numpy as np
+import matplotlib.pyplot as plt
+
+# Import from other module files
 import sampling as smp
+
+class AbstractMCMCLearner:
+    __metaclass__ = ABCMeta
+    """
+    Abstract Container class for MCMC system learning algorithms.
+    Sub-class this and implement methods to perform individual MCMC sampling 
+    steps. These will depend on the type of linear model and the choice of
+    prior distribusion.
+    """
+    
+    def __init__(self, initial_model_estimate, observ, hyperparams):
+        self.model = initial_model_estimate
+        self.observ = observ
+        self.hyperparams = hyperparams
+        self.chain = []
+    
+    def save_link(self):
+        """Save the current state of the model as a link in the chain"""
+        self.chain.append(self.model.copy())
+    
+    def plot_chain_trace(self, paramName, numBurnIn=0, dims=None):
+        """
+        Make Markov chain trace plots for a chosen parameter
+        
+        dims is a tuple of two lists specificy which rows and columns should be
+        plotted. If empty then all are plotted.
+        """
+        
+        # Parse the dimensions to be plotted
+        if dims is not None:
+            if len(dims)!=2:
+                raise ValueError("dims must be a list of two lists")
+            numRows = len(dims[0])
+            numCols = len(dims[1])
+        else:
+            numRows,numCols = self.model.parameters[paramName].shape
+            dims = [range(numRows),range(numCols)]
+        
+        # Create the figure and axes
+        fig, axs = plt.subplots(nrows=numRows, ncols=numCols, squeeze=False)
+        for rr in range(numRows):
+            row = dims[0][rr]
+            for cc in range(numCols):
+                col = dims[1][cc]
+                
+                # Plot the trace
+                samples = [mod.parameters[paramName][row,col] for mod in self.chain]
+                axs[rr,cc].plot(samples, 'k')
+                ylims = axs[rr,cc].get_ylim()
+                axs[rr,cc].plot([numBurnIn]*2, ylims, 'r:')
+                axs[rr,cc].set_ylim(ylims)
+    
+    
+    def plot_chain_histogram(self, paramName, numBurnIn=0, dims=None, trueValue=None):
+        """
+        Make Markov chain histograms for a chosen parameter
+        
+        dims is a tuple of two lists specificy which rows and columns should be
+        plotted. If empty then all are plotted.
+        """
+        
+        # Parse the dimensions to be plotted
+        if dims is not None:
+            if len(dims)!=2:
+                raise ValueError("dims must be a list of two lists")
+            numRows = len(dims[0])
+            numCols = len(dims[1])
+        else:
+            numRows,numCols = self.model.parameters[paramName].shape
+            dims = [range(numRows),range(numCols)]
+        
+        # Create the figure and axes
+        fig, axs = plt.subplots(nrows=numRows, ncols=numCols, squeeze=False)
+        for rr in range(numRows):
+            row = dims[0][rr]
+            for cc in range(numCols):
+                col = dims[1][cc]
+                
+                # Plot the trace
+                samples = [mod.parameters[paramName][row,col] for mod in self.chain[numBurnIn:]]
+                axs[rr,cc].hist(samples, color='0.8')
+                if trueValue is not None:
+                    ylims = axs[rr,cc].get_ylim()
+                    axs[rr,cc].plot([trueValue[row,col]]*2, ylims, 'r', linewidth=2)
+                    axs[rr,cc].set_ylim(ylims)
+        
+        
+        
 
 class MCMCLearnerForBasicModelWithMNIWPrior(AbstractMCMCLearner):
     """
@@ -47,6 +140,30 @@ class MCMCLearnerForBasicModelWithIndependentPriors(AbstractMCMCLearner):
                                                 self.hyperparams['M0'],
                                                 self.hyperparams['alpha'],
                                                 F=self.model.parameters['F'])
+
+class MCMCLearnerForDegenerateModelWithIndependentPriors(AbstractMCMCLearner):
+    """
+    Container for MCMC system learning algorithm.
+    Model Type: Degenerate
+    Prior Type: Independent Matrix Normal and Singular Inverse Wishart
+    """
+        
+    def iterate_transition(self):
+        """
+        MCMC iteration (Gibbs sampling) for transition matrix and covariance
+        """
+        
+        # First sample the state sequence
+        x = self.model.sample_posterior(self.observ)
+        
+        # Sample a new transition matrix and transition covariance
+#        self.model.parameters['F'], self.model.parameters['Q'] = \
+#             smp.sample_basic_transition_independent_conditional(x,
+#                                                self.hyperparams['nu0'],
+#                                                self.hyperparams['Psi0'],
+#                                                self.hyperparams['M0'],
+#                                                self.hyperparams['alpha'],
+#                                                F=self.model.parameters['F'])
 
 
 
