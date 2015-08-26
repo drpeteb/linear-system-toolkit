@@ -29,6 +29,9 @@ np.random.seed(0)
 state, observ = model.simulate_data(K)
 
 est_params = dict(params)
+est_params['rank'] = 2
+est_params['vec'] = np.array([[1,0],[0,1],[0,0]])
+est_params['val'] = np.array([1,1])
 est_model = DegenerateLinearModel(ds, do, prior, est_params)
 
 hyperparams = dict()
@@ -36,7 +39,11 @@ hyperparams['nu0'] = params['rank']
 hyperparams['Psi0'] = params['rank']*np.identity(ds)
 hyperparams['M0'] = np.zeros((ds,ds))
 hyperparams['V0'] = np.identity(ds)
-learner = MCMCLearnerForDegenerateModelWithMNIWPrior(est_model, observ, hyperparams)
+
+algoparams = dict()
+algoparams['Qs'] = 0.1
+
+learner = MCMCLearnerForDegenerateModelWithMNIWPrior(est_model, observ, hyperparams, algoparams=algoparams, verbose=True)
 
 num_iter = 200
 num_burn = int(num_iter/5)
@@ -44,7 +51,7 @@ num_burn = int(num_iter/5)
 for ii in range(num_iter):
     print("Running iteration {} of {}.".format(ii+1,num_iter))
     
-    learner.iterate_transition()
+    learner.iterate_transition('Q')
     learner.save_link()
 
 learner.plot_chain_trace('F', numBurnIn=num_burn)

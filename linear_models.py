@@ -259,6 +259,9 @@ class DegenerateLinearModel(AbstractLinearModel):
         return self.parameters['R']
     
     def convert_to_givens_form(self):
+        """
+        Convert from eigen to givens form
+        """
         dim,rank = self.parameters['vec'].shape
         Uc,E,Ur = giv.givensise(self.parameters['vec'])
         EUr = np.dot(E[:rank,:rank],Ur)
@@ -267,8 +270,17 @@ class DegenerateLinearModel(AbstractLinearModel):
         return U, D
     
     def update_from_givens_form(self, U, D):
+        """
+        Convert from givens to eigen form and update
+        """
         eVal, eVec = la.eigh(D)
         self.parameters['vec'] = np.dot(U, eVec)
         self.parameters['val'] = eVal
-        
+    
+    def rotate_transition_covariance(self, rotation):
+        """
+        Rotate noise covariance matrix by multiplying eigenvectors by a
+        supplied orthoginal matrix
+        """
+        self.parameters['vec'] = np.dot(rotation, self.parameters['vec'])
         

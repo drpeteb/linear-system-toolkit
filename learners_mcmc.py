@@ -15,11 +15,14 @@ class AbstractMCMCLearner:
     prior distribusion.
     """
     
-    def __init__(self, initial_model_estimate, observ, hyperparams):
+    def __init__(self, initial_model_estimate, observ, hyperparams,
+                                             algoparams=dict(), verbose=False):
         self.model = initial_model_estimate
         self.observ = observ
         self.hyperparams = hyperparams
+        self.algoparams = algoparams
         self.chain = []
+        self.verbose = verbose
     
     
     def save_link(self):
@@ -144,6 +147,8 @@ class AbstractMCMCLearner:
 
 
 
+
+
 class MCMCLearnerForBasicModelWithMNIWPrior(AbstractMCMCLearner):
     """
     Container for MCMC system learning algorithm.
@@ -177,7 +182,7 @@ class MCMCLearnerForBasicModelWithIndependentPriors(AbstractMCMCLearner):
     Prior Type: Independent Matrix Normal and Inverse Wishart
     """
         
-    def iterate_transition(self):
+    def iterate_transition(self, flt):
         """
         MCMC iteration (Gibbs sampling) for transition matrix and covariance
         """
@@ -211,14 +216,56 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
     Model Type: Degenerate
     Prior Type: Singular Matrix Normal-Inverse Wishart
     """
+    
+    def iterate_transition(self, moveType):
         
-    def iterate_transition(self):
+        # Kalman filter
+        flt,_,lhood = self.model.kalman_filter(self.observ)
+        
+        # Copy model
+        ppsl_model = self.model.copy()
+        
+        # Propose change
+        if   moveType=='F':
+            pass
+        elif moveType=='Q':
+            rotation = smp.sample_cayley(self.model.ds, self.algoparams['Qs'])
+            ppsl_model.rotate_transition_covariance(rotation)
+        elif moveType=='rank':
+            pass
+        else:
+            raise ValueError("Invalid move type")
+        
+        if self.verbose:
+            print("Metropolis-Hastings move type: {}".format(moveType))
+        
+        # Kalman filter
+        ppsl_flt,_,ppsl_lhood = ppsl_model.kalman_filter(self.observ)
+        
+        # Decide
+        acceptRatio = (ppsl_lhood-lhood)
+        if self.verbose:
+                print("   Acceptance ratio: {}".format(acceptRatio))
+        if np.log(np.random.random())<acceptRatio:
+            self.model = ppsl_model
+            flt = ppsl_flt
+            if self.verbose:
+                print("   accepted")
+        else:
+            if self.verbose:
+                print("   rejected")
+        
+        # Sample within subspace
+        self.iterate_transition_within_subspace(flt)
+    
+    
+    def iterate_transition_within_subspace(self, flt):
         """
         MCMC iteration (Gibbs sampling) for transition matrix and covariance
         """
         
         # First sample the state sequence
-        x = self.model.sample_posterior(self.observ)
+        x = self.model.backward_simulation(flt)
         
         # Calculate sufficient statistics
         suffStats = smp.evaluate_sufficient_statistics(x)
@@ -238,6 +285,9 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
         
         # Convert back to eigen-decomposition form
         self.model.update_from_givens_form(U, D)
+    
+    
+    
 
 #class MCMCLearnerForDegenerateModelWithIndependentPriors(AbstractMCMCLearner):
 #    """

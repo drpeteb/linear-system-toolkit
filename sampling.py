@@ -1,10 +1,10 @@
 import numpy as np
 from scipy import linalg as la
-from scipy import stats as stats
+from scipy import stats
+#from scipy.stats import multivariate_normal as mvn
 #from scipy import stats as sps
 #from scipy import misc as spm
 #from scipy import special as spec
-#from scipy.stats import multivariate_normal as mvn
 #from numpy import random as rnd
 
 def sample_wishart(nu, P):
@@ -32,6 +32,25 @@ def sample_matrix_normal(M, U, V):
     Xv = stats.multivariate_normal.rvs(mean=Mv,cov=Sv)
     X = np.reshape(Xv,M.T.shape).T
     return X
+
+def sample_cayley(d, s):
+    """
+    Sample a random orthogonal matrix using normal variates and the Cayley
+    transformation
+    """
+    
+    # Random skew-symmetric matrix
+    S = np.zeros((d,d))
+    for dd in range(d-1):
+        y = stats.norm.rvs(loc=np.zeros(d-dd-1), scale=s*np.ones(d-dd-1))
+        S[dd,dd+1:] = y
+        S[dd+1:,dd] = -y
+    
+    # Cayley transformation
+    I = np.identity(d)
+    M = la.solve(I-S,I+S)
+    
+    return M
 
 def evaluate_sufficient_statistics(x):
     """
