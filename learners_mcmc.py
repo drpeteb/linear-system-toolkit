@@ -21,41 +21,96 @@ class AbstractMCMCLearner:
         self.hyperparams = hyperparams
         self.chain = []
     
+    
     def save_link(self):
         """Save the current state of the model as a link in the chain"""
         self.chain.append(self.model.copy())
+    
+    
+    def _create_2d_plot_axes(self, paramName, index1=None, index2=None):
+        """
+        Create a figure, axes, and coordinates for elements of a 2D array
+        """
+        
+        # Get the parameter shape
+        paramShape = self.model.parameters[paramName].shape
+        
+        # Create index lists if missing
+        if index1 is None:
+            numRows = paramShape[0]
+            index1 = list(range(numRows))
+        else:
+            numRows = len(index1)
+        if index2 is None:
+            numCols = paramShape[1]
+            index2 = list(range(numCols))
+        else:
+            numCols = len(index2)
+        
+        # Create figure and axes
+        fig, axs = plt.subplots(nrows=numRows, ncols=numCols, squeeze=False)
+        
+        # Make an array of tuples indexing the right element of the parameter
+        # for each subplot
+        coords = np.empty((numRows,numCols),dtype=tuple)
+        for rr in range(numRows):
+            for cc in range(numCols):
+                coords[rr,cc] = (index1[rr],index2[cc])
+        
+        return fig, axs, coords
+    
+    def _create_1d_plot_axes(self, paramName, index=None):
+        """
+        Create a figure, axes, and coordinates for elements of a 1D array
+        """
+        
+        # Get the parameter shape
+        paramShape = self.model.parameters[paramName].shape
+        
+        # Create index lists if missing
+        if index is None:
+            numEls = paramShape[0]
+            index = list(range(numEls))
+        else:
+            numEls = len(index)
+        
+        # Create figure and axes
+        fig, axs = plt.subplots(nrows=1, ncols=numEls, squeeze=False)
+        axs = axs.reshape((numEls,))
+        
+        # Make an array indexing the right element of the parameter
+        # for each subplot
+        coords = np.empty((numEls),dtype=tuple)
+        for ee in range(numEls):
+            coords[ee] = (index[ee],)
+        
+        return fig, axs, coords
+    
     
     def plot_chain_trace(self, paramName, numBurnIn=0, dims=None):
         """
         Make Markov chain trace plots for a chosen parameter
         
-        dims is a tuple of two lists specificy which rows and columns should be
-        plotted. If empty then all are plotted.
+        dims is a list or tuple of two lists which specificy which rows and 
+        columns should be plotted. If empty then all are plotted.
         """
         
-        # Parse the dimensions to be plotted
-        if dims is not None:
-            if len(dims)!=2:
-                raise ValueError("dims must be a list of two lists")
-            numRows = len(dims[0])
-            numCols = len(dims[1])
-        else:
-            numRows,numCols = self.model.parameters[paramName].shape
-            dims = [range(numRows),range(numCols)]
+        # Get the parameter shape
+        paramShape = self.model.parameters[paramName].shape
         
-        # Create the figure and axes
-        fig, axs = plt.subplots(nrows=numRows, ncols=numCols, squeeze=False)
-        for rr in range(numRows):
-            row = dims[0][rr]
-            for cc in range(numCols):
-                col = dims[1][cc]
-                
-                # Plot the trace
-                samples = [mod.parameters[paramName][row,col] for mod in self.chain]
-                axs[rr,cc].plot(samples, 'k')
-                ylims = axs[rr,cc].get_ylim()
-                axs[rr,cc].plot([numBurnIn]*2, ylims, 'r:')
-                axs[rr,cc].set_ylim(ylims)
+        if len(paramShape)==1:
+            fig, axs, coords = self._create_1d_plot_axes(paramName, dims)
+        elif len(paramShape)==2:
+            if dims is None:
+                dims = (None,None)
+            fig, axs, coords = self._create_2d_plot_axes(paramName, dims[0],
+                                                                       dims[1])
+        else:
+            raise ValueError("Cannot draw plots for this parameter")
+        
+        for idx in np.ndindex(coords.shape):
+            samples = [mod.parameters[paramName][coords[idx]] for mod in self.chain]
+            axs[idx].plot(samples, 'k')
     
     
     def plot_chain_histogram(self, paramName, numBurnIn=0, dims=None, trueValue=None):
@@ -66,33 +121,28 @@ class AbstractMCMCLearner:
         plotted. If empty then all are plotted.
         """
         
-        # Parse the dimensions to be plotted
-        if dims is not None:
-            if len(dims)!=2:
-                raise ValueError("dims must be a list of two lists")
-            numRows = len(dims[0])
-            numCols = len(dims[1])
+        # Get the parameter shape
+        paramShape = self.model.parameters[paramName].shape
+        
+        if len(paramShape)==1:
+            fig, axs, coords = self._create_1d_plot_axes(paramName, dims)
+        elif len(paramShape)==2:
+            if dims is None:
+                dims = (None,None)
+            fig, axs, coords = self._create_2d_plot_axes(paramName, dims[0],
+                                                                       dims[1])
         else:
-            numRows,numCols = self.model.parameters[paramName].shape
-            dims = [range(numRows),range(numCols)]
+            raise ValueError("Cannot draw plots for this parameter")
         
-        # Create the figure and axes
-        fig, axs = plt.subplots(nrows=numRows, ncols=numCols, squeeze=False)
-        for rr in range(numRows):
-            row = dims[0][rr]
-            for cc in range(numCols):
-                col = dims[1][cc]
-                
-                # Plot the trace
-                samples = [mod.parameters[paramName][row,col] for mod in self.chain[numBurnIn:]]
-                axs[rr,cc].hist(samples, color='0.8')
-                if trueValue is not None:
-                    ylims = axs[rr,cc].get_ylim()
-                    axs[rr,cc].plot([trueValue[row,col]]*2, ylims, 'r', linewidth=2)
-                    axs[rr,cc].set_ylim(ylims)
-        
-        
-        
+        for idx in np.ndindex(coords.shape):
+            samples = [mod.parameters[paramName][coords[idx]] for mod in self.chain]
+            axs[idx].hist(samples, color='0.8')
+            if trueValue is not None:
+                ylims = axs[idx].get_ylim()
+                axs[idx].plot([trueValue[coords[idx]]]*2, ylims, 'r', linewidth=2)
+                axs[idx].set_ylim(ylims)
+
+
 
 class MCMCLearnerForBasicModelWithMNIWPrior(AbstractMCMCLearner):
     """
@@ -154,11 +204,12 @@ class MCMCLearnerForBasicModelWithIndependentPriors(AbstractMCMCLearner):
                                                 self.hyperparams['alpha'],
                                                 self.model.parameters['Q'])
 
-class MCMCLearnerForDegenerateModelWithIndependentPriors(AbstractMCMCLearner):
+
+class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
     """
     Container for MCMC system learning algorithm.
     Model Type: Degenerate
-    Prior Type: Independent Matrix Normal and Singular Inverse Wishart
+    Prior Type: Singular Matrix Normal-Inverse Wishart
     """
         
     def iterate_transition(self):
@@ -169,19 +220,53 @@ class MCMCLearnerForDegenerateModelWithIndependentPriors(AbstractMCMCLearner):
         # First sample the state sequence
         x = self.model.sample_posterior(self.observ)
         
+        # Calculate sufficient statistics
+        suffStats = smp.evaluate_sufficient_statistics(x)
+        
         # Convert to Givens factorisation form
         U,D = self.model.convert_to_givens_form()
         
         # Sample a new transition matrix and transition covariance
         self.model.parameters['F'], D = \
-             smp.sample_degenerate_transition_independent_conditional(x, U,
-                                                self.hyperparams['psi0'],
-                                                self.hyperparams['M0'],
-                                                self.hyperparams['alpha'],
-                                                F=self.model.parameters['F'])
+             smp.sample_degenerate_transition_mniw_conditional(
+                                                    suffStats, U,
+                                                    self.model.parameters['F'],
+                                                    self.hyperparams['nu0'],
+                                                    self.hyperparams['Psi0'],
+                                                    self.hyperparams['M0'],
+                                                    self.hyperparams['V0'])
         
         # Convert back to eigen-decomposition form
         self.model.update_from_givens_form(U, D)
+
+#class MCMCLearnerForDegenerateModelWithIndependentPriors(AbstractMCMCLearner):
+#    """
+#    Container for MCMC system learning algorithm.
+#    Model Type: Degenerate
+#    Prior Type: Independent Matrix Normal and Singular Inverse Wishart
+#    """
+#        
+#    def iterate_transition(self):
+#        """
+#        MCMC iteration (Gibbs sampling) for transition matrix and covariance
+#        """
+#        
+#        # First sample the state sequence
+#        x = self.model.sample_posterior(self.observ)
+#        
+#        # Convert to Givens factorisation form
+#        U,D = self.model.convert_to_givens_form()
+#        
+#        # Sample a new transition matrix and transition covariance
+#        self.model.parameters['F'], D = \
+#             smp.sample_degenerate_transition_independent_conditional(x, U,
+#                                                self.hyperparams['psi0'],
+#                                                self.hyperparams['M0'],
+#                                                self.hyperparams['alpha'],
+#                                                F=self.model.parameters['F'])
+#        
+#        # Convert back to eigen-decomposition form
+#        self.model.update_from_givens_form(U, D)
 
 
 

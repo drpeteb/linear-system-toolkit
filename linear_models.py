@@ -259,10 +259,12 @@ class DegenerateLinearModel(AbstractLinearModel):
         return self.parameters['R']
     
     def convert_to_givens_form(self):
+        dim,rank = self.parameters['vec'].shape
         Uc,E,Ur = giv.givensise(self.parameters['vec'])
-        EUr = np.dot(E,Ur)
-        D = np.dot(np.dot(EUr, self.parameters['val']), EUr.T)
-        return Uc, D
+        EUr = np.dot(E[:rank,:rank],Ur)
+        D = np.dot(np.dot(EUr, np.diag(self.parameters['val'])), EUr.T)
+        U = Uc[:,:rank]
+        return U, D
     
     def update_from_givens_form(self, U, D):
         eVal, eVec = la.eigh(D)

@@ -77,6 +77,37 @@ def sample_basic_transition_mniw_conditional(suffStats, nu0, Psi0, M0, V0):
     return F, Q
 
 
+
+def sample_degenerate_transition_mniw_conditional(suffStats, U, Fold, nu0, Psi0, M0, V0):
+    """
+    Sample transition model matrices from singular 
+    matrix-normal-inverse-wishart posterior conditional distribution.
+    """
+    invV0 = la.inv(V0)
+    ds = V0.shape[0]
+    
+    # Posterior hyperparameters    
+    nu  = nu0 + suffStats[0]
+    V   = la.inv( invV0 + suffStats[1] )
+    M   = np.dot( np.dot(U.T, np.dot(M0,invV0)+suffStats[2]) , V)
+    UPsiU = Psi0+suffStats[3]+np.dot(M0,la.solve(V0,M0.T))
+    Psi = np.dot(U.T, np.dot(UPsiU, U)) - np.dot(M, la.solve(V,M.T))
+    
+    # Sample
+    D = sample_wishart(nu, la.inv(Psi))
+    FU = sample_matrix_normal(M, D, V)
+    
+    # Project back out
+    F = np.dot( (np.identity(ds)-np.dot(U,U.T)), Fold ) + np.dot(U,FU)
+
+    return F, D
+
+
+
+
+
+
+
 def sample_basic_transition_matrix_independent_conditional(suffStats, M0, 
                                                                      alpha, Q):
     """
