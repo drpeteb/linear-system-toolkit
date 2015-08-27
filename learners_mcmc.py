@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 
 # Import from other module files
 import sampling as smp
+from linear_models import BasicLinearModel
 
 class AbstractMCMCLearner:
     __metaclass__ = ABCMeta
@@ -250,7 +251,41 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
         
         # Propose change
         if   moveType=='F':
-            pass
+            
+            # Simulate state trajectory
+            x = ppsl_model.backward_simulation(flt)
+            suffStats = smp.evaluate_sufficient_statistics(x)
+            
+            # Pad the transition covariance
+            padded_Q = ppsl_model.transition_covariance() + \
+                               self.algoparams['Fs']*np.identity(ppsl_model.ds)
+            
+            # Sample a new transition matrix
+            ppsl_F,fwd_prob = smp.sample_basic_transition_matrix_mniw_conditional(
+                                            suffStats,
+                                            padded_Q,
+                                            self.hyperparams['M0'],
+                                            self.hyperparams['V0'],
+                                            with_pdf=True)
+            ppsl_model.parameters['F'] = ppsl_F
+            
+            # Sample a new trajectory
+            ppsl_x = ppsl_model.sample_posterior(self.observ)
+            ppsl_suffStats = smp.evaluate_sufficient_statistics(ppsl_x)
+            
+            # Reverse move probaility
+            _,bwd_prob = smp.sample_basic_transition_matrix_mniw_conditional(
+                                            ppsl_suffStats,
+                                            padded_Q,
+                                            self.hyperparams['M0'],
+                                            self.hyperparams['V0'],
+                                            F = self.model.parameters['F'],
+                                            with_pdf=True)
+            ppsl_model.parameters['F'] = ppsl_F
+            
+            # Prior terms
+            prior = self.transition_prior(self.model)
+            ppsl_prior = self.transition_prior(ppsl_model)
         
         elif moveType=='Q':
             

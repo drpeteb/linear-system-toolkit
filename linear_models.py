@@ -173,7 +173,7 @@ class AbstractLinearModel:
         
         # Get system matrices
         F = self.transition_matrix()
-        Q = self.transition_covariance()
+        Q = self.transition_covariance() + 1E-10*np.identity(self.ds)
         
         # Initialise sampled sequence
         num_time_instants = flt.num_time_instants

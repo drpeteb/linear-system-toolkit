@@ -115,6 +115,27 @@ def sample_basic_transition_mniw_conditional(suffStats, nu0, Psi0, M0, V0):
 
     return F, Q
 
+def sample_basic_transition_matrix_mniw_conditional(suffStats, Q, M0, V0, F=None, with_pdf=False):
+    """
+    Sample transition matrix from matrix-normal posterior conditional
+    distribution.
+    """
+    invV0 = la.inv(V0)
+    
+    # Posterior hyperparameters    
+    V   = la.inv( invV0 + suffStats[1] )
+    M   = np.dot( np.dot(M0,invV0)+suffStats[2] , V)
+    
+    # Sample
+    if F is None:
+        F = sample_matrix_normal(M, Q, V)
+
+    if not with_pdf:
+        return F
+    else:
+        pdf = matrix_normal_density(F, M, Q, V)
+        return F, pdf
+
 
 
 def sample_degenerate_transition_mniw_conditional(suffStats, U, Fold, nu0, Psi0, M0, V0):

@@ -331,7 +331,7 @@ Of course, we want $\lgtm$, not $\lgtmrot$. We can recover the matrix uniquely u
 
 
 
-\subsection{Metropolis-Hastings for the Precision Subspace}
+\subsubsection{Metropolis-Hastings for the Precision Subspace}
 
 In order to change $\tprot$, we can target $\den(\lgtp|\lgtm, \ob{1:\timax})$ with Metropolis-Hastings, which constitutes a collapsed Gibbs move.
 
@@ -394,6 +394,41 @@ There is an alternative using Givens rotations. First sample $i \in [1,\lsd]$, $
 and use $\mhrot=\givmat{i}{j}{\givrot{}}$. This also has the property that $\givmat{i}{j}{-\givrot{}} = \givmat{i}{j}{\givrot{}}\tr$, meaning that we achieve the same cancellation of the proposals as before.
 
 
+
+\subsubsection{Metropolis-Hastings for the Transition Matrix}
+
+Define $\postden$ as the posterior density, conditioning on $\ob{1:\timax}$.
+
+If we modify the covariance matrix slightly so that it is no longer singular, then we can use the existing sampling procedure from the basic linear model and treat the resulting value of $\lgtm$ as a proposal in a Metropolis-Hastings kernel targeting $\postden(\lgtm, \ls{1:\timax}|\lgtp)$.
+
+Suppose we start with sampled values of $\lgtm$,$\lgtp$ and $\ls{1:\timax}$. A suitably modified precision matrix is,
+%
+\begin{IEEEeqnarray}{rCl}
+ \paddedlgtp & = & \left(\lgtp\pinv + \Qpadding \idmat\right)\inv \label{eq:padded_transition_precision}      ,
+\end{IEEEeqnarray}
+%
+where $\Qpadding$ is a small positive constant. We propose a new value of $\lgtm$ by sampling,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgtm' & \sim & \postden(\lgtm|\paddedlgtp,\ls{1:\timax})     .
+\end{IEEEeqnarray}
+%
+This distribution is simply a Gaussian and we can evaluate the density using \eqref{eq:basic_F_conditional}. Finally, we also sample a new state trajectory using forward filtering backward sampling,
+%
+\begin{IEEEeqnarray}{rCl}
+ \ls{1:\timax}' & \sim & \postden(\ls{1:\timax}|\lgtm', \lgtp)      .
+\end{IEEEeqnarray}
+%
+The acceptance probability is simply,
+%
+\begin{IEEEeqnarray}{rCl}
+ \IEEEeqnarraymulticol{3}{l}{ \mhap\left(\lgtm,\ls{1:\timax}\to\lgtm',\ls{1:\timax}'\right) } \nonumber \\
+ \quad\quad & = & \min\left\{1,\frac{ \postden(\lgtm',\ls{1:\timax}'|\lgtp) \postden(\ls{1:\timax}|\lgtm,\lgtp) \postden(\lgtm|\paddedlgtp,\ls{1:\timax}')   }{ \postden(\lgtm,\ls{1:\timax}|\lgtp) \postden(\ls{1:\timax}'|\lgtm',\lgtp) \postden(\lgtm'|\paddedlgtp,\ls{1:\timax}) }\right\} \nonumber \\
+ & = & \min\left\{1,\frac{ \postden(\lgtm'|\lgtp) \postden(\lgtm|\paddedlgtp,\ls{1:\timax}')   }{ \postden(\lgtm|\lgtp)\postden(\lgtm'|\paddedlgtp,\ls{1:\timax}) }\right\} \nonumber \\
+ & = & \min\left\{1, \frac{ \den(\ob{1:\timax}|\lgtm',\lgtp) }{ \den(\ob{1:\timax}|\lgtm,\lgtp)} \times \frac{ \den(\lgtm'|\lgtp) }{ \den(\lgtm|\lgtp)} \times \frac{ \postden(\lgtm|\paddedlgtp,\ls{1:\timax}')   }{ \postden(\lgtm'|\paddedlgtp,\ls{1:\timax}) }\right\} \nonumber      , \\
+\end{IEEEeqnarray}
+%
+in which the first term is a ratio of Kalman filter likelihoods.
 
 
 
