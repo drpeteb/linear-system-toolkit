@@ -177,41 +177,6 @@ class MCMCLearnerForBasicModelWithMNIWPrior(AbstractMCMCLearner):
                                                     self.hyperparams['M0'],
                                                     self.hyperparams['V0'])
                                                     
-class MCMCLearnerForBasicModelWithIndependentPriors(AbstractMCMCLearner):
-    """
-    Container for MCMC system learning algorithm.
-    Model Type: Basic
-    Prior Type: Independent Matrix Normal and Inverse Wishart
-    """
-        
-    def iterate_transition(self, flt):
-        """
-        MCMC iteration (Gibbs sampling) for transition matrix and covariance
-        """
-        
-        # First sample the state sequence
-        x = self.model.sample_posterior(self.observ)
-        
-        # Calculate sufficient statistics
-        suffStats = smp.evaluate_sufficient_statistics(x)
-        
-        # Sample a new transition covariance
-        self.model.parameters['Q'] = \
-             smp.sample_basic_transition_covariance_independent_conditional(
-                                                suffStats,
-                                                self.hyperparams['nu0'],
-                                                self.hyperparams['Psi0'],
-                                                self.model.parameters['F'])
-        
-        # Sample a new transition matrix
-        self.model.parameters['F'] = \
-             smp.sample_basic_transition_matrix_independent_conditional(
-                                                suffStats,
-                                                self.hyperparams['M0'],
-                                                self.hyperparams['alpha'],
-                                                self.model.parameters['Q'])
-
-
 
 class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
     """

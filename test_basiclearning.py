@@ -67,26 +67,3 @@ class MNIWPriorLearning(BasicModelLearningTestCase):
         learner.plot_chain_histogram('F', numBurnIn=self.num_burn, trueValue=self.params['F'])
         learner.plot_chain_histogram('Q', numBurnIn=self.num_burn, trueValue=self.params['Q'])
         
-        
-class IndependentPriorsLearning(BasicModelLearningTestCase):
-    def runTest(self):
-        
-        # Set up learning
-        hyperparams = dict()
-        hyperparams['nu0'] = 3.01
-        hyperparams['Psi0'] = (hyperparams['nu0']-self.ds-1)*np.identity(self.ds)
-        hyperparams['M0'] = np.zeros(self.ds)
-        hyperparams['alpha'] = 100
-        learner = MCMCLearnerForBasicModelWithIndependentPriors(self.est_model, self.observ, hyperparams)
-        
-        # MCMC
-        for ii in range(self.num_iter):
-            print("Running iteration {} of {}.".format(ii+1,self.num_iter))
-            learner.iterate_transition()
-            learner.save_link()
-        
-        learner.plot_chain_trace('F', numBurnIn=self.num_burn)
-        learner.plot_chain_trace('Q', numBurnIn=self.num_burn)
-        
-        learner.plot_chain_histogram('F', numBurnIn=self.num_burn, trueValue=self.params['F'])
-        learner.plot_chain_histogram('Q', numBurnIn=self.num_burn, trueValue=self.params['Q'])
