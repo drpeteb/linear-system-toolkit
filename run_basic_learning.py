@@ -40,6 +40,7 @@ hyperparams['nu0'] = params['rank']
 hyperparams['Psi0'] = params['rank']*np.identity(ds)
 hyperparams['M0'] = np.zeros((ds,ds))
 hyperparams['V0'] = np.identity(ds)
+hyperparams['alpha'] = 100
 
 algoparams = dict()
 algoparams['Qs'] = 0.1

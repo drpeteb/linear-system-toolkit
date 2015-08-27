@@ -277,6 +277,14 @@ class DegenerateLinearModel(AbstractLinearModel):
         self.parameters['vec'] = np.dot(U, eVec)
         self.parameters['val'] = eVal
     
+    def complete_basis(self):
+        """
+        Returns a matrix of vectors orthogonal to the eigenvectors
+        """
+        Q,R = la.qr(self.parameters['vec'])
+        r = self.parameters['rank']
+        return Q[:,r:]
+    
     def rotate_transition_covariance(self, rotation):
         """
         Rotate noise covariance matrix by multiplying eigenvectors by a

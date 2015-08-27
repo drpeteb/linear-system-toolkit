@@ -1,6 +1,7 @@
 # Operational modules
 from abc import ABCMeta, abstractmethod
 import numpy as np
+import scipy.linalg as la
 import matplotlib.pyplot as plt
 
 # Import from other module files
@@ -218,13 +219,22 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
     Prior Type: Singular Matrix Normal-Inverse Wishart
     """
     
-    def transition_covariance_prior(self, model):
+    def transition_prior(self, model):
         """
-        Prior density of transition model
+        Prior density for transition model parameters
         """
-        return smp.singular_wishart_density(model.parameters['val'],
-                                            model.parameters['vec'],
-                                            self.hyperparams['Psi0'])
+        variancePrior = smp.singular_wishart_density(model.parameters['val'],
+                      model.parameters['vec'],la.inv(self.hyperparams['Psi0']))
+        
+        orthVec = model.complete_basis()
+        rowVariance = model.transition_covariance() \
+                      + self.hyperparams['alpha']*np.dot(orthVec,orthVec.T)
+        matrixPrior = smp.matrix_normal_density(model.parameters['F'],
+                                                self.hyperparams['M0'],
+                                                rowVariance,
+                                                self.hyperparams['V0'])
+        
+        return variancePrior + matrixPrior
     
     def iterate_transition(self, moveType):
         """
@@ -253,8 +263,8 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
             bwd_prob = 0
             
             # Prior terms
-            prior = self.transition_covariance_prior(self.model)
-            ppsl_prior = self.transition_covariance_prior(ppsl_model)
+            prior = self.transition_prior(self.model)
+            ppsl_prior = self.transition_prior(ppsl_model)
             
         elif moveType=='rank':
             pass

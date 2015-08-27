@@ -52,16 +52,24 @@ def sample_cayley(d, s):
     
     return M
 
-def singular_wishart_density(val,vec,P):
+def singular_wishart_density(val, vec, P):
     """
     Density of a singular wishart distribution at X = vec*diag(val)*vec.T
     """
     d,r = vec.shape
     norm = 0.5*r*(r-d)*np.log(np.pi) - 0.5*r*d*np.log(2.0) \
            - special.multigammaln(r/2,r) - 0.5*r*la.det(P)
-    prptn = (r-d-1)*np.log(np.prod(val)) \
+    pptn = 0.5*(r-d-1)*np.log(np.prod(val)) \
            - 0.5*np.trace( np.dot(np.dot(vec.T,la.solve(P,vec)),np.diag(val)) )
-    pdf = norm + prptn
+    pdf = norm + pptn
+    return pdf
+
+def matrix_normal_density(X, M, U, V):
+    """Sample from a matrix normal distribution"""
+    norm = - 0.5*la.det(2*np.pi*U) - 0.5*la.det(2*np.pi*V)
+    XM = X-M
+    pptn = np.exp(-0.5*np.trace( np.dot(la.solve(U,XM),la.solve(V,XM.T)) ))
+    pdf = norm + pptn
     return pdf
 
 def evaluate_sufficient_statistics(x):

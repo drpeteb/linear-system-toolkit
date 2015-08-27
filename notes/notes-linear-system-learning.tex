@@ -331,6 +331,68 @@ Of course, we want $\lgtm$, not $\lgtmrot$. We can recover the matrix uniquely u
 
 
 
+\subsection{Metropolis-Hastings for the Precision Subspace}
+
+In order to change $\tprot$, we can target $\den(\lgtp|\lgtm, \ob{1:\timax})$ with Metropolis-Hastings, which constitutes a collapsed Gibbs move.
+
+We sample a rotation matrix $\mhrot$ from some proposal distribution $\mhrotppsl$ and then apply the following transformation,
+%
+\begin{IEEEeqnarray}{rCl}
+ \begin{bmatrix}
+  \lgtp\mcnew \\ \mhrot\mcnew
+ \end{bmatrix}
+ & = &
+ \begin{bmatrix}
+  \mhrot\lgtp\mhrot\tr \\ \mhrot\tr
+ \end{bmatrix} \nonumber     ,
+\end{IEEEeqnarray}
+%
+which is clearly its own inverse. Since $\determ{\mhrot}=1$, it is straightforward to show that the Jacobian of this transformation is $1$, and hence using the reversible jump interpretation of Metropolis-Hastings \cite{Green1995,Green2009}, the acceptance probability is,
+%
+\begin{IEEEeqnarray}{rCl}
+ \mhap(\lgtp\to\lgtp\mcnew) & = & \min\left\{1, \frac{ \den(\lgtp\mcnew|\lgtm,\ob{1:\timax})\mhrotppsl(\mhrot\mcnew) }{ \den(\lgtp|\lgtm, \ob{1:\timax})\mhrotppsl(\mhrot) } \right\}  \\
+ & = & \min\left\{1, \frac{\den(\ob{1:\timax}|\lgtm,\lgtp\mcnew)}{\den(\ob{1:\timax}|\lgtm,\lgtp)} \times \frac{\den(\lgtp\mcnew, \lgtm) }{\den(\lgtp, \lgtm)} \times \frac{\mhrotppsl(\mhrot\mcnew)}{\mhrotppsl(\mhrot)} \right\} \nonumber     .
+\end{IEEEeqnarray}
+%
+The first term is simply a ratio of Kalman filter likelihoods.
+
+There are numerous ways to sample the rotation matrix $\mhrot$ from a suitable proposal distribution $\mhrotppsl$. For example, we could use the Cayley transform \cite{Leon2006}, a bijective mapping from the skew-symmetric matrices to the rotation matrices, defined by,
+%
+\begin{IEEEeqnarray}{rCl}
+ P(S) & = & (\idmat - S)\inv(I+S)     .
+\end{IEEEeqnarray}
+%
+To sample from $\mhrotppsl$, we draw $\half\lsd(\lsd-1)$ independent scalar random variables $\{s_{i,j}\}_{0<i<j<\lsd}$ from any zero-mean distribution; a nice choice is,
+%
+\begin{IEEEeqnarray}{rCl}
+ s_{k,l} & \sim & \normaldist{0}{\sigma_s^2} \label{eq:skewsymmetric_proposal}     .
+\end{IEEEeqnarray}
+%
+Use these to construct a skew-symmetric matrix $S$,
+%
+\begin{IEEEeqnarray}{rCl}
+ S_{k,l} & = & \begin{cases}
+                s_{k,l}  & k<l \\
+                -s_{l,k} & k>l \\
+                0        & k=l     ,
+               \end{cases}
+\end{IEEEeqnarray}
+%
+and then set $\mhrot=P(S)$. The Cayley transform has the property that $P(-S)=P(S\tr)=P(S)\inv=P(S)\tr$, which implies that $\mhrotppsl(\mhrot)=\mhrotppsl(\mhrot\tr)=\mhrotppsl(\mhrot\mcnew)$, leading to a cancellation in the acceptance probability.
+
+There is an alternative using Givens rotations. First sample $i \in [1,\lsd]$, $j \in [1,\lsd]\setminus i$, and $\givrot{} \in [-\pi/2,\pi/2]$ from some zero-mean distribution. Form the Givens matrix $\givmat{i}{j}{\givrot{}}$ such that,
+%
+\begin{IEEEeqnarray}{rCl}
+ \left[\givmat{i}{j}{\givrot{}} - \idmat\right]_{k,l} & = & \begin{cases}
+                                                    \cos(\givrot{})-1 & k=l=i \text{ or } k=l=j \\
+                                                    \sin(\givrot{}) & k=i,l=j \\
+                                                    -\sin(\givrot{}) & k=j,l=i \\
+                                                    0 & \text{ otherwise,}
+                                                 \end{cases}
+\end{IEEEeqnarray}
+%
+and use $\mhrot=\givmat{i}{j}{\givrot{}}$. This also has the property that $\givmat{i}{j}{-\givrot{}} = \givmat{i}{j}{\givrot{}}\tr$, meaning that we achieve the same cancellation of the proposals as before.
+
 
 
 
