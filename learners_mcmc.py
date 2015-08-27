@@ -210,6 +210,7 @@ class MCMCLearnerForBasicModelWithIndependentPriors(AbstractMCMCLearner):
                                                 self.model.parameters['Q'])
 
 
+
 class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
     """
     Container for MCMC system learning algorithm.
@@ -217,7 +218,19 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
     Prior Type: Singular Matrix Normal-Inverse Wishart
     """
     
+    def transition_covariance_prior(self, model):
+        """
+        Prior density of transition model
+        """
+        return smp.singular_wishart_density(model.parameters['val'],
+                                            model.parameters['vec'],
+                                            self.hyperparams['Psi0'])
+    
     def iterate_transition(self, moveType):
+        """
+        MCMC iteration (Metropolis-Hastings) for transition matrix and
+        covariance.
+        """
         
         # Kalman filter
         flt,_,lhood = self.model.kalman_filter(self.observ)
@@ -228,9 +241,21 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
         # Propose change
         if   moveType=='F':
             pass
+        
         elif moveType=='Q':
+            
+            # Make the change
             rotation = smp.sample_cayley(self.model.ds, self.algoparams['Qs'])
             ppsl_model.rotate_transition_covariance(rotation)
+            
+            # Random walk, so forward and backward probabilities are same
+            fwd_prob = 0
+            bwd_prob = 0
+            
+            # Prior terms
+            prior = self.transition_covariance_prior(self.model)
+            ppsl_prior = self.transition_covariance_prior(ppsl_model)
+            
         elif moveType=='rank':
             pass
         else:
@@ -243,7 +268,9 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
         ppsl_flt,_,ppsl_lhood = ppsl_model.kalman_filter(self.observ)
         
         # Decide
-        acceptRatio = (ppsl_lhood-lhood)
+        acceptRatio =   (ppsl_lhood-lhood) \
+                      + (ppsl_prior-prior) \
+                      + (bwd_prob-fwd_prob)
         if self.verbose:
                 print("   Acceptance ratio: {}".format(acceptRatio))
         if np.log(np.random.random())<acceptRatio:
@@ -262,6 +289,7 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
     def iterate_transition_within_subspace(self, flt):
         """
         MCMC iteration (Gibbs sampling) for transition matrix and covariance
+        within the constrained subspace
         """
         
         # First sample the state sequence

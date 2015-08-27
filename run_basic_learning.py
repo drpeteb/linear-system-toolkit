@@ -29,6 +29,7 @@ np.random.seed(0)
 state, observ = model.simulate_data(K)
 
 est_params = dict(params)
+est_params['F'] = 0.5*np.identity(ds)
 est_params['rank'] = 2
 est_params['vec'] = np.array([[1,0],[0,1],[0,0]])
 est_params['val'] = np.array([1,1])

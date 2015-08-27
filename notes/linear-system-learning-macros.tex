@@ -1,0 +1,93 @@
+% Mathematical basics
+\newcommand{\half}{\frac{1}{2}}
+\newcommand{\zmat}[1][]{0_{#1}}
+\newcommand{\idmat}[1][]{I_{#1}}
+\newcommand{\reals}{\mathbb{R}}
+\newcommand{\naturals}{\mathbb{N}^{+}}
+
+% Functions
+\newcommand{\gammafun}[1][]{\Gamma_{#1}}
+
+% Operations
+\DeclareMathOperator{\trace}{Tr}
+\DeclareMathOperator{\diag}{Diag}
+\DeclareMathOperator{\vectorise}{Vec}
+\DeclareMathOperator{\rank}{Rank}
+\newcommand{\inv}{^{-1}}
+\newcommand{\pinv}{^{+}}
+\newcommand{\tr}{^{T}}
+\newcommand{\determ}[1]{\left|#1\right|}
+\newcommand{\hadprod}{\circ}
+\newcommand{\kronprod}{\otimes}
+
+% Distribution families ...
+\newcommand{\normaldist}[2]{\mathcal{N}\left(#1,#2\right)}
+\newcommand{\wishartdist}[2]{\mathcal{W}\left(#1,#2\right)}
+\newcommand{\iwishartdist}[2]{\mathcal{IW}\left(#1,#2\right)}
+\newcommand{\matrixnormaldist}[3]{\mathcal{MN}\left(#1,#2,#3\right)}
+
+% ... and their ``densities''
+\newcommand{\normalden}[3]{\mathcal{N}\left(#1\middle|#2,#3\right)}
+\newcommand{\matrixnormalden}[4]{\mathcal{MN}\left(#1\middle|#2,#3,#4\right)}
+\newcommand{\wishartden}[3]{\mathcal{W}\left(#1\middle|#2,#3\right)}
+\newcommand{\iwishartden}[3]{\mathcal{IW}\left(#1\middle|#2,#3\right)}
+\newcommand{\gammaden}[3]{\mathcal{G}\left(#1\middle|#2,#3\right)}
+\newcommand{\igammaden}[3]{\mathcal{IG}\left(#1\middle|#2,#3\right)}
+\newcommand{\bernoulliden}[2]{\mathcal{BER}\left(#1\middle|#2\right)}
+
+% Time indexes
+\newcommand{\ti}{t}
+\newcommand{\timax}{T}
+
+% Dimensions
+\newcommand{\lsd}{d_x}
+\newcommand{\obd}{d_y}
+\newcommand{\rk}{r}
+
+% Densities
+\newcommand{\den}{p}
+
+% State space model variables
+\newcommand{\ls}[1]{x_{#1}}
+\newcommand{\ob}[1]{y_{#1}}
+\newcommand{\tn}[1]{\epsilon^{x}_{#1}}
+\newcommand{\on}[1]{\epsilon^{y}_{#1}}
+\newcommand{\LS}[1]{X_{#1}}
+
+% State space model parameters                          % Linear Gaussian ...
+\newcommand{\lgtm}[1][]{F_{#1}}                         % transition matrix
+\newcommand{\lgtv}[1][]{Q_{#1}}                         % transition variance
+\newcommand{\lgom}{H}                                   % observation matrix
+\newcommand{\lgov}{R}                                   % observation variance
+\newcommand{\lgdm}{G}                                   % disturbance matrix
+\newcommand{\lgtp}[1][]{\Upsilon_{#1}}                  % transition precision
+
+% Factorisations for the precision matrix
+\newcommand{\tpval}{\Lambda}
+\newcommand{\tpvec}{V}
+\newcommand{\tpvecorth}{V_{\perp}}
+\newcommand{\tpfull}{D}
+\newcommand{\tprot}{U}
+\newcommand{\tprotorth}{U_{\perp}}
+\newcommand{\tprow}{U_R}
+\newcommand{\tpnull}{U_N}
+\newcommand{\tpsign}{E}
+\newcommand{\tpsignorth}{E_{\perp}}
+
+% Projections
+\newcommand{\lgtmrot}{F_U}
+
+% Hyperparameters
+\newcommand{\priordof}{\nu_0}
+\newcommand{\priorscalematrix}{\Psi_0}
+\newcommand{\priorcolumnvariance}{\Omega_0}
+\newcommand{\priormeanmatrix}{M_0}
+\newcommand{\priorextratpval}{\Lambda_{\perp}}
+\newcommand{\postdof}{\nu}
+\newcommand{\postscalematrix}{\Psi}
+\newcommand{\postcolumnvariance}{\Omega}
+\newcommand{\postmeanmatrix}{M}
+\newcommand{\suffstats}[1]{S_{#1}}
+
+% Markov Chains
+\newcommand{\mcold}{^*}

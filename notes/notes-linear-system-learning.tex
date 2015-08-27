@@ -1,0 +1,347 @@
+\documentclass[a4paper,10pt]{article}
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{IEEEtrantools}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{subfig}
+\usepackage{cite}
+\usepackage[margin=1in]{geometry}
+
+\input{linear-system-learning-macros.tex}
+\newcommand{\meta}[1]{{\color{red}\em #1}}
+
+%opening
+\title{Notes on Learning Linear State Space Models}
+\author{Pete Bunch}
+
+\begin{document}
+
+\section{Basic Linear State Space}
+
+\subsection{Definition}
+
+\begin{IEEEeqnarray}{rCl}
+ \ls{\ti} & = & \lgtm \ls{\ti-1} + \tn{\ti} \\
+ \ob{\ti} & = & \lgom \ls{\ti}   + \on{\ti}
+\end{IEEEeqnarray}
+%
+$\ls{\ti} \in \reals^{\lsd}$ and $\ob{\ti} \in \reals^{\obd}$.
+%
+\begin{IEEEeqnarray}{rCl}
+ \tn{\ti} & \sim & \normaldist{0}{\lgtv} \\
+ \on{\ti} & \sim & \normaldist{0}{\lgov}
+\end{IEEEeqnarray}
+%
+$\lgtv$ and $\lgov$ are positive definite covariance matrices.
+
+Equivalently in terms of transition and observation densities:
+%
+\begin{IEEEeqnarray}{rCl}
+ \den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgtv) & = & \normalden{\ls{\ti}}{\lgtm\ls{\ti-1}}{\lgtv} \\
+ \den(\ob{\ti}|\ls{\ti},\lgom,\lgov)   & = & \normalden{\ob{\ti}}{\lgom\ls{\ti}}{\lgov}
+\end{IEEEeqnarray}
+%
+The initial state $\ls{1}$ may be known or may be assigned a Gaussian prior.
+
+
+
+\subsection{Identifiability}
+
+
+
+\subsection{Bayesian Learning with Gibbs Sampling}
+
+Target the joint distribution $\den(\lgtm, \lgtv, \ls{1:\timax} | \ob{1:\timax}$. Gibbs sampling can be used, targeting the state and parameter posterior conditionals alternately. State conditional sampled by Kalman filtering and backward simulation.
+
+\subsubsection{Parameter Conditional}
+
+The conjugate prior is:
+\begin{equation}
+ \den(\lgtm, \lgtv) =  \den(\lgtm | \lgtv) \den(\lgtv)
+\end{equation}
+\begin{align}
+ \lgtv &\sim \iwishartdist{\priordof}{\priorscalematrix} \\
+ \lgtm | \lgtv &\sim \matrixnormaldist{\priormeanmatrix}{\lgtv}{\priorcolumnvariance}
+\end{align}
+%
+So the prior densities are:
+\begin{align}
+\den(\lgtv) &= \frac{ \determ{\priorscalematrix}^{\frac{\priordof}{2}} }{ 2^{\frac{\priordof}{2}} \gammafun\left(\frac{\priordof}{2}\right) } \determ{\lgtv}^{-\frac{\priordof+\lsd+1}{2}} \exp\left( -\half \trace\left[\lgtv\inv\priorscalematrix\right] \right) \\
+\den(\lgtm | \lgtv) &= \determ{2 \pi \lgtv}^{-\half} \determ{2 \pi \priorcolumnvariance}^{-\half} \exp\left(-\half \trace\left[ \lgtv\inv (\lgtm-\priormeanmatrix) \priorcolumnvariance\inv (\lgtm-\priormeanmatrix)\tr \right] \right) 
+\end{align}
+%
+$\priordof\in\reals, \priordof>\lsd$. $\priorscalematrix$ and $\priorcolumnvariance$ are $\lsd\times\lsd$ positive definite matrices. $\priormeanmatrix \in \reals^{\lsd\times\lsd}$.
+
+The likelihood function is:
+\begin{align}
+ \den(\ls{1:\timax}|\lgtm, \lgtv) &= \den(\ls{0}) \prod_{t=2}^{\timax} \den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgtv) \nonumber \\
+ &\propto \determ{\lgtv}^{-\half(\timax-1)} \exp\left( -\half \sum_{t=2}^{\timax} (\ls{\ti}-\lgtm\ls{\ti-1})\tr \lgtv\inv (\ls{\ti}-\lgtm\ls{\ti-1}) \right) \nonumber \\
+ &= \determ{\lgtv}^{-\half(\timax-1)} \exp\left(-\half\trace\left[ \lgtv\inv \sum_{t=2}^{\timax} (\ls{\ti}-\lgtm\ls{\ti-1})(\ls{\ti}-\lgtm\ls{\ti-1})\tr \right]\right) \nonumber \\
+ &= \determ{\lgtv}^{-\half\suffstats{0}} \exp\left(-\half\trace\left[ \lgtv\inv \left( \lgtm \suffstats{1} \lgtm\tr - \lgtm \suffstats{2}\tr - \suffstats{2} \lgtm\tr + \suffstats{3} \right) \right]\right)
+\end{align}
+%
+where the sufficient statistics are:
+%
+\begin{align}
+ \suffstats{0} &= \timax - 1 \\
+ \suffstats{1} &= \sum_{t=2}^{\timax} \ls{\ti-1}\ls{\ti-1}\tr \\
+ \suffstats{2} &= \sum_{t=2}^{\timax} \ls{\ti}\ls{\ti-1}\tr \\
+ \suffstats{3} &= \sum_{t=2}^{\timax} \ls{\ti}\ls{\ti}\tr \\
+\end{align}
+
+The parameter posterior conditional is:
+\begin{equation}
+ \den(\lgtm, \lgtv | \ls{1:\timax}, \ob{1:\timax}) =  \den(\lgtm | \lgtv, \ls{1:\timax}) \den(\lgtv | \ls{1:\timax})
+\end{equation}
+\begin{align}
+ \lgtv | \ls{1:\timax} &\sim \iwishartdist{\postdof}{\postscalematrix} \\
+ \lgtm | \lgtv, \ls{1:\timax} &\sim \matrixnormaldist{\postmeanmatrix}{\lgtv}{\postcolumnvariance}
+\end{align}
+
+Hyperparameter updates:
+\begin{align}
+ \postcolumnvariance\inv                 &= \priorcolumnvariance\inv + \suffstats{1} \\
+ \postmeanmatrix \postcolumnvariance\inv &= \priormeanmatrix \priorcolumnvariance\inv + \suffstats{2}\\
+ \postdof                                &= \priordof + \suffstats{0} \\
+ \postscalematrix                        &= \priorscalematrix + \suffstats{3} + \priormeanmatrix \priorcolumnvariance\inv \priormeanmatrix\tr - \postmeanmatrix \postcolumnvariance\inv \postmeanmatrix\tr
+\end{align}
+
+Proof:
+\begin{IEEEeqnarray}{rCl}
+ \den(\lgtm, \lgtv | \ls{1:\timax}, \ob{1:\timax}) &\propto& \den(\ls{1:\timax}|\lgtm, \lgtv) \den(\lgtm|\lgtv) \den(\lgtv) \nonumber \\
+ &=& \determ{\lgtv}^{-\half\suffstats{0}} \exp\left(-\half\trace\left[ \lgtv\inv \left( \lgtm \suffstats{1} \lgtm\tr - \lgtm \suffstats{2}\tr - \suffstats{2} \lgtm\tr + \suffstats{3} \right) \right]\right) \nonumber \\
+ & & \times \determ{\lgtv}^{-\frac{\priordof+\lsd+1}{2}} \exp\left( -\half \trace\left[\lgtv\inv\priorscalematrix\right] \right) \nonumber \\
+ & & \times \determ{\lgtv}^{-\half} \exp\left(-\half \trace\left[ \lgtv\inv (\lgtm-\priormeanmatrix) \priorcolumnvariance\inv (\lgtm-\priormeanmatrix)\tr \right] \right) \nonumber \\ 
+ &=& \determ{\lgtv}^{-\frac{(\priordof+\suffstats{0})+\lsd+1}{2}} \exp\left( -\half \trace\left[\lgtv\inv(\priorscalematrix+\suffstats{3})\right] \right) \nonumber \\
+ & & \times \determ{\lgtv}^{-\half} \exp\Bigg(-\half \trace\bigg[ \lgtv\inv \bigg( \lgtm (\priorcolumnvariance\inv + \suffstats{1}) \lgtm\tr - \lgtm (\priorcolumnvariance\inv\priormeanmatrix\tr + \suffstats{2}\tr) \nonumber \\
+ & & \qquad\qquad\qquad\qquad\qquad  -\: (\priormeanmatrix\priorcolumnvariance\inv + \suffstats{2}) \lgtm\tr + \priormeanmatrix\priorcolumnvariance\inv\priormeanmatrix\tr \bigg) \bigg] \Bigg)
+\end{IEEEeqnarray}
+%
+Finish by completing the square and comparing terms.
+
+
+
+\section{Degenerate Linear State Space Model}
+
+\subsection{Definition and Complications}
+
+\begin{IEEEeqnarray}{rCl}
+ \ls{\ti} & = & \lgtm \ls{\ti-1} + \lgdm \tn{\ti}
+\end{IEEEeqnarray}
+\begin{IEEEeqnarray}{rCl}
+ \tn{\ti} & \sim & \normaldist{0}{\idmat}
+\end{IEEEeqnarray}
+
+This is equivalent to the basic case, except that $\lgtv = \lgdm\lgdm\tr$ is only positive semi-definite. This is not in itself a problem. The probability distribution associated with each transition is still well-defined, although it does not have a density on $\reals^{\lsd}$. The state perturbations $(\ls{\ti}-\lgtm\ls{\ti-1})$ must all lie in a linear subspace.
+
+There are two problems with extending the Gibbs sampling methodology to such a model. First, the state sequence and the transition covariance matrix are too strongly related. The sampled state sequence defines the subspace, so we cannot freely change $\lgtv$. Second, the conjugate prior is tricky. The matrix-normal-inverse-wishart can be generalised to the case where $\lgtv$ is not full rank (using singular wishart and singular matrix normal distributions). However, this is not helpful, because it constrains the transition matrix to lie in a linear subspace.
+
+Because Wishart distributions are somewhat more studied than their inverse counterparts, it will be easier in the following section to work with the precision, defined as $\lgtp = (\lgdm\lgdm\tr)\pinv$. We will need the eigen-decomposition of this frequently.
+
+\begin{IEEEeqnarray}{rCl}
+ \lgtp &=& \tpvec \tpval \tpvec\tr
+\end{IEEEeqnarray}
+This is the ``non-singular'' factorisation, where $\tpval$ is a diagonal $\rk\times\rk$ matrix with $\rk = \rank(\lgtp)$, and $\tpvec$ from the appropriate Stiefel manifold. The full decomposition will also be useful at times.
+
+\begin{IEEEeqnarray}{rCl}
+ \lgtp &=& \begin{bmatrix}\tpvec & \tpvecorth \end{bmatrix} \begin{bmatrix}\tpval & \zmat \\ \zmat & \zmat \end{bmatrix} \begin{bmatrix}\tpvec\tr \\ \tpvecorth\tr \end{bmatrix}
+\end{IEEEeqnarray}
+
+
+\subsection{Conjugate Prior}
+
+\subsubsection{Wishart Part}
+
+There are two ways to extend the Wishart distribution to positive semi-definite matrices. Either let $\priordof \in \{z \in \naturals | z < \lsd\}$, in which case $\rank(\lgtp) = \priordof$, or let $\priorscalematrix$ be positive semi-definite. The latter makes it tricky to work out what we should set $\priorscalematrix$ to, so we'll go with the former. If we condition on a known value of the rank $r$, then the singular Wishart density is,
+
+\begin{IEEEeqnarray}{rCl}
+ \den(\lgtp) &=& \frac{ \pi^{\half\rk(\lsd-\rk)} \determ{\priorscalematrix}^{\frac{\rk}{2}} }{ 2^{\half\rk\lsd} \gammafun[r]\left(\frac{\rk}{2}\right) } \determ{\tpval}^{\half(\rk-\lsd-1)} \exp\left( -\half \lgtp \priorscalematrix \right)    .
+\end{IEEEeqnarray}
+
+\cite{Uhlig1994,Diaz-Garcia1997}
+
+Note that $\priorscalematrix$ is defined as the inverse of what it usually is, for consistency with the basic model case.
+
+
+
+\subsubsection{Matrix Normal Part}
+
+It's fine for the row-variance matrix in a matrix normal distribution to be less than full rank. That just means that the matrix is constrained to lie in a particular subspace. There's even a density associated with this. See \cite{Diaz-Garcia1997}. But this is no good as a prior. We want to be able to change the transition matrix freely.
+
+Instead we can use,
+
+\begin{IEEEeqnarray}{rCl}
+ \lgtm|\lgtp &\sim& \matrixnormaldist{\priormeanmatrix}{\lgtp\pinv+\tpvecorth\priorextratpval\inv\tpvecorth\tr}{\priorcolumnvariance}
+\end{IEEEeqnarray}
+%
+$\priorextratpval$ is a diagonal matrix of positive eigenvalues which relax the constraint to lie in the subspace. They control the rate at which the density decays as we move away from that subspace. Setting these extra eigenvalues might be tricky. I haven't really worked out how to do this well yet. But they can depend on the other ones, so we could take the minimum, maximum or average of the others. Making them really big is uninformative.
+
+
+\subsection{MCMC for Bayesian Learning}
+
+A sampled state trajectory $\ls{1:\timax}$ defines the subspace in which the state perturbations must lie, which means that neither $\lgtm$ nor $\lgtp$ can be freely changed, and Gibbs sampling alone does not work. However, we can still sample within the space specified by this constraint. Additional MCMC moves will then be needed which allow the subspace to be changed.
+
+\subsubsection{Factorising the Precision}
+
+Using Givens rotations, we can efficiently factorise the precision eigenvector matrix as follows.
+%
+\begin{IEEEeqnarray}{rCl}
+ \begin{bmatrix} \tpvec & \tpvecorth \end{bmatrix} &=& \begin{bmatrix}\tprot & \tprotorth\end{bmatrix}\begin{bmatrix} \tpsign & \zmat \\ \zmat & \tpsignorth \end{bmatrix} \begin{bmatrix} \tprow & \zmat \\ \zmat & \idmat \end{bmatrix}\begin{bmatrix} \idmat & \zmat \\ \zmat & \tpnull \end{bmatrix}
+\end{IEEEeqnarray}
+
+So
+%
+\begin{IEEEeqnarray}{rCl}
+ \tpvec     &=& \tprot     \tpsign     \tprow  \\
+ \tpvecorth &=& \tprotorth \tpsignorth \tpnull
+\end{IEEEeqnarray}
+
+Then defined the following, which is positive definite
+%
+\begin{equation}
+ \tpfull = \tpsign \tprow \tpval \tprow\tr \tpsign\tr
+\end{equation}
+
+So
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgtp &=& \tprot \tpfull \tprot\tr
+\end{IEEEeqnarray}
+
+
+
+\subsubsection{State Trajectory Likelihood}
+
+There is no proper transition density over $\reals^{\lsd}$ for the degenerate model. However, there is a density associated with the underlying state disturbances which allows us to write a likelihood function.
+
+\begin{IEEEeqnarray}{rCl}
+ \ls{\ti} &=& \lgtm \ls{\ti-1} + \tprot \tpfull^{-\half} \tn{\ti} \\
+ \end{IEEEeqnarray}
+ \begin{IEEEeqnarray}{rCl}
+ \Rightarrow \tprot\tr(\ls{\ti}-\lgtm\ls{\ti-1}) &\sim& \normaldist{\zmat}{\tpfull\inv}
+\end{IEEEeqnarray}
+\begin{IEEEeqnarray}{rCl}
+ \den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgtv) &\propto& \determ{\tpfull}^{\half} \exp\left(-\half (\ls{\ti}-\lgtm\ls{\ti-1})\tr \tprot \tpfull \tprot\tr (\ls{\ti}-\lgtm\ls{\ti-1}) \right)
+\end{IEEEeqnarray}
+
+
+The likelihood function associated with the state trajectory is:
+\begin{align}
+ \den(\ls{1:\timax}|\lgtm, \lgtv) &= \den(\ls{0}) \prod_{t=2}^{\timax} \den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgtv) \nonumber \\
+ &\propto \determ{\tpfull}^{\half(\timax-1)} \exp\left( -\half \sum_{t=2}^{\timax} (\ls{\ti}-\lgtm\ls{\ti-1})\tr \tprot \tpfull \tprot\tr (\ls{\ti}-\lgtm\ls{\ti-1}) \right) \nonumber \\
+ &= \determ{\tpfull}^{\half(\timax-1)} \exp\left(-\half\trace\left[ \tpfull \tprot\tr \sum_{t=2}^{\timax} (\ls{\ti}-\lgtm\ls{\ti-1})(\ls{\ti}-\lgtm\ls{\ti-1})\tr \tprot \right]\right) \nonumber \\
+ &= \determ{\tpfull}^{\half\suffstats{0}} \exp\left(-\half\trace\left[ \tpfull \left( \tprot\tr \lgtm \suffstats{1} \lgtm\tr \tprot - \tprot\tr \lgtm \suffstats{2}\tr \tprot - \tprot\tr \suffstats{2} \lgtm\tr \tprot + \tprot\tr \suffstats{3} \tprot \right) \right]\right) \\
+ &= \determ{\tpfull}^{\half\suffstats{0}} \exp\left(-\half\trace\left[ \tpfull \left( \lgtmrot \suffstats{1} \lgtmrot\tr - \lgtmrot \suffstats{2}\tr \tprot - \tprot\tr \suffstats{2} \lgtmrot\tr + \tprot\tr \suffstats{3} \tprot \right) \right]\right)
+\end{align}
+%
+where
+%
+\begin{equation}
+ \lgtmrot = \tprot\tr \lgtm
+\end{equation}
+
+This is all subject to the constraint that each state must be reachable from the previous one, which we can write concisely as,
+%
+\begin{IEEEeqnarray}{rCl}
+ \LS{2:\timax} &=& \lgtm \LS{1:\timax-1} + \tprot Z
+\end{IEEEeqnarray}
+%
+where $Z \in \reals^{\rk\times\lsd}$ and 
+%
+\begin{IEEEeqnarray}{rCl}
+ \LS{2:\timax} &=& \begin{bmatrix} \ls{2} & \ls{3} & \hdots & \ls{\timax} \end{bmatrix}
+\end{IEEEeqnarray}
+
+
+
+\subsubsection{Transforming the Prior}
+
+If we transform from $(\lgtm,\lgtp)$ to $(\lgtmrot,\tpfull)$, then the prior on these variables is as follows.
+
+Using the transformation property of the matrix normal distribution:
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgtmrot|\lgtp = \lgtmrot|\tprot,\tpfull &\sim& \matrixnormaldist{\tprot\tr\priormeanmatrix}{\tpfull\inv}{\priorcolumnvariance}
+\end{IEEEeqnarray}
+
+Using the transformation property of the Wishart distribution:
+%
+\begin{IEEEeqnarray}{rCl}
+ \tpfull|\tprot &\sim& \wishartdist{\rk}{\tprot\tr\priorscalematrix\tprot}
+\end{IEEEeqnarray}
+
+
+
+\subsubsection{Within-Subspace Parameter Conditional}
+
+We can now get to the conditional distribution for $\den(\lgtmrot, \tpfull|\tprot,\ls{1:\timax})$ which is well-behaved and can be sampled.
+
+The parameter posterior conditional is:
+\begin{equation}
+ \den(\lgtmrot, \tpfull | \tprot, \ls{1:\timax}, \ob{1:\timax}) =  \den(\lgtmrot | \tpfull, \tprot, \ls{1:\timax}) \den(\tpfull | \tprot, \ls{1:\timax})
+\end{equation}
+\begin{align}
+ \tpfull | \tprot, \ls{1:\timax} &\sim \wishartdist{\postdof}{\postscalematrix} \\
+ \lgtmrot | \tpfull, \tprot, \ls{1:\timax} &\sim \matrixnormaldist{\postmeanmatrix}{\lgtv}{\postcolumnvariance}
+\end{align}
+
+Hyperparameter updates:
+\begin{align}
+ \postcolumnvariance\inv                 &= \priorcolumnvariance\inv + \suffstats{1} \\
+ \postmeanmatrix \postcolumnvariance\inv &= \tprot\tr\left( \priormeanmatrix \priorcolumnvariance\inv + \suffstats{2} \right) \\
+ \postdof                                &= \rk + \suffstats{0} \\
+ \postscalematrix                        &= \tprot\tr\left( \priorscalematrix + \suffstats{3} + \priormeanmatrix \priorcolumnvariance\inv \priormeanmatrix\tr \right)\tprot - \postmeanmatrix \postcolumnvariance\inv \postmeanmatrix\tr
+\end{align}
+
+Proof:
+\begin{IEEEeqnarray}{rCl}
+ \den(\lgtmrot, \tpfull|\tprot,\ls{1:\timax}) &\propto& \den(\ls{1:\timax}|\lgtmrot, \tpfull, \tprot) \den(\lgtmrot | \tpfull, \tprot) \den(\tpfull|\tprot) \nonumber \\
+%
+ &\propto& \determ{\tpfull}^{\half\suffstats{0}} \exp\left(-\half\trace\left[ \tpfull \left( \lgtmrot \suffstats{1} \lgtmrot\tr - \lgtmrot \suffstats{2}\tr \tprot - \tprot\tr \suffstats{2} \lgtmrot\tr + \tprot\tr \suffstats{3} \tprot \right) \right]\right) \nonumber \\
+ & & \times \determ{\tpfull}^{\frac{r-r-1}{2}} \exp\left( -\half \trace\left[\tpfull \tprot\tr\priorscalematrix\tprot\right] \right) \nonumber \\
+ & & \times \determ{\tpfull}^{\half} \exp\left(-\half \trace\left[ \tpfull (\lgtmrot-\tprot\tr\priormeanmatrix) \priorcolumnvariance\inv (\lgtmrot-\tprot\tr\priormeanmatrix)\tr \right] \right) \nonumber \\ 
+%
+ &=& \determ{\tpfull}^{\frac{(r+\suffstats{0})-r-1}{2}} \exp\left( -\half \trace\left[\tpfull \tprot\tr(\priorscalematrix+\suffstats{3})\tprot\right] \right) \nonumber \\
+ & & \times \determ{\tpfull}^{\half} \exp\Bigg(-\half \trace\bigg[ \tpfull \bigg( \lgtmrot (\priorcolumnvariance\inv + \suffstats{1}) \lgtmrot\tr - \lgtmrot(\priorcolumnvariance\inv\priormeanmatrix\tr + \suffstats{2}\tr) \tprot \nonumber \\
+ & & \qquad\qquad\qquad\qquad\qquad  -\: \tprot\tr (\priormeanmatrix\priorcolumnvariance\inv + \suffstats{2}) \lgtmrot\tr + \tprot\tr \priormeanmatrix\priorcolumnvariance\inv\priormeanmatrix\tr \tprot \bigg) \bigg] \Bigg)
+\end{IEEEeqnarray}
+%
+Finish by completing the square and comparing terms.
+
+Of course, we want $\lgtm$, not $\lgtmrot$. We can recover the matrix uniquely using the constraint from the likelihood. The previous value of $\lgtm$ from before we sampled must have satisfied this constraint. Let's call that matrix $\lgtm\mcold$. 
+%
+\begin{IEEEeqnarray}{rCl}
+ \LS{2:\timax} &=& \lgtm\mcold \LS{1:\timax-1} + \tprot Z\mcold \nonumber \\
+ \LS{2:\timax} &=& \lgtm \LS{1:\timax-1} + \tprot Z \nonumber \\
+ \Rightarrow \zmat &=& (\lgtm-\lgtm\mcold) \LS{1:\timax-1} + \tprot(Z-Z\mcold) \\
+ \Rightarrow \zmat &=& (\lgtmrot-\lgtmrot\mcold) \LS{1:\timax-1} + (Z-Z\mcold) \\
+ \Rightarrow \zmat &=& (\lgtm-\lgtm\mcold) \LS{1:\timax-1} - \tprot (\lgtmrot-\lgtmrot\mcold) \LS{1:\timax-1} \\
+ \zmat &=& \left[(\lgtm-\lgtm\mcold) - \tprot (\lgtmrot-\lgtmrot\mcold)\right] \LS{1:\timax-1} \\
+ \Rightarrow \zmat &=& (\lgtm-\lgtm\mcold) - \tprot (\lgtmrot-\lgtmrot\mcold)
+\end{IEEEeqnarray}
+\begin{IEEEeqnarray}{rCl}
+ \lgtm &=& \lgtm\mcold + \tprot (\lgtmrot-\lgtmrot\mcold) \nonumber \\
+       &=& \lgtm\mcold + \tprot (\lgtmrot-\tprot\tr\lgtm\mcold) \nonumber \\
+       &=& (\idmat - \tprot\tprot\tr) \lgtm\mcold + \tprot \lgtmrot 
+\end{IEEEeqnarray}
+
+
+
+
+
+
+
+
+
+
+\appendix
+
+
+\bibliographystyle{plain}
+\bibliography{/home/pete/Dropbox/PhD/bibliographies/OTbib}
+\end{document}
+

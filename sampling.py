@@ -1,10 +1,10 @@
 import numpy as np
 from scipy import linalg as la
 from scipy import stats
+from scipy import special
 #from scipy.stats import multivariate_normal as mvn
 #from scipy import stats as sps
 #from scipy import misc as spm
-#from scipy import special as spec
 #from numpy import random as rnd
 
 def sample_wishart(nu, P):
@@ -51,6 +51,18 @@ def sample_cayley(d, s):
     M = la.solve(I-S,I+S)
     
     return M
+
+def singular_wishart_density(val,vec,P):
+    """
+    Density of a singular wishart distribution at X = vec*diag(val)*vec.T
+    """
+    d,r = vec.shape
+    norm = 0.5*r*(r-d)*np.log(np.pi) - 0.5*r*d*np.log(2.0) \
+           - special.multigammaln(r/2,r) - 0.5*r*la.det(P)
+    prptn = (r-d-1)*np.log(np.prod(val)) \
+           - 0.5*np.trace( np.dot(np.dot(vec.T,la.solve(P,vec)),np.diag(val)) )
+    pdf = norm + prptn
+    return pdf
 
 def evaluate_sufficient_statistics(x):
     """
