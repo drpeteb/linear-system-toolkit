@@ -54,7 +54,7 @@ num_burn = int(num_iter/5)
 for ii in range(num_iter):
     print("Running iteration {} of {}.".format(ii+1,num_iter))
     
-    if (ii%1)==0:
+    if (ii%2)==0:
         learner.iterate_transition('F')
     else:
         learner.iterate_transition('Q')

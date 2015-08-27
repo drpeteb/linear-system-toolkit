@@ -93,75 +93,61 @@ def evaluate_sufficient_statistics(x):
         suffStats[3] += np.outer(x[kk], x[kk])
     
     return suffStats
-    
 
-
-def sample_basic_transition_mniw_conditional(suffStats, nu0, Psi0, M0, V0):
+def hyperparam_update_basic_mniw_transition(suffStats, nu0, Psi0, M0, V0):
     """
-    Sample transition model matrices from matrix-normal-inverse-wishart
-    posterior conditional distribution.
+    Update matrix-normal-inverse-wishart hyperparameters for transition model
+    matrices conditional on observed state trajectory.
     """
-    invV0 = la.inv(V0)
     
     # Posterior hyperparameters    
     nu  = nu0 + suffStats[0]
-    V   = la.inv( invV0 + suffStats[1] )
-    M   = np.dot( np.dot(M0,invV0)+suffStats[2] , V)
-    Psi = Psi0 + suffStats[3] - np.dot(M, la.solve(V,M.T) ) + np.dot(M0, la.solve(V0,M0.T) )
+    V   = la.inv( la.inv(V0) + suffStats[1] )
+    M   = np.dot( la.solve(V0,M0.T).T + suffStats[2] , V)
+    Psi = Psi0 + suffStats[3] - np.dot(M, la.solve(V,M.T) ) \
+                                               + np.dot(M0, la.solve(V0,M0.T) )
     
-    # Sample
-    Q = la.inv(sample_wishart(nu, la.inv(Psi)))
-    F = sample_matrix_normal(M, Q, V)
+    return nu, Psi, M, V
 
-    return F, Q
-
-def sample_basic_transition_matrix_mniw_conditional(suffStats, Q, M0, V0, F=None, with_pdf=False):
+def hyperparam_update_basic_mniw_transition_matrix(suffStats, M0, V0):
     """
-    Sample transition matrix from matrix-normal posterior conditional
-    distribution.
+    Update matrix-normal hyperparameters for transition matrix conditional
+    on observed state trajectory.
     """
-    invV0 = la.inv(V0)
     
     # Posterior hyperparameters    
-    V   = la.inv( invV0 + suffStats[1] )
-    M   = np.dot( np.dot(M0,invV0)+suffStats[2] , V)
+    V   = la.inv( la.inv(V0) + suffStats[1] )
+    M   = np.dot( la.solve(V0,M0.T).T + suffStats[2] , V)
     
-    # Sample
-    if F is None:
-        F = sample_matrix_normal(M, Q, V)
+    return M, V
 
-    if not with_pdf:
-        return F
-    else:
-        pdf = matrix_normal_density(F, M, Q, V)
-        return F, pdf
-
-
-
-def sample_degenerate_transition_mniw_conditional(suffStats, U, Fold, nu0, Psi0, M0, V0):
+def hyperparam_update_degenerate_mniw_transition(suffStats, U, nu0, Psi0, M0, V0):
     """
-    Sample transition model matrices from singular 
-    matrix-normal-inverse-wishart posterior conditional distribution.
+    Update matrix-normal-inverse-wishart hyperparameters for within-subspace
+    comonents of the transition model matrices conditional on observed state
+    trajectory.
     """
-    invV0 = la.inv(V0)
-    ds = V0.shape[0]
     
     # Posterior hyperparameters    
     nu  = nu0 + suffStats[0]
-    V   = la.inv( invV0 + suffStats[1] )
-    M   = np.dot( np.dot(U.T, np.dot(M0,invV0)+suffStats[2]) , V)
+    V   = la.inv( la.inv(V0) + suffStats[1] )
+    M   = np.dot( np.dot(U.T, la.solve(V0,M0.T).T + suffStats[2]) , V)
     UPsiU = Psi0+suffStats[3]+np.dot(M0,la.solve(V0,M0.T))
     Psi = np.dot(U.T, np.dot(UPsiU, U)) - np.dot(M, la.solve(V,M.T))
     
-    # Sample
-    D = sample_wishart(nu, la.inv(Psi))
-    FU = sample_matrix_normal(M, D, V)
+    return nu, Psi, M, V
+
+def project_degenerate_transition_matrix(Fold, FU, U):
+    """
+    We can Gibbs sample a dimensionally compacted version of the transition
+    matrix. This function projects it back out again.
+    """
     
-    # Project back out
+    ds = Fold.shape[0]
     F = np.dot( (np.identity(ds)-np.dot(U,U.T)), Fold ) + np.dot(U,FU)
-
-    return F, D
-
+    
+    return F
+    
 
 
 

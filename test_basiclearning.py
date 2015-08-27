@@ -4,7 +4,7 @@ import numpy as np
 
 from kalman import GaussianDensity
 from linear_models import BasicLinearModel
-from learners_mcmc import MCMCLearnerForBasicModelWithMNIWPrior, MCMCLearnerForBasicModelWithIndependentPriors
+from learners_mcmc import MCMCLearnerForBasicModelWithMNIWPrior
 
 class BasicModelLearningTestCase(unittest.TestCase):
     def setUp(self):
