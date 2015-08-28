@@ -273,6 +273,35 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
             
         elif moveType=='rank':
             pass
+            
+            
+            
+            
+            #TODO ADD THIS STEP
+            
+            
+#            # Add or remove?
+#            if ppsl_model.ds==1:
+#                u = -1                          # 1D model. Cannot do anything
+#            elif ppsl_model.rank==1:
+#                u = 0
+#            elif ppsl_model.rank==ppsl_model.ds:
+#                u = 1
+#            else:
+#                u = int(np.round(np.random.random()))
+#            
+#            if u==0:
+#                
+#                # Increase rank
+#                dcf = ppsl_model.increase_rank(None, None, self.Q_prior_scale)
+#                
+#            elif u==1:
+#                # Decrease rank
+#                dcf,val,vec = ppsl_model.reduce_rank(self.Q_prior_scale)            
+            
+            
+            
+            
         else:
             raise ValueError("Invalid move type")
         
@@ -336,37 +365,6 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
     
     
     
-
-#class MCMCLearnerForDegenerateModelWithIndependentPriors(AbstractMCMCLearner):
-#    """
-#    Container for MCMC system learning algorithm.
-#    Model Type: Degenerate
-#    Prior Type: Independent Matrix Normal and Singular Inverse Wishart
-#    """
-#        
-#    def iterate_transition(self):
-#        """
-#        MCMC iteration (Gibbs sampling) for transition matrix and covariance
-#        """
-#        
-#        # First sample the state sequence
-#        x = self.model.sample_posterior(self.observ)
-#        
-#        # Convert to Givens factorisation form
-#        U,D = self.model.convert_to_givens_form()
-#        
-#        # Sample a new transition matrix and transition covariance
-#        self.model.parameters['F'], D = \
-#             smp.sample_degenerate_transition_independent_conditional(x, U,
-#                                                self.hyperparams['psi0'],
-#                                                self.hyperparams['M0'],
-#                                                self.hyperparams['alpha'],
-#                                                F=self.model.parameters['F'])
-#        
-#        # Convert back to eigen-decomposition form
-#        self.model.update_from_givens_form(U, D)
-
-
 
 
 
