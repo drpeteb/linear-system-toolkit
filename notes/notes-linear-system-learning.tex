@@ -282,6 +282,23 @@ Using the transformation property of the Wishart distribution:
  \tvfull|\tvrot &\sim& \iwishartdist{\rk}{(\tvrot\tr\priorscalematrix\inv\tvrot)\inv}
 \end{IEEEeqnarray}
 
+Proof:
+%
+\begin{IEEEeqnarray}{rCl}
+ X &\sim& \wishartdist{\nu}{\Sigma} \nonumber\\
+ \Rightarrow Z &\sim& \matrixnormaldist{\zmat}{\idmat}{\idmat} \nonumber\\
+ \text{with } X &=& \Sigma\msqrt Z Z\tr {\Sigma\msqrt}\tr \nonumber \\
+ \text{and } Z &\in& \reals^{d\times \nu} \nonumber\\
+ Y = X\pinv &=& {\Sigma\msqrt}\inv (Z Z\tr)\pinv {\Sigma\msqrt}\invtr \nonumber \\
+ Y &\sim& \iwishartdist{\nu}{\Sigma} \nonumber \\
+ A Y A\tr &=& A {\Sigma\msqrt}\inv (Z Z\tr)\pinv {\Sigma\msqrt}\invtr A\tr \nonumber \\
+ &=& (A{\Sigma\msqrt}\inv) (Z Z\tr)\pinv (A{\Sigma\msqrt}\inv)\tr \nonumber \\
+ \Rightarrow A Y A\tr &\sim& \iwishartdist{\nu}{ \left((A{\Sigma\msqrt}\inv)(A{\Sigma\msqrt}\inv)\tr\right)\inv } \nonumber \\
+ A Y A\tr &\sim& \iwishartdist{\nu}{ \left((A\Sigma\inv A\tr\right)\inv } \nonumber \\
+\end{IEEEeqnarray}
+
+
+
 
 
 \subsubsection{Within-Subspace Parameter Conditional}
