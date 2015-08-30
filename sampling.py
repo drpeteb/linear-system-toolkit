@@ -64,6 +64,24 @@ def singular_wishart_density(val, vec, P):
     pdf = norm + pptn
     return pdf
 
+def singular_inverse_wishart_density(val, vec, P):
+    """
+    Density of a singular inverse wishart distribution at
+    X = vec*diag(val)*vec.T
+    """
+    d,r = vec.shape
+    
+    norm = 0.5*r*la.det(P) \
+            -0.5*r*d*np.log(2.0) \
+            -0.5*r*(d-r)*np.log(np.pi) \
+            -special.multigammaln(r/2,r)
+    
+    pptn = 0.5*(3*d-r+1)*np.log(np.prod(val)) \
+            -0.5*np.trace( np.dot(np.dot(vec.T,np.dot(P,vec)),np.diag(val)) )
+    
+    pdf = norm + pptn
+    return pdf
+
 def matrix_normal_density(X, M, U, V):
     """Sample from a matrix normal distribution"""
     norm = - 0.5*la.det(2*np.pi*U) - 0.5*la.det(2*np.pi*V)
@@ -132,8 +150,9 @@ def hyperparam_update_degenerate_mniw_transition(suffStats, U, nu0, Psi0, M0, V0
     nu  = nu0 + suffStats[0]
     V   = la.inv( la.inv(V0) + suffStats[1] )
     M   = np.dot( np.dot(U.T, la.solve(V0,M0.T).T + suffStats[2]) , V)
-    UPsiU = Psi0+suffStats[3]+np.dot(M0,la.solve(V0,M0.T))
-    Psi = np.dot(U.T, np.dot(UPsiU, U)) - np.dot(M, la.solve(V,M.T))
+    UPsi0U = la.inv(np.dot(U.T,la.solve(Psi0,U)))
+    UPsiU = suffStats[3]+np.dot(M0,la.solve(V0,M0.T))
+    Psi = UPsi0U + np.dot(U.T, np.dot(UPsiU, U)) - np.dot(M, la.solve(V,M.T))
     
     return nu, Psi, M, V
 

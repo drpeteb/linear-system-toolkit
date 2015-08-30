@@ -249,7 +249,7 @@ class DegenerateLinearModel(AbstractLinearModel):
 
     def transition_covariance(self):
         eVec = self.parameters['vec']
-        eVal = np.diag(1./self.parameters['val'])
+        eVal = np.diag(self.parameters['val'])
         return np.dot(eVec, np.dot(eVal, eVec.T))
         
     def observation_matrix(self):

@@ -196,7 +196,7 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
         """
         Prior density for transition model parameters
         """
-        variancePrior = smp.singular_wishart_density(model.parameters['val'],
+        variancePrior = smp.singular_inverse_wishart_density(model.parameters['val'],
                       model.parameters['vec'],la.inv(self.hyperparams['Psi0']))
         
         orthVec = model.complete_basis()
@@ -352,7 +352,7 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
                                                     self.hyperparams['Psi0'],
                                                     self.hyperparams['M0'],
                                                     self.hyperparams['V0'])
-        D = smp.sample_wishart(nu, la.inv(Psi))
+        D = la.inv(smp.sample_wishart(nu, la.inv(Psi)))
         FU = smp.sample_matrix_normal(M, D, V)
         
         # Project out

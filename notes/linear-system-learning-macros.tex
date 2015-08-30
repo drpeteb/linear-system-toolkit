@@ -16,6 +16,7 @@
 \newcommand{\inv}{^{-1}}
 \newcommand{\pinv}{^{+}}
 \newcommand{\tr}{^{T}}
+\newcommand{\msqrt}{^{\half}}
 \newcommand{\determ}[1]{\left|#1\right|}
 \newcommand{\hadprod}{\circ}
 \newcommand{\kronprod}{\otimes}
@@ -61,19 +62,18 @@
 \newcommand{\lgom}{H}                                   % observation matrix
 \newcommand{\lgov}{R}                                   % observation variance
 \newcommand{\lgdm}{G}                                   % disturbance matrix
-\newcommand{\lgtp}[1][]{\Upsilon_{#1}}                  % transition precision
 
-% Factorisations for the precision matrix
-\newcommand{\tpval}{\Lambda}
-\newcommand{\tpvec}{V}
-\newcommand{\tpvecorth}{V_{\perp}}
-\newcommand{\tpfull}{D}
-\newcommand{\tprot}{U}
-\newcommand{\tprotorth}{U_{\perp}}
-\newcommand{\tprow}{U_R}
-\newcommand{\tpnull}{U_N}
-\newcommand{\tpsign}{E}
-\newcommand{\tpsignorth}{E_{\perp}}
+% Factorisations for the covariance matrix
+\newcommand{\tvval}{\Lambda}
+\newcommand{\tvvec}{V}
+\newcommand{\tvvecorth}{V_{\perp}}
+\newcommand{\tvfull}{D}
+\newcommand{\tvrot}{U}
+\newcommand{\tvrotorth}{U_{\perp}}
+\newcommand{\tvrow}{U_R}
+\newcommand{\tvnull}{U_N}
+\newcommand{\tvsign}{E}
+\newcommand{\tvsignorth}{E_{\perp}}
 
 % Givens rotations
 \newcommand{\givrot}[1]{\gamma_{#1}}
@@ -99,11 +99,13 @@
 \newcommand{\mhrotppsl}{\varsigma}
 
 % Transition matrix MH
-\newcommand{\Qpadding}{\delta}
-\newcommand{\paddedlgtp}{\widetilde{\lgtp}}
+\newcommand{\padding}{\delta}
+\newcommand{\paddedlgtv}{\widetilde{\lgtv}}
 
 % Markov Chains
 \newcommand{\mcold}{^*}
 \newcommand{\mcnew}{^{\prime}}
 \newcommand{\mhap}{\alpha}
+
+
 
