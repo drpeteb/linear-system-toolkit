@@ -2,6 +2,8 @@
 from abc import ABCMeta, abstractmethod
 import numpy as np
 import scipy.linalg as la
+from scipy import stats
+from scipy import special
 import matplotlib.pyplot as plt
 
 # Import from other module files
@@ -252,10 +254,6 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
                                                     self.hyperparams['V0'],)
             bwd_prob = smp.matrix_normal_density(self.model.parameters['F'],
                                                                   M,padded_Q,V)
-            
-            # Prior terms
-            prior = self.transition_prior(self.model)
-            ppsl_prior = self.transition_prior(ppsl_model)
         
         elif moveType=='Q':
             
@@ -267,41 +265,61 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
             fwd_prob = 0
             bwd_prob = 0
             
-            # Prior terms
-            prior = self.transition_prior(self.model)
-            ppsl_prior = self.transition_prior(ppsl_model)
-            
         elif moveType=='rank':
-            pass
             
+            if ppsl_model.ds == 1:
+                switch = -1                                # Do nothing (1D)
+            elif ppsl_model.parameters['rank'] == 1:
+                switch = 1                                 # Must increase rank
+            elif ppsl_model.parameters['rank'] == ppsl_model.ds:
+                switch = 0                                 # Must decrease rank
+            else:
+                switch = np.random.random_integers(0,1)    # choose at random
             
-            
-            
-            #TODO ADD THIS STEP
-            
-            
-#            # Add or remove?
-#            if ppsl_model.ds==1:
-#                u = -1                          # 1D model. Cannot do anything
-#            elif ppsl_model.rank==1:
-#                u = 0
-#            elif ppsl_model.rank==ppsl_model.ds:
-#                u = 1
-#            else:
-#                u = int(np.round(np.random.random()))
-#            
-#            if u==0:
-#                
-#                # Increase rank
-#                dcf = ppsl_model.increase_rank(None, None, self.Q_prior_scale)
-#                
-#            elif u==1:
-#                # Decrease rank
-#                dcf,val,vec = ppsl_model.reduce_rank(self.Q_prior_scale)            
-            
-            
-            
-            
+            if switch == -1:
+                # No options to change rank
+                
+                prior = 0
+                ppsl_prior = 0
+                fwd_prob = 0
+                bwd_prob = 0
+                
+            elif switch == 0:
+                # Decrease rank
+                pass
+                #TODO - Add this
+                
+                # Remove the smallest eigenvalue and associated eigenvector
+                oldValue, oldVector = \
+                                    ppsl_model.remove_min_eigen_value_vector()
+                
+                # Calculate the Jacobian
+                
+                
+            elif switch == 1:
+                # Increase rank
+                pass
+                #TODO - Add this
+                
+                # Sample a new eigenvalue between 0 and the smallest e-value
+                minValue = np.min(ppsl_model.parameters['val'])
+                newValue = stats.uniform(loc=0, scale=minValue)
+                valPpslProb = -np.log( minValue )
+                
+                # Sample a new eigenvector
+                nullSpace = ppsl_model.complete_basis()
+                nullDims = nullSpace.shape[1]
+                coefs = smp.sample_orthogonal_haar(nullDims)
+                newVector = np.dot(nullDims, coefs)
+                sphereArea = 2.0*np.pi**(nullDims/2)/special.gamma(nullDims/2)
+                vecPpslProb = -np.log( sphereArea )
+                
+                # Add them to the model
+                ppsl_model.add_eigen_value_vector(newValue, newVector)
+                
+                # Calculate the Jacobian
+                
+                
         else:
             raise ValueError("Invalid move type")
         
@@ -310,6 +328,10 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
         
         # Kalman filter
         ppsl_flt,_,ppsl_lhood = ppsl_model.kalman_filter(self.observ)
+        
+        # Prior terms
+        prior = self.transition_prior(self.model)
+        ppsl_prior = self.transition_prior(ppsl_model)
         
         # Decide
         acceptRatio =   (ppsl_lhood-lhood) \

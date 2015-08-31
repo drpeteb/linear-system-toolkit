@@ -271,7 +271,7 @@ class DegenerateLinearModel(AbstractLinearModel):
     
     def update_from_givens_form(self, U, D):
         """
-        Convert from givens to eigen form and update
+        Convert transition covariance from givens to eigen form and update
         """
         eVal, eVec = la.eigh(D)
         self.parameters['vec'] = np.dot(U, eVec)
@@ -279,7 +279,8 @@ class DegenerateLinearModel(AbstractLinearModel):
     
     def complete_basis(self):
         """
-        Returns a matrix of vectors orthogonal to the eigenvectors
+        Returns a matrix of vectors orthogonal to the eigenvectors for the
+        transition covariance
         """
         Q,R = la.qr(self.parameters['vec'])
         r = self.parameters['rank']
@@ -287,8 +288,33 @@ class DegenerateLinearModel(AbstractLinearModel):
     
     def rotate_transition_covariance(self, rotation):
         """
-        Rotate noise covariance matrix by multiplying eigenvectors by a
+        Rotate transition covariance matrix by multiplying eigenvectors by a
         supplied orthoginal matrix
         """
         self.parameters['vec'] = np.dot(rotation, self.parameters['vec'])
+    
+    def add_eigen_value_vector(self, value, vector):
+        """
+        Add an eigenvalue/eigenvector pair to the transition covariance matrix
+        """
+        if self.parameters['rank'] == self.ds:
+            raise ValueError("Covariance matrix is already full rank.")
+        self.parameters['val'] = np.append(self.parameters['val'], value)
+        self.parameters['vec'] = np.append(self.parameters['vec'],
+                                           vector[:,np.newaxis], axis=1)
+        self.parameters['rank'] -= 1
+    
+    def remove_min_eigen_value_vector(self):
+        """
+        Remove the minimum eigenvalue and the corresponding eigenvector from
+        the transition covariance matrix
+        """
+        minIdx = np.argmin(self.parameters['val'])
+        value = self.parameters['val'][minIdx]
+        vector = self.parameters['vec'][:,minIdx]
+        self.parameters['val'] = np.delete(self.parameters['val'], minIdx)
+        self.parameters['vec'] = np.delete(self.parameters['vec'], minIdx,
+                                                                       axis=1)
+        self.parameters['rank'] += 1
+        return value, vector
         

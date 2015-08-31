@@ -2,10 +2,6 @@ import numpy as np
 from scipy import linalg as la
 from scipy import stats
 from scipy import special
-#from scipy.stats import multivariate_normal as mvn
-#from scipy import stats as sps
-#from scipy import misc as spm
-#from numpy import random as rnd
 
 def sample_wishart(nu, P):
     """
@@ -51,6 +47,14 @@ def sample_cayley(d, s):
     M = la.solve(I-S,I+S)
     
     return M
+
+def sample_orthogonal_haar(d):
+    """
+    Sample a unit vector uniformly from the (d-1)-sphere
+    """
+    z = stats.multivariate_normal.rvs(mean=np.zeros(d),cov=np.identity(d))
+    z /= la.norm(z)
+    return z
 
 def singular_wishart_density(val, vec, P):
     """
