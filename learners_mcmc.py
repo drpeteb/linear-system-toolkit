@@ -202,12 +202,22 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
                       model.parameters['vec'],la.inv(self.hyperparams['Psi0']))
         
         orthVec = model.complete_basis()
+#        relaxEval = self.hyperparams['alpha']
+        relaxEval = np.min(model.parameters['val'])
         rowVariance = model.transition_covariance() \
-                      + self.hyperparams['alpha']*np.dot(orthVec,orthVec.T)
+                      + relaxEval*np.dot(orthVec,orthVec.T)
         matrixPrior = smp.matrix_normal_density(model.parameters['F'],
                                                 self.hyperparams['M0'],
                                                 rowVariance,
                                                 self.hyperparams['V0'])
+        
+#        print(model.parameters['rank'])
+#        print(orthVec)
+#        print(la.det(rowVariance))
+#        print(self.hyperparams['V0'])
+        
+        print(matrixPrior)
+        print(variancePrior)
         
         return variancePrior + matrixPrior
     
@@ -222,6 +232,9 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
         
         # Copy model
         ppsl_model = self.model.copy()
+        
+        if self.verbose:
+            print("Metropolis-Hastings move type: {}".format(moveType))
         
         # Propose change
         if   moveType=='F':
@@ -269,9 +282,9 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
             
             if ppsl_model.ds == 1:
                 switch = -1                                # Do nothing (1D)
-            elif ppsl_model.parameters['rank'] == 1:
+            elif ppsl_model.parameters['rank'][0] == 1:
                 switch = 1                                 # Must increase rank
-            elif ppsl_model.parameters['rank'] == ppsl_model.ds:
+            elif ppsl_model.parameters['rank'][0] == ppsl_model.ds:
                 switch = 0                                 # Must decrease rank
             else:
                 switch = np.random.random_integers(0,1)    # choose at random
@@ -286,45 +299,68 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
                 
             elif switch == 0:
                 # Decrease rank
-                pass
-                #TODO - Add this
+            
+                if self.verbose:
+                    print("   Decreasing covariance rank")
+        
                 
                 # Remove the smallest eigenvalue and associated eigenvector
                 oldValue, oldVector = \
                                     ppsl_model.remove_min_eigen_value_vector()
                 
-                # Calculate the Jacobian
+                # Reverse move prob for adding the smallest e-value
+                minValue = np.min(ppsl_model.parameters['val'])
+                valPpslProb = -np.log( minValue )
                 
+                # Nullspace
+                nullSpace = ppsl_model.complete_basis()
+                nullDims = nullSpace.shape[1]
+                
+                # Calculate the Jacobian
+                constJac = 0.5*nullDims*np.log(np.pi) \
+                         - np.sum(np.log(ppsl_model.parameters['val'])) \
+                         - special.gammaln(nullDims/2)
+                varJac = nullDims*np.log(oldValue) \
+                       + np.sum(np.log(ppsl_model.parameters['val']-oldValue))
+                
+                # Fudge the proposals and jacobian into the proposal terms
+                fwd_prob = constJac + varJac
+                bwd_prob = valPpslProb
                 
             elif switch == 1:
                 # Increase rank
-                pass
-                #TODO - Add this
+            
+                if self.verbose:
+                    print("   Increasing covariance rank")
                 
                 # Sample a new eigenvalue between 0 and the smallest e-value
                 minValue = np.min(ppsl_model.parameters['val'])
-                newValue = stats.uniform(loc=0, scale=minValue)
+                newValue = stats.uniform.rvs(loc=0, scale=minValue)
                 valPpslProb = -np.log( minValue )
                 
                 # Sample a new eigenvector
                 nullSpace = ppsl_model.complete_basis()
                 nullDims = nullSpace.shape[1]
                 coefs = smp.sample_orthogonal_haar(nullDims)
-                newVector = np.dot(nullDims, coefs)
-                sphereArea = 2.0*np.pi**(nullDims/2)/special.gamma(nullDims/2)
-                vecPpslProb = -np.log( sphereArea )
-                
-                # Add them to the model
-                ppsl_model.add_eigen_value_vector(newValue, newVector)
+                newVector = np.dot(nullSpace, coefs)
                 
                 # Calculate the Jacobian
+                constJac = 0.5*nullDims*np.log(np.pi) \
+                         - np.sum(np.log(ppsl_model.parameters['val'])) \
+                         - special.gammaln(nullDims/2)
+                varJac = nullDims*np.log(newValue) \
+                       + np.sum(np.log(ppsl_model.parameters['val']-newValue))
+                                # Add them to the model
+                ppsl_model.add_eigen_value_vector(newValue, newVector)
                 
+                # Fudge the proposals and jacobian into the proposal terms
+                fwd_prob = valPpslProb
+                bwd_prob = constJac + varJac
+                
+                # Assumes uniform prior on each possible value of the rank
                 
         else:
             raise ValueError("Invalid move type")
-        
-        if self.verbose:
-            print("Metropolis-Hastings move type: {}".format(moveType))
         
         # Kalman filter
         ppsl_flt,_,ppsl_lhood = ppsl_model.kalman_filter(self.observ)
@@ -332,6 +368,14 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
         # Prior terms
         prior = self.transition_prior(self.model)
         ppsl_prior = self.transition_prior(ppsl_model)
+        
+#        if moveType=='rank':
+#            print(ppsl_lhood)
+#            print(lhood)
+#            print(ppsl_prior)
+#            print(prior)
+#            print(fwd_prob)
+#            print(bwd_prob)
         
         # Decide
         acceptRatio =   (ppsl_lhood-lhood) \

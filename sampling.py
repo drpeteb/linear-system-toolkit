@@ -52,8 +52,10 @@ def sample_orthogonal_haar(d):
     """
     Sample a unit vector uniformly from the (d-1)-sphere
     """
-    z = stats.multivariate_normal.rvs(mean=np.zeros(d),cov=np.identity(d))
+    z = stats.multivariate_normal.rvs(mean=np.zeros(d),cov=np.identity(d))    
     z /= la.norm(z)
+    if d == 1:
+        z = z[np.newaxis] # This undoes the squeeze if only 1D
     return z
 
 def singular_wishart_density(val, vec, P):

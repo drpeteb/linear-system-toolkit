@@ -456,6 +456,147 @@ The acceptance probability is simply,
 in which the first term is a ratio of Kalman filter likelihoods.
 
 
+\subsubsection{Metropolis-Hastings for the Covariance Matrix Rank}
+
+It is unlikely that the rank of $\lgtv$ will be known a priori. We can learn this within the MCMC scheme by allowing the sampler to add and remove eigenvalue-eigenvector pairs using reversible jump moves \cite{Green1995,Green2009}. This can be achieved with a matching pair of moves. The eigenvalues are assumed to be sorted in descending order of magnitude, so that $\eval{1}$ is the largest.
+
+\begin{algorithm}
+\begin{algorithmic}
+ \REQUIRE{$\rk$, $\lgtv$}
+ \STATE Set $\rk\mcnew = \rk + 1$.
+ \STATE Sample a new eigenvector $\evec{\rk\mcnew}$.
+ \STATE Sample a new eigenvalue $\eval{\rk\mcnew} \in [0,\eval{\rk}]$.
+ \STATE $\lgtv\mcnew = \lgtv + \eval{\rk\mcnew}\evec{\rk\mcnew}\evec{\rk\mcnew}\tr$.
+ \RETURN{$\rk\mcnew$, $\lgtv\mcnew$}
+\end{algorithmic}
+\caption{Reversible Jump Move: Increase rank}
+\label{alg:rjmcmc-up}
+\end{algorithm}
+
+\begin{algorithm}
+\begin{algorithmic}
+ \REQUIRE{$\rk\mcnew$, $\lgtv\mcnew$}
+ \STATE $\lgtv = \lgtv\mcnew - \eval{\rk\mcnew}\evec{\rk\mcnew}\evec{\rk\mcnew}\tr$.
+ \STATE Set $\rk = \rk\mcnew - 1$.
+ \RETURN{$\rk$, $\lgtv$}
+\end{algorithmic}
+\caption{Reversible Jump Move: Decrease rank}
+\label{alg:rjmcmc-down}
+\end{algorithm}
+
+The acceptance probabilities are then,
+%
+\begin{IEEEeqnarray}{rCl}
+ \mhap(\rk,\lgtv \to \rk\mcnew,\lgtv\mcnew) &=& \min\left\{1, \mhar \right\} \\
+ \mhap(\rk\mcnew,\lgtv\mcnew \to \rk,\lgtv) &=& \min\left\{1, \mhar\inv \right\}     ,
+\end{IEEEeqnarray}
+%
+with,
+%
+\begin{IEEEeqnarray}{rCl}
+ \mhar &=& \frac{ \postden(\rk\mcnew,\lgtv\mcnew|\lgtm,\ls{1:\timax}) \jacob(\lgtv,\eval{\rk\mcnew},\evec{\rk\mcnew} \to \lgtv\mcnew) }{ \postden(\rk,\lgtv|\lgtm,\ls{1:\timax}) \ppslden{\eval{}}(\eval{\rk\mcnew}|\lgtv) \ppslden{\evec{}}(\evec{\rk\mcnew}|\lgtv) } \\
+ &=& \frac{ \den(\ls{1:\timax}|\lgtm, \lgtv\mcnew) \den(\lgtv\mcnew|\rk\mcnew,\lgtm) \den(\rk\mcnew) \jacob(\lgtv,\eval{\rk\mcnew},\evec{\rk\mcnew} \to \lgtv\mcnew) }{ \den(\ls{1:\timax}|\lgtm, \lgtv) \den(\lgtv|\rk,\lgtm) \den(\rk) \ppslden{\eval{}}(\eval{\rk\mcnew}|\lgtv) \ppslden{\evec{}}(\evec{\rk\mcnew}|\lgtv) } \\
+ &=& \frac{ \den(\ls{1:\timax}|\lgtm, \lgtv\mcnew) \den(\lgtm,\lgtv\mcnew|\rk\mcnew) \den(\rk\mcnew) }{ \den(\ls{1:\timax}|\lgtm, \lgtv) \den(\lgtm,\lgtv|\rk) \den(\rk) } \times 
+ \frac{ \jacob(\lgtv,\eval{\rk\mcnew},\evec{\rk\mcnew} \to \lgtv\mcnew) }{ \ppslden{\eval{}}(\eval{\rk\mcnew}|\lgtv) \ppslden{\evec{}}(\evec{\rk\mcnew}|\lgtv) }      ,
+\end{IEEEeqnarray}
+%
+where $\jacob(\lgtv,\eval{\rk\mcnew},\evec{\rk\mcnew} \to \lgtv\mcnew)$ is the Jacobian of the transformation from $\lgtv$ to $\lgtv\mcnew$, and $\ppslden{\eval{}}$ and $\ppslden{\evec{}}$ are the probability densities for the eigenvalue and eigenvector proposal distributions respectively, with respect to appropriate measures. The second term is a tricky beast, particularly the Jacobian.
+
+The volume element (ignoring sign) on the set of positive semi-definite matrices can be written in terms of the eigen-decomposition as follows \cite{Diaz-Garcia1997,Uhlig1994,Diaz-Garcia2006},
+%
+\begin{IEEEeqnarray}{rCl}
+ \volel{d\lgtv} &=& 2^{-\rk} \times \prod_{i=1}^{\rk}\eval{i}^{\lsd-\rk} \times \prod_{j=1}^{r}\prod_{i=1}^{j-1}(\eval{i}-\eval{j}) \times \volel{\tvvec\tr d\tvvec} \wedge \bigwedge_{i=1}^{r}d\eval{i}   ,
+\end{IEEEeqnarray}
+%
+where $\volel{\tvvec\tr d\tvvec}$ is the Haar measure on the appropriate Stiefel manifold \cite{Muirhead1982},
+%
+\begin{IEEEeqnarray}{rCl}
+ \volel{\tvvec\tr d\tvvec} &=& \bigwedge_{i=1}^{\rk}\bigwedge_{j=i+1}^{\lsd} \evec{j}\tr d\evec{i}     .
+\end{IEEEeqnarray}
+%
+Similarly,
+%
+\begin{IEEEeqnarray}{rCl}
+ \volel{d\lgtv\mcnew} &=& 2^{-\rk-1} \times \prod_{i=1}^{\rk+1}\eval{i}^{\lsd-\rk-1} \times \prod_{j=1}^{r+1}\prod_{i=1}^{j-1}(\eval{i}-\eval{j}) \times \volel{{\tvvec\mcnew}\tr d{\tvvec\mcnew}} \wedge \bigwedge_{i=1}^{r+1}d\eval{i} \nonumber \\
+ &=& \left[ 2^{-1} \eval{\rk+1}^{\lsd-\rk-1} \prod_{i=1}^{\rk}\eval{i}^{-1} \prod_{i=1}^{\rk}(\eval{i}-\eval{\rk+1}) \right] \nonumber \\
+ & & \qquad\qquad \times 2^{-\rk} \times \prod_{i=1}^{\rk}\eval{i}^{\lsd-\rk} \times \prod_{j=1}^{r}\prod_{i=1}^{j-1}(\eval{i}-\eval{j}) \times \volel{{\tvvec\mcnew}\tr d{\tvvec\mcnew}} \wedge \bigwedge_{i=1}^{r+1}d\eval{i} \nonumber    ,
+\end{IEEEeqnarray}
+%
+where
+%
+\begin{IEEEeqnarray}{rCl}
+ \volel{{\tvvec\mcnew}\tr d{\tvvec\mcnew}} &=& \bigwedge_{i=1}^{\rk+1}\bigwedge_{j=i+1}^{\lsd} \evec{j}\tr d\evec{i} \nonumber \\
+ &=& \bigwedge_{i=1}^{\rk}\bigwedge_{j=i+1}^{\lsd} \evec{j}\tr d\evec{i} \wedge \bigwedge_{j=\rk+2}^{\lsd} \evec{j}\tr d\evec{i}    .
+\end{IEEEeqnarray}
+
+A suitable base measure for the new eigenvector can be formulated by considering the following generative procedure. This new eigenvector $\evec{\rk\mcnew}$ must have unit magnitude and be orthogonal to the existing eigenvectors of $\lgtv$. This can be achieved by sampling $u \in \{u \in \reals^{\lsd-\rk} : \determ{u}=1\}$ according to the Haar probability measure on this set and setting $\evec{\rk\mcnew}=\tvvecorth u$. Since this is another Stiefel manifold, the volume element for this set is \cite{Muirhead1982},
+%
+\begin{IEEEeqnarray}{rCl}
+ \volel{u\tr du} &=& \bigwedge_{j=2}^{\lsd-\rk} u_{j}\tr du
+\end{IEEEeqnarray}
+%
+where $u_2, \dots, u_{\lsd-\rk}$ is any set of unit vectors orthogonal to $u$. Using the transformation,
+%
+\begin{IEEEeqnarray}{rCl}
+ \volel{\evec{\rk\mcnew}\tr d\evec{\rk\mcnew}} &=& \volel{u\tr \tvvecorth\tr \tvvecorth du} \nonumber \\
+ &=& \volel{u\tr du} \nonumber \\
+ &=& \bigwedge_{j=2}^{\lsd-\rk} u_{j}\tr du \nonumber \\
+ &=& \bigwedge_{j=2}^{\lsd-\rk} u_{j}\tr \tvvecorth\tr d\evec{\rk\mcnew} \nonumber \\
+ &=& \bigwedge_{j=\rk+2}^{\lsd} {\evec{j}\mcnew}\tr d\evec{\rk\mcnew}      ,
+\end{IEEEeqnarray}
+%
+where $\evec{j}\mcnew = \tvvecorth u_{\rk+j}$ are the columns of the new $\tvvecorth\mcnew$.
+
+The base measure for the new eigenvalue is Lesbegue.
+
+Thus, the Jacobian is,
+%
+\begin{IEEEeqnarray}{rCl}
+ \jacob(\lgtv,\eval{\rk\mcnew},\evec{\rk\mcnew} \to \lgtv\mcnew) &=& \frac{ \volel{d\lgtv\mcnew} }{ \volel{d\lgtv} \volel{\evec{\rk\mcnew}\tr d\evec{\rk\mcnew}} \volel{d\eval{\rk\mcnew}} } \nonumber \\
+ &=& 2^{-1} \eval{\rk+1}^{\lsd-\rk-1} \prod_{i=1}^{\rk}\eval{i}^{-1} \prod_{i=1}^{\rk}(\eval{i}-\eval{\rk+1})
+\end{IEEEeqnarray}
+
+The density of the proposal distribution for the new eigenvector is simply the reciprocal of the volume of the set, which is a hypersphere. Thus,
+%
+\begin{IEEEeqnarray}{rCl}
+ \ppslden{\evec{}}(\evec{\rk\mcnew}|\lgtv) &=& \frac{\gammafun\left(\frac{\lsd-\rk}{2}\right)}{2 \pi^{\half(\lsd-\rk)}}      .
+\end{IEEEeqnarray}
+
+For the eigenvalue, we can use any distribution over $[0,\eval{\rk}]$, e.g. uniform.
+
+So,
+%
+\begin{IEEEeqnarray}{rCl}
+ \mhar  &=& \frac{ \den(\ls{1:\timax}|\lgtm, \lgtv\mcnew) \den(\lgtm,\lgtv\mcnew|\rk\mcnew) \den(\rk\mcnew) }{ \den(\ls{1:\timax}|\lgtm, \lgtv) \den(\lgtm,\lgtv|\rk) \den(\rk) } \times 
+ \frac{ \jacob(\lgtv,\eval{\rk\mcnew},\evec{\rk\mcnew} \to \lgtv\mcnew) }{ \ppslden{\eval{}}(\eval{\rk\mcnew}|\lgtv) \ppslden{\evec{}}(\evec{\rk\mcnew}|\lgtv) } \nonumber \\
+ &=& \frac{ \den(\ls{1:\timax}|\lgtm, \lgtv\mcnew) \den(\lgtm,\lgtv\mcnew|\rk\mcnew) \den(\rk\mcnew) }{ \den(\ls{1:\timax}|\lgtm, \lgtv) \den(\lgtm,\lgtv|\rk) \den(\rk) } \times 
+ \frac{ \pi^{\half(\lsd-\rk)} \prod_{i=1}^{\rk}\eval{i}^{-1} }{ \gammafun\left(\frac{\lsd-\rk}{2}\right) } \times
+ \frac{\eval{\rk+1}^{\lsd-\rk-1}\prod_{i=1}^{\rk}(\eval{i}-\eval{\rk+1})}{\ppslden{\eval{}}(\eval{\rk+1}|\lgtv)} \nonumber      .
+\end{IEEEeqnarray}
+
+
+
+
+
+
+
+
+
+
+% The acceptance probability for the increase move is then,
+% %
+% \begin{IEEEeqnarray}{rCl}
+%  \IEEEeqnarraymulticol{3}{l}{ \mhap\left( \tnd,\tnmd,\tnmo \to \tnd',\tnmd',\tnmo' \right) } \nonumber \\
+%  \qquad & = & \min\left\{1, \frac{ \postden(\lgtm, \tnd',\tnmd',\tnmo') }{ \postden(\lgtm, \tnd,\tnmd,\tnmo) } \times \frac{1}{\ppslden{\tnmevec{}}(\tnmevec{}^*)\ppslden{\tnmev{}}(\tnmev{}^*)} \right\} \nonumber \\
+%  & = & \min\Bigg\{1, \frac{\den(\ob{1:\timax} | \lgtm, \tnd',\tnmd',\tnmo') }{ \den(\ob{1:\timax} | \lgtm, \tnd,\tnmd,\tnmo) } \nonumber \\
+%  & & \quad \times \frac{\den(\tnmevec{1},\dots,\tnmevec{\tnd},\tnmevec{}^*)\den(\tnmev{1},\dots,\tnmev{\tnd},\tnmev{}^*|\tnd')\den(\tnd')}{\den(\tnmevec{1},\dots,\tnmevec{\tnd})\den(\tnmev{1},\dots,\tnmev{\tnd}|\tnd)\den(\tnd) \ppslden{\tnmevec{}}(\tnmevec{}^*)\ppslden{\tnmev{}}(\tnmev{}^*)} \Bigg\} \nonumber      ,
+% \end{IEEEeqnarray}
+% %
+% where $\tnmevec{1},\dots,\tnmevec{\tnd}$ are the eigenvectors comprising $\tnmo$ and $\tnmev{1},\dots,\tnmev{\tnd}$ the eigenvalues comprising $\tnmd$. The first term is simply a ratio of Kalman filter likelihoods. For the decrease move, the ratio is replaced by its reciprocal.
+% 
+% The conditional prior distribution $\den(\tnmevec{}^*|\tnmevec{1},\dots,\tnmevec{\tnd})$ is the normalised Haar measure on the manifold $\tnmo\tr\tnmevec{}^*=0$, conditional on the constraint we imposed to resolve the sign ambiguity \cite{Muirhead1982}. We can simulate according to this prior by sampling a standard Gaussian random vector and then using Gram-Schmidt orthogonalisation. This implies setting $\ppslden{\tnmevec{}}(\tnmevec{}^*)=\den(\tnmevec{}^*|\tnmevec{1},\dots,\tnmevec{\tnd})$, which results in a cancellation in the acceptance probability.
+
+
 
 
 

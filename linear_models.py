@@ -1,5 +1,6 @@
 # Operational modules
 from abc import ABCMeta, abstractmethod
+from copy import deepcopy
 
 # Numerical modules
 import numpy as np
@@ -35,7 +36,7 @@ class AbstractLinearModel:
         if (state_dimension<1) or (observation_dimension<1):
             raise ValueError("Invalid state or observation dimensions")
         if (initial_state_prior.mn.shape!=(ds,)) \
-                                    or (initial_state_prior.vr.shape!=(ds,ds)):
+                                   or (initial_state_prior.vr.shape!=(ds,ds)):
             raise ValueError("Invalid initial state prior density")
         
         # Store them
@@ -47,7 +48,7 @@ class AbstractLinearModel:
     
     def copy(self):
         return self.__class__(self.ds, self.do, self.initial_state_prior,
-                                                         dict(self.parameters))
+                                                    deepcopy(self.parameters))
     
     
     @abstractmethod
@@ -283,7 +284,7 @@ class DegenerateLinearModel(AbstractLinearModel):
         transition covariance
         """
         Q,R = la.qr(self.parameters['vec'])
-        r = self.parameters['rank']
+        r = self.parameters['rank'][0]
         return Q[:,r:]
     
     def rotate_transition_covariance(self, rotation):
@@ -297,12 +298,12 @@ class DegenerateLinearModel(AbstractLinearModel):
         """
         Add an eigenvalue/eigenvector pair to the transition covariance matrix
         """
-        if self.parameters['rank'] == self.ds:
+        if self.parameters['rank'][0] == self.ds:
             raise ValueError("Covariance matrix is already full rank.")
         self.parameters['val'] = np.append(self.parameters['val'], value)
         self.parameters['vec'] = np.append(self.parameters['vec'],
                                            vector[:,np.newaxis], axis=1)
-        self.parameters['rank'] -= 1
+        self.parameters['rank'][0] += 1
     
     def remove_min_eigen_value_vector(self):
         """
@@ -315,6 +316,6 @@ class DegenerateLinearModel(AbstractLinearModel):
         self.parameters['val'] = np.delete(self.parameters['val'], minIdx)
         self.parameters['vec'] = np.delete(self.parameters['vec'], minIdx,
                                                                        axis=1)
-        self.parameters['rank'] += 1
+        self.parameters['rank'][0] -= 1
         return value, vector
         
