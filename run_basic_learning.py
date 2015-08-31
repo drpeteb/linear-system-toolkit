@@ -48,7 +48,7 @@ algoparams['Fs'] = 0.1
 
 learner = MCMCLearnerForDegenerateModelWithMNIWPrior(est_model, observ, hyperparams, algoparams=algoparams, verbose=True)
 
-num_iter = 20
+num_iter = 200
 num_burn = int(num_iter/5)
 
 for ii in range(num_iter):

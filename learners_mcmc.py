@@ -118,6 +118,9 @@ class AbstractMCMCLearner:
         for idx in np.ndindex(coords.shape):
             samples = [mod.parameters[paramName][coords[idx]] for mod in self.chain]
             axs[idx].plot(samples, 'k')
+            ylims = axs[idx].get_ylim()
+            axs[idx].plot([numBurnIn]*2, ylims, 'r:')
+            axs[idx].set_ylim(ylims)
     
     
     def plot_chain_histogram(self, paramName, numBurnIn=0, dims=None, trueValue=None):
@@ -142,7 +145,7 @@ class AbstractMCMCLearner:
             raise ValueError("Cannot draw plots for this parameter")
         
         for idx in np.ndindex(coords.shape):
-            samples = [mod.parameters[paramName][coords[idx]] for mod in self.chain]
+            samples = [mod.parameters[paramName][coords[idx]] for mod in self.chain[numBurnIn:]]
             axs[idx].hist(samples, color='0.8')
             if trueValue is not None:
                 ylims = axs[idx].get_ylim()
@@ -210,14 +213,6 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
                                                 self.hyperparams['M0'],
                                                 rowVariance,
                                                 self.hyperparams['V0'])
-        
-#        print(model.parameters['rank'])
-#        print(orthVec)
-#        print(la.det(rowVariance))
-#        print(self.hyperparams['V0'])
-        
-        print(matrixPrior)
-        print(variancePrior)
         
         return variancePrior + matrixPrior
     
@@ -368,14 +363,6 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
         # Prior terms
         prior = self.transition_prior(self.model)
         ppsl_prior = self.transition_prior(ppsl_model)
-        
-#        if moveType=='rank':
-#            print(ppsl_lhood)
-#            print(lhood)
-#            print(ppsl_prior)
-#            print(prior)
-#            print(fwd_prob)
-#            print(bwd_prob)
         
         # Decide
         acceptRatio =   (ppsl_lhood-lhood) \
