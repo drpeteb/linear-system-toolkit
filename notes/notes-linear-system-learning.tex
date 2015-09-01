@@ -193,9 +193,9 @@ $\priorextratpval$ is a diagonal matrix of positive eigenvalues which relax the 
 
 A sampled state trajectory $\ls{1:\timax}$ defines the subspace in which the state perturbations must lie, which means that neither $\lgtm$ nor $\lgtv$ can be freely changed, and Gibbs sampling alone does not work. However, we can still sample within the space specified by this constraint. Additional MCMC moves will then be needed which allow the subspace to be changed.
 
-\subsubsection{Factorising the Precision}
+\subsubsection{Factorising the Covariance}
 
-Using Givens rotations, we can efficiently factorise the precision eigenvector matrix as follows.
+Using Givens rotations, we can efficiently factorise the covariance eigenvector matrix as follows.
 %
 \begin{IEEEeqnarray}{rCl}
  \begin{bmatrix} \tvvec & \tvvecorth \end{bmatrix} &=& \begin{bmatrix}\tvrot & \tvrotorth\end{bmatrix}\begin{bmatrix} \tvsign & \zmat \\ \zmat & \tvsignorth \end{bmatrix} \begin{bmatrix} \tvrow & \zmat \\ \zmat & \idmat \end{bmatrix}\begin{bmatrix} \idmat & \zmat \\ \zmat & \tvnull \end{bmatrix}
@@ -360,7 +360,7 @@ Of course, we want $\lgtm$, not $\lgtmrot$. We can recover the matrix uniquely u
 
 In order to change $\tvrot$, we can target $\den(\lgtv|\lgtm, \ob{1:\timax})$ with Metropolis-Hastings, which is justified as a collapsed Gibbs move.
 
-We sample a rotation matrix $\mhrot$ from some proposal distribution $\mhrotppsl$ and then apply the following transformation,
+We sample a rotation matrix $\mhrot$ from some proposal distribution with density $\mhrotppsl$ (w.r.t. Haar measure on orthogonal matrices) and then apply the following transformation,
 %
 \begin{IEEEeqnarray}{rCl}
  \begin{bmatrix}
@@ -387,6 +387,8 @@ There are numerous ways to sample the rotation matrix $\mhrot$ from a suitable p
  P(S) & = & (\idmat - S)\inv(I+S)     .
 \end{IEEEeqnarray}
 %
+The matrix exponential would also work. Note that the Jacobian of the Cayley transformation is derived in \cite{Olkin1953}, but this is not needed as it cancels out.
+
 To sample from $\mhrotppsl$, we draw $\half\lsd(\lsd-1)$ independent scalar random variables $\{s_{i,j}\}_{0<i<j<\lsd}$ from any zero-mean distribution; a nice choice is,
 %
 \begin{IEEEeqnarray}{rCl}
@@ -556,10 +558,10 @@ Thus, the Jacobian is,
  &=& 2^{-1} \eval{\rk+1}^{\lsd-\rk-1} \prod_{i=1}^{\rk}\eval{i}^{-1} \prod_{i=1}^{\rk}(\eval{i}-\eval{\rk+1})
 \end{IEEEeqnarray}
 
-The density of the proposal distribution for the new eigenvector is simply the reciprocal of the volume of the set, which is a hypersphere. Thus,
+The density of the proposal distribution for the new eigenvector is simply the reciprocal of the volume of the set, which is a half of a hypersphere (since we have to resolve the eigenvector sign ambiguity). Thus,
 %
 \begin{IEEEeqnarray}{rCl}
- \ppslden{\evec{}}(\evec{\rk\mcnew}|\lgtv) &=& \frac{\gammafun\left(\frac{\lsd-\rk}{2}\right)}{2 \pi^{\half(\lsd-\rk)}}      .
+ \ppslden{\evec{}}(\evec{\rk\mcnew}|\lgtv) &=& \frac{\gammafun\left(\frac{\lsd-\rk}{2}\right)}{\pi^{\half(\lsd-\rk)}}      .
 \end{IEEEeqnarray}
 
 For the eigenvalue, we can use any distribution over $[0,\eval{\rk}]$, e.g. uniform.
@@ -570,7 +572,7 @@ So,
  \mhar  &=& \frac{ \den(\ls{1:\timax}|\lgtm, \lgtv\mcnew) \den(\lgtm,\lgtv\mcnew|\rk\mcnew) \den(\rk\mcnew) }{ \den(\ls{1:\timax}|\lgtm, \lgtv) \den(\lgtm,\lgtv|\rk) \den(\rk) } \times 
  \frac{ \jacob(\lgtv,\eval{\rk\mcnew},\evec{\rk\mcnew} \to \lgtv\mcnew) }{ \ppslden{\eval{}}(\eval{\rk\mcnew}|\lgtv) \ppslden{\evec{}}(\evec{\rk\mcnew}|\lgtv) } \nonumber \\
  &=& \frac{ \den(\ls{1:\timax}|\lgtm, \lgtv\mcnew) \den(\lgtm,\lgtv\mcnew|\rk\mcnew) \den(\rk\mcnew) }{ \den(\ls{1:\timax}|\lgtm, \lgtv) \den(\lgtm,\lgtv|\rk) \den(\rk) } \times 
- \frac{ \pi^{\half(\lsd-\rk)} \prod_{i=1}^{\rk}\eval{i}^{-1} }{ \gammafun\left(\frac{\lsd-\rk}{2}\right) } \times
+ \frac{ \pi^{\half(\lsd-\rk)} \prod_{i=1}^{\rk}\eval{i}^{-1} }{ 2 \: \gammafun\left(\frac{\lsd-\rk}{2}\right) } \times
  \frac{\eval{\rk+1}^{\lsd-\rk-1}\prod_{i=1}^{\rk}(\eval{i}-\eval{\rk+1})}{\ppslden{\eval{}}(\eval{\rk+1}|\lgtv)} \nonumber      .
 \end{IEEEeqnarray}
 
@@ -597,6 +599,10 @@ So,
 % The conditional prior distribution $\den(\tnmevec{}^*|\tnmevec{1},\dots,\tnmevec{\tnd})$ is the normalised Haar measure on the manifold $\tnmo\tr\tnmevec{}^*=0$, conditional on the constraint we imposed to resolve the sign ambiguity \cite{Muirhead1982}. We can simulate according to this prior by sampling a standard Gaussian random vector and then using Gram-Schmidt orthogonalisation. This implies setting $\ppslden{\tnmevec{}}(\tnmevec{}^*)=\den(\tnmevec{}^*|\tnmevec{1},\dots,\tnmevec{\tnd})$, which results in a cancellation in the acceptance probability.
 
 
+
+\section{Additional Notes}
+
+I originally focussed on methods where the prior dependence between $\lgtm$ and $\lgtv$ was broken, and the two were sampled alternately. To do this efficiently (with matrix normal distribution for the transition matrix) requires using eigen-decompositions in a manner inspired by this paper: \cite{Stegle2011}.
 
 
 

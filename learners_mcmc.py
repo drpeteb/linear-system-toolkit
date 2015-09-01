@@ -342,6 +342,7 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
                 # Calculate the Jacobian
                 constJac = 0.5*nullDims*np.log(np.pi) \
                          - np.sum(np.log(ppsl_model.parameters['val'])) \
+                         - np.log(2.0) \
                          - special.gammaln(nullDims/2)
                 varJac = nullDims*np.log(newValue) \
                        + np.sum(np.log(ppsl_model.parameters['val']-newValue))
