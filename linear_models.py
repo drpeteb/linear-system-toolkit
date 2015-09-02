@@ -139,10 +139,12 @@ class AbstractLinearModel:
                 prd_kk = self.initial_state_prior
             prd.set_instant(kk, prd_kk)
             
-            # Correction
-            flt_kk,innov = kal.correct(prd.get_instant(kk), observ[kk], H, R)
-            flt.set_instant(kk, flt_kk)
-            lhood = lhood + mvn.logpdf(observ[kk], innov.mn, innov.vr)
+            # Correction - skip if there are NaNs, indicating missing data
+            y = observ[kk]
+            if not np.any(np.isnan(y)):
+                flt_kk,innov = kal.correct(prd.get_instant(kk), y, H, R)
+                flt.set_instant(kk, flt_kk)
+                lhood = lhood + mvn.logpdf(observ[kk], innov.mn, innov.vr)
             
         return flt, prd, lhood
 

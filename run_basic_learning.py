@@ -33,6 +33,7 @@ est_params['F'] = 0.5*np.identity(ds)
 est_params['rank'] = np.array([2])
 est_params['vec'] = params['vec']#np.array([[1,0],[0,1],[0,0]])
 est_params['val'] = np.array([1,1])
+est_params['R'] = np.identity(do)
 est_model = DegenerateLinearModel(ds, do, prior, est_params)
 
 hyperparams = dict()
@@ -40,7 +41,8 @@ hyperparams['nu0'] = params['rank']
 hyperparams['Psi0'] = params['rank']*np.identity(ds)
 hyperparams['M0'] = np.zeros((ds,ds))
 hyperparams['V0'] = np.identity(ds)
-hyperparams['alpha'] = 1
+hyperparams['a0'] = 1
+hyperparams['b0'] = 0.2
 
 algoparams = dict()
 algoparams['Qs'] = 0.1
@@ -48,7 +50,7 @@ algoparams['Fs'] = 0.1
 
 learner = MCMCLearnerForDegenerateModelWithMNIWPrior(est_model, observ, hyperparams, algoparams=algoparams, verbose=True)
 
-num_iter = 2000
+num_iter = 200
 num_burn = int(num_iter/5)
 
 for ii in range(num_iter):
@@ -60,16 +62,19 @@ for ii in range(num_iter):
         learner.iterate_transition('rank')
     else:
         learner.iterate_transition('F')
+    learner.iterate_diagonal_observation_covariance()
     learner.save_link()
 
 learner.plot_chain_trace('F', numBurnIn=num_burn)
 learner.plot_chain_trace('rank', numBurnIn=num_burn)
+learner.plot_chain_trace('R', numBurnIn=num_burn)
 #learner.plot_chain_trace('Q', numBurnIn=num_burn)
 #learner.plot_chain_trace('val', numBurnIn=num_burn)
 #learner.plot_chain_trace('vec', numBurnIn=num_burn)
 
 learner.plot_chain_histogram('F', numBurnIn=num_burn, trueValue=params['F'])
 learner.plot_chain_histogram('rank', numBurnIn=num_burn, trueValue=params['rank'])
+learner.plot_chain_histogram('R', numBurnIn=num_burn, trueValue=params['R'])
 #learner.plot_chain_histogram('Q', numBurnIn=num_burn, trueValue=params['Q'])
 #learner.plot_chain_histogram('val', numBurnIn=num_burn, trueValue=params['val'])
 #learner.plot_chain_histogram('vec', numBurnIn=num_burn, trueValue=params['vec'])

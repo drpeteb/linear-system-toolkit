@@ -20,14 +20,18 @@ class AbstractMCMCLearner:
     """
     
     def __init__(self, initial_model_estimate, observ, hyperparams,
-                                             algoparams=dict(), verbose=False):
+                                            algoparams=dict(), verbose=False):
         self.model = initial_model_estimate
         self.observ = observ
         self.hyperparams = hyperparams
         self.algoparams = algoparams
+        
         self.chain = []
+        self.chain_model = []
+        self.chain_state = []
+        self.chain_lhood = []
+        
         self.verbose = verbose
-    
     
     def save_link(self):
         """Save the current state of the model as a link in the chain"""
@@ -111,24 +115,26 @@ class AbstractMCMCLearner:
             if dims is None:
                 dims = (None,None)
             fig, axs, coords = self._create_2d_plot_axes(paramName, dims[0],
-                                                                       dims[1])
+                                                                      dims[1])
         else:
             raise ValueError("Cannot draw plots for this parameter")
         
         for idx in np.ndindex(coords.shape):
-            samples = [mod.parameters[paramName][coords[idx]] for mod in self.chain]
+            samples = [mod.parameters[paramName][coords[idx]] \
+                                                        for mod in self.chain]
             axs[idx].plot(samples, 'k')
             ylims = axs[idx].get_ylim()
             axs[idx].plot([numBurnIn]*2, ylims, 'r:')
             axs[idx].set_ylim(ylims)
     
     
-    def plot_chain_histogram(self, paramName, numBurnIn=0, dims=None, trueValue=None):
+    def plot_chain_histogram(self, paramName, numBurnIn=0, dims=None,
+                                                              trueValue=None):
         """
         Make Markov chain histograms for a chosen parameter
         
-        dims is a tuple of two lists specificy which rows and columns should be
-        plotted. If empty then all are plotted.
+        dims is a tuple of two lists specificy which rows and columns should
+        be plotted. If empty then all are plotted.
         """
         
         # Get the parameter shape
@@ -140,16 +146,18 @@ class AbstractMCMCLearner:
             if dims is None:
                 dims = (None,None)
             fig, axs, coords = self._create_2d_plot_axes(paramName, dims[0],
-                                                                       dims[1])
+                                                                      dims[1])
         else:
             raise ValueError("Cannot draw plots for this parameter")
         
         for idx in np.ndindex(coords.shape):
-            samples = [mod.parameters[paramName][coords[idx]] for mod in self.chain[numBurnIn:]]
+            samples = [mod.parameters[paramName][coords[idx]] \
+                                            for mod in self.chain[numBurnIn:]]
             axs[idx].hist(samples, color='0.8')
             if trueValue is not None:
                 ylims = axs[idx].get_ylim()
-                axs[idx].plot([trueValue[coords[idx]]]*2, ylims, 'r', linewidth=2)
+                axs[idx].plot([trueValue[coords[idx]]]*2, ylims, 'r',
+                                                                  linewidth=2)
                 axs[idx].set_ylim(ylims)
 
 
@@ -172,10 +180,11 @@ class MCMCLearnerForBasicModelWithMNIWPrior(AbstractMCMCLearner):
         x = self.model.sample_posterior(self.observ)
         
         # Calculate sufficient statistics
-        suffStats = smp.evaluate_sufficient_statistics(x)
+        suffStats = smp.evaluate_transition_sufficient_statistics(x)
         
         # Update hyperparameters
-        nu,Psi,M,V = smp.hyperparam_update_basic_mniw_transition(suffStats,
+        nu,Psi,M,V = smp.hyperparam_update_basic_mniw_transition(
+                                                    suffStats,
                                                     self.hyperparams['nu0'],
                                                     self.hyperparams['Psi0'],
                                                     self.hyperparams['M0'],
@@ -188,9 +197,88 @@ class MCMCLearnerForBasicModelWithMNIWPrior(AbstractMCMCLearner):
         # Update the model
         self.model.parameters['F'] = F
         self.model.parameters['Q'] = Q
+    
+    def iterate_observation_diagonal_covariance(self):
+        """
+        MCMC iteration (Gibbs sampling) for diagonal observation covariance
+        matrix with inverse-gamma prior
+        """
+        
+        # First sample the state sequence
+        x = self.model.sample_posterior(self.observ)
+        
+        # Calculate sufficient statistics
+        suffStats = smp.evaluate_observation_sufficient_statistics(x,
+                                                                  self.observ)
+        
+        # Update hyperparameters
+        a,b = smp.hyperparam_update_basic_ig_observation_variance(
+                                    suffStats,
+                                    self.model.parameters['H'],
+                                    self.hyperparams['a0'],
+                                    self.hyperparams['b0'])
+        
+        # Sample new parameter
+        r = stats.invgamma.rvs(a, scale=b)
+        self.model.parameters['R'] = r*np.identity(self.model.do)
+        
+        
+
+#    def iterate_transition_matrix(self):
+#        """
+#        MCMC iteration (Gibbs sampling) for transition matrix only
+#        """
+#        
+#        # First sample the state sequence
+#        x = self.model.sample_posterior(self.observ)
+#        
+#        # Calculate sufficient statistics
+#        suffStats = smp.evaluate_transition_sufficient_statistics(x)
+#        
+#        # Update hyperparameters
+#        M,V = smp.hyperparam_update_basic_mniw_transition_matrix(
+#                                                    suffStats,
+#                                                    self.hyperparams['M0'],
+#                                                    self.hyperparams['V0'])
+#        
+#        # Sample new parameters
+#        Q = self.model.parameters['Q']
+#        F = smp.sample_matrix_normal(M, Q, V)
+#        
+#        # Update the model
+#        self.model.parameters['F'] = F
+#
+#    def iterate_transition_covariance(self):
+#        """
+#        MCMC iteration (Gibbs sampling) for transition covariance only
+#        """
+#        
+#        # First sample the state sequence
+#        x = self.model.sample_posterior(self.observ)
+#        
+#        # Calculate sufficient statistics
+#        suffStats = smp.evaluate_transition_sufficient_statistics(x)
+#        
+#        # Update hyperparameters
+#        nu,Psi = smp.hyperparam_update_basic_mniw_transition_covariance(
+#                                                suffStats,
+#                                                self.model.parameters['F'],
+#                                                self.hyperparams['nu0'],
+#                                                self.hyperparams['Psi0'])
+#        
+#        # Sample new parameters
+#        Q = la.inv(smp.sample_wishart(nu, la.inv(Psi)))
+#        
+#        # Update the model
+#        self.model.parameters['Q'] = Q
+        
+        
+        
+        
+        
                       
 
-class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
+class MCMCLearnerForDegenerateModelWithMNIWPrior(MCMCLearnerForBasicModelWithMNIWPrior):
     """
     Container for MCMC system learning algorithm.
     Model Type: Degenerate
@@ -201,8 +289,10 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
         """
         Prior density for transition model parameters
         """
-        variancePrior = smp.singular_inverse_wishart_density(model.parameters['val'],
-                      model.parameters['vec'],la.inv(self.hyperparams['Psi0']))
+        variancePrior = smp.singular_inverse_wishart_density(
+                                            model.parameters['val'],
+                                            model.parameters['vec'],
+                                            la.inv(self.hyperparams['Psi0']))
         
         orthVec = model.complete_basis()
 #        relaxEval = self.hyperparams['alpha']
@@ -236,11 +326,11 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
             
             # Simulate state trajectory
             x = ppsl_model.backward_simulation(flt)
-            suffStats = smp.evaluate_sufficient_statistics(x)
+            suffStats = smp.evaluate_transition_sufficient_statistics(x)
             
             # Pad the transition covariance
             padded_Q = ppsl_model.transition_covariance() + \
-                               self.algoparams['Fs']*np.identity(ppsl_model.ds)
+                              self.algoparams['Fs']*np.identity(ppsl_model.ds)
             
             # Sample a new transition matrix
             M,V = smp.hyperparam_update_basic_mniw_transition_matrix(
@@ -253,7 +343,8 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
             
             # Sample a new trajectory
             ppsl_x = ppsl_model.sample_posterior(self.observ)
-            ppsl_suffStats = smp.evaluate_sufficient_statistics(ppsl_x)
+            ppsl_suffStats = smp.evaluate_transition_sufficient_statistics(
+                                                                       ppsl_x)
             
             # Reverse move probaility
             M,V = smp.hyperparam_update_basic_mniw_transition_matrix(
@@ -261,7 +352,7 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
                                                     self.hyperparams['M0'],
                                                     self.hyperparams['V0'],)
             bwd_prob = smp.matrix_normal_density(self.model.parameters['F'],
-                                                                  M,padded_Q,V)
+                                                                 M,padded_Q,V)
         
         elif moveType=='Q':
             
@@ -276,13 +367,13 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
         elif moveType=='rank':
             
             if ppsl_model.ds == 1:
-                switch = -1                                # Do nothing (1D)
+                switch = -1                               # Do nothing (1D)
             elif ppsl_model.parameters['rank'][0] == 1:
-                switch = 1                                 # Must increase rank
+                switch = 1                                # Must increase rank
             elif ppsl_model.parameters['rank'][0] == ppsl_model.ds:
-                switch = 0                                 # Must decrease rank
+                switch = 0                                # Must decrease rank
             else:
-                switch = np.random.random_integers(0,1)    # choose at random
+                switch = np.random.random_integers(0,1)   # choose at random
             
             if switch == -1:
                 # No options to change rank
@@ -394,7 +485,7 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(AbstractMCMCLearner):
         x = self.model.backward_simulation(flt)
         
         # Calculate sufficient statistics
-        suffStats = smp.evaluate_sufficient_statistics(x)
+        suffStats = smp.evaluate_transition_sufficient_statistics(x)
         
         # Convert to Givens factorisation form
         U,D = self.model.convert_to_givens_form()

@@ -96,9 +96,12 @@ def matrix_normal_density(X, M, U, V):
     pdf = norm + pptn
     return pdf
 
-def evaluate_sufficient_statistics(x):
+
+
+def evaluate_transition_sufficient_statistics(x):
     """
     Calculate the required sufficient statistics from the state trajectory
+    for the transition model sampling operations.
     """
     K,ds = x.shape
     
@@ -118,6 +121,32 @@ def evaluate_sufficient_statistics(x):
     
     return suffStats
 
+def evaluate_observation_sufficient_statistics(x, y):
+    """
+    Calculate the required sufficient statistics from the state trajectory
+    for the observation model sampling operations.
+    """
+    K,ds = x.shape
+    _,do = y.shape
+    
+    # Create arrays
+    suffStats = list()
+    suffStats.append( 0 )
+    suffStats.append( np.zeros((ds,ds)) )
+    suffStats.append( np.zeros((do,ds)) )
+    suffStats.append( np.zeros((do,do)) )
+    
+    # Loop through time incrementing stats
+    for kk in range(K):
+        suffStats[0] += 1
+        suffStats[1] += np.outer(x[kk], x[kk])
+        suffStats[2] += np.outer(y[kk], x[kk])
+        suffStats[3] += np.outer(y[kk], y[kk])
+    
+    return suffStats
+
+
+
 def hyperparam_update_basic_mniw_transition(suffStats, nu0, Psi0, M0, V0):
     """
     Update matrix-normal-inverse-wishart hyperparameters for transition model
@@ -133,6 +162,26 @@ def hyperparam_update_basic_mniw_transition(suffStats, nu0, Psi0, M0, V0):
     
     return nu, Psi, M, V
 
+
+
+def hyperparam_update_basic_ig_observation_variance(suffStats, H, a0, b0):
+    """
+    Update inverse-gamma hyperparameters for the scale factor on the 
+    observation covariance (which is assumed to be diagonal).
+    """
+    dy = suffStats[3].shape[0]
+    Hss2 = np.dot(H,suffStats[2].T)
+    sumSquares = suffStats[3] - Hss2 - Hss2.T \
+                                          + np.dot(np.dot(H,suffStats[1]),H.T)    
+    
+    # Posterior hyperparameters
+    a = a0 + 0.5*dy*suffStats[0]
+    b = b0 + 0.5*np.trace( sumSquares )
+    
+    return a,b
+    
+    
+
 def hyperparam_update_basic_mniw_transition_matrix(suffStats, M0, V0):
     """
     Update matrix-normal hyperparameters for transition matrix conditional
@@ -144,6 +193,24 @@ def hyperparam_update_basic_mniw_transition_matrix(suffStats, M0, V0):
     M   = np.dot( la.solve(V0,M0.T).T + suffStats[2] , V)
     
     return M, V
+
+
+
+#def hyperparam_update_basic_mniw_transition_covariance(suffStats, F, nu0, Psi0):
+#    """
+#    Update inverse-wishart hyperparameters for transition covariance matrix
+#    conditional on observed state trajectory.
+#    """
+#    
+#    # Posterior hyperparameters    
+#    Fss2 = np.dot(F,suffStats[2].T)
+#    nu  = nu0 + suffStats[0]
+#    Psi = Psi0 + suffStats[3] - Fss2 - Fss2.T \
+#                                          + np.dot(np.dot(F,suffStats[1]),F.T)
+#    
+#    return nu, Psi
+
+
 
 def hyperparam_update_degenerate_mniw_transition(suffStats, U, nu0, Psi0, M0, V0):
     """
@@ -182,174 +249,6 @@ def project_degenerate_transition_matrix(Fold, FU, U):
 
 
 
-#def sample_transition_model_prior(nu0, Psi0, M0, V0, A=None, Q=None):
-#    """Sample transition model from matrix-normal-inverse-wishart prior"""
-#        
-#    if Q is None:
-#        Q = la.inv(sample_wishart(nu0, la.inv(Psi0)))
-#    
-#    if A is None:
-#        A = sample_matrix_normal(M0, Q, V0)
-#
-#    return A, Q
-#
-#def sample_transition_model_conditional(x, nu0, Psi0, M0, V0, A=None, Q=None):
-#    """Sample transition model from matrix-normal-inverse-wishart posterior"""
-#    
-#    ds = M0.shape[0]
-#    K = len(x)
-#    invV0 = la.inv(V0)
-#    
-#    # Sufficient stats
-#    SS0 = 0
-#    SS1 = np.zeros((ds,ds))
-#    SS2 = np.zeros((ds,ds))
-#    SS3 = np.zeros((ds,ds))
-#    for kk in range(1,K):
-#        SS0 += 1
-#        SS1 += np.outer(x[kk-1], x[kk-1])
-#        SS2 += np.outer(x[kk-1], x[kk])
-#        SS3 += np.outer(x[kk], x[kk])
-#    
-#    nu  = nu0 + SS0
-#    V   = la.inv( invV0 + SS1 )
-#    M   = np.dot( np.dot(M0,invV0)+SS2.T , V)
-#    Psi = Psi0 + SS3 - np.dot(M, la.solve(V,M.T) ) + np.dot(M0, la.solve(V0,M0.T) )
-#    
-#    
-#    if Q is None:
-#        Q = la.inv(sample_wishart(nu, la.inv(Psi)))
-#    
-#    if A is None:
-#        A = sample_matrix_normal(M, Q, V)
-#        
-##    print(A)
-#
-#    return A, Q
-#
-#
-#### PRIORS ###
-#
-#def sample_transition_matrix_prior(ds, pA, A=None):
-#    """Sample a transition matrix from a Gaussian prior (mean 0,
-#       covariance pA*I) over its vectorised elements"""
-#    ds2 = ds**2
-#    P = pA*np.identity(ds2)
-#    if not(type(A)==np.ndarray):
-#        Avec = mvn.rvs(mean=np.zeros(ds2), cov=P)
-#        A = np.reshape(Avec,(ds,ds))
-#    else:
-#        Avec = A.flatten()
-#    pdf = mvn.logpdf(Avec,mean=np.zeros(ds2),cov=P)
-#    return A,pdf
-#    
-#def sample_transition_matrix_mask_prior(ds, pB):
-#    """Sample a transition matrix mask from an independent Bernoulli prior 
-#       over its elevemnts"""
-#    B = sps.bernoulli.rvs(pB, size=(ds,ds))
-#    return B
-#
-#def sample_transition_covariance_prior(ds, nu0, pQ, Q=None):
-#    """Sample a transition covariance matrix from its inverse Wishart prior"""
-#    P = pQ*np.identity(ds)
-#    if not(type(Q)==np.ndarray):
-#        invQ = sample_wishart(nu0,P)
-#        Q = la.inv(invQ)
-#    else:
-#        invQ = la.inv(Q)
-#    pdf = wishart_density(invQ,nu0,P)
-#    return Q,pdf
-#
 
-#def sample_observation_covariance_scale_conditional(x, y, H, nu0, pR):
-#    
-#    shape = nu0
-#    rate = pR
-#    for kk in range(len(y)):
-#        if len(y[kk])>0:
-#            shape += len(y[kk])
-#            rate += la.norm( y[kk]-np.dot(H[kk],x[kk]) )**2
-#    Rinvscale = stats.gamma.rvs(shape,scale=1./rate)
-#    Rscale = 1./Rinvscale
-#    return Rscale
-#    
-#
-#### SPARSE LINEAR MODEL CONDTIONALS ###
-#
-#def sample_transition_matrix_mask_conditional(x, A, B, Q, pB):
-#    """Sample a transition matrix mask from its posterior conditional on the
-#       sampled state sequence"""
-#    K = len(x)
-#    ds = A.shape[1]
-#    ds2 = pow(ds,2)
-#    XQX = np.zeros((ds2,ds2))
-#    XQx = np.zeros(ds2)
-#    for kk in range(1,K):
-#        tmp = [ np.multiply((A[ii,:]), x[kk-1]) for ii in range(ds) ]
-#        Xmat = la.block_diag(*tmp)
-#        XQX = XQX + np.dot( la.solve(Q,Xmat,sym_pos=True,check_finite=False).T ,Xmat )
-#        XQx = XQx + np.dot( la.solve(Q,Xmat,sym_pos=True,check_finite=False).T ,x[kk])
-#    Bvec = B.flatten()
-#    order = np.random.permutation(ds2)
-#    pon = np.zeros(2)
-#    for ii in order:
-#        Bmod = list(Bvec)
-#        Bmod[ii] = 0.5
-#        pon[0] = np.log(pB) - 0.5*(  2*np.dot(XQX[ii,:],Bmod)-2*XQx[ii]  )
-#        pon[1] = np.log(1-pB)
-#        pon = pon - spm.logsumexp(pon)
-#        Bvec[ii] = np.log(rnd.random())<pon[0]
-#    B = np.reshape(Bvec,(ds,ds))
-#    return B
-#    
-#def sample_transition_matrix_and_mask_conditional(x, A, B, Q, pA, pB):
-#    """Sample a transition matrix AND its mask jointly element-wise from 
-#       their posterior conditional on the sampled state sequence"""    
-#    K = len(x)
-#    ds = A.shape[0]
-#    
-#    # Don't change originals
-#    Anew = A.copy()
-#    Bnew = B.copy()
-#    
-#    order1 = np.random.permutation(ds)
-#    order2 = np.random.permutation(ds)
-#    
-#    for ii in order1:
-#        for jj in order2:
-#            XQx = 0
-#            xQx = 0
-#            F = np.multiply(Anew,Bnew)
-#            F[ii,jj] = 0
-#            for kk in range(1,K):
-#                xij = np.zeros(ds)
-#                xij[ii] = x[kk-1][jj]
-#                D = x[kk]-np.dot(F,x[kk-1])
-#                XQx = XQx + np.dot(D.T, la.solve(Q,xij) )
-#                xQx = xQx + np.dot(xij.T, la.solve(Q,xij) )
-#            
-#            pon = np.zeros(2)
-#            vr = 1/pA + xQx
-#            pon[0] = np.log(pB) + 0.5*( (XQx**2)/vr ) - 0.5*np.log(vr)
-#            pon[1] = np.log(1-pB) - 0.5*np.log(1/pA)
-#            pon = pon - spm.logsumexp(pon)
-#            Bnew[ii,jj] = np.log(rnd.random())<pon[0]
-#            
-#            if Bnew[ii,jj]:
-#                a_vr = 1/(1/pA + xQx)
-#                a_mn = a_vr*XQx
-#            else:
-#                a_vr = pA
-#                a_mn = 0
-#            Anew[ii,jj] = mvn.rvs(mean=a_mn, cov=a_vr)
-#            
-#    return Anew,Bnew
-#
+    
 
-#    
-#def sample_truncated_gamma(a,b,c):
-#    """Sample from a truncated gamma distribution"""
-#    lb = stats.gamma.cdf(c,a,scale=b)
-#    u = stats.uniform.rvs(loc=lb,scale=1-lb)
-#    x = stats.gamma.ppf(u,a,scale=b)
-#    return x

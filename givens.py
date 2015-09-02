@@ -15,8 +15,6 @@ def plane_rotation(x):
     else:
         G = np.identity(2)
     
-    #print(np.arctan2(x[1],x[0]))
-    
     return G
 
 

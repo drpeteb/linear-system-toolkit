@@ -58,7 +58,12 @@ class MNIWPriorLearning(BasicModelLearningTestCase):
         # MCMC
         for ii in range(self.num_iter):
             print("Running iteration {} of {}.".format(ii+1,self.num_iter))
-            learner.iterate_transition()
+            if (ii%3)==0:
+                learner.iterate_transition()
+            elif (ii%3)==1:
+                learner.iterate_transition_matrix()
+            elif (ii%3)==2:
+                learner.iterate_transition_covariance()
             learner.save_link()
         
         learner.plot_chain_trace('F', numBurnIn=self.num_burn)
