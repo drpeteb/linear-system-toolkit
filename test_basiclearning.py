@@ -49,8 +49,8 @@ class MNIWPriorLearning(BasicModelLearningTestCase):
         
         # Set up learning
         hyperparams = dict()
-        hyperparams['nu0'] = 3.01
-        hyperparams['Psi0'] = (hyperparams['nu0']-self.ds-1)*np.identity(self.ds)
+        hyperparams['nu0'] = self.ds-1
+        hyperparams['Psi0'] = hyperparams['nu0']*0.1*np.identity(self.ds)
         hyperparams['M0'] = np.zeros(self.ds)
         hyperparams['V0'] = np.identity(self.ds)
         learner = MCMCLearnerForBasicModelWithMNIWPrior(self.est_model, self.observ, hyperparams)
@@ -58,12 +58,8 @@ class MNIWPriorLearning(BasicModelLearningTestCase):
         # MCMC
         for ii in range(self.num_iter):
             print("Running iteration {} of {}.".format(ii+1,self.num_iter))
-            if (ii%3)==0:
-                learner.iterate_transition()
-            elif (ii%3)==1:
-                learner.iterate_transition_matrix()
-            elif (ii%3)==2:
-                learner.iterate_transition_covariance()
+            learner.sample_state_trajectory()
+            learner.sample_transition()
             learner.save_link()
         
         learner.plot_chain_trace('F', numBurnIn=self.num_burn)

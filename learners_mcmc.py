@@ -1,19 +1,21 @@
 # Operational modules
 from abc import ABCMeta, abstractmethod
+import types
+
 import numpy as np
 import scipy.linalg as la
 from scipy import stats
 from scipy import special
+from statsmodels.tsa import stattools
 import matplotlib.pyplot as plt
 
 # Import from other module files
 import sampling as smp
-from linear_models import BasicLinearModel
 
-class AbstractMCMCLearner:
+class BaseMCMCLearner:
     __metaclass__ = ABCMeta
     """
-    Abstract Container class for MCMC system learning algorithms.
+    Basic methods for MCMC system learning algorithms.
     Sub-class this and implement methods to perform individual MCMC sampling 
     steps. These will depend on the type of linear model and the choice of
     prior distribusion.
@@ -21,12 +23,16 @@ class AbstractMCMCLearner:
     
     def __init__(self, initial_model_estimate, observ, hyperparams,
                                             algoparams=dict(), verbose=False):
-        self.model = initial_model_estimate
         self.observ = observ
         self.hyperparams = hyperparams
+        
         self.algoparams = algoparams
         
-        self.chain = []
+        self.model = initial_model_estimate
+        self.flt,_,self.lhood = self.model.kalman_filter(self.observ)
+        self.state = self.model.backward_simulation(self.flt)
+        self.filter_current = True
+        
         self.chain_model = []
         self.chain_state = []
         self.chain_lhood = []
@@ -35,16 +41,34 @@ class AbstractMCMCLearner:
     
     def save_link(self):
         """Save the current state of the model as a link in the chain"""
-        self.chain.append(self.model.copy())
+        
+        # Need to make sure the likelihood value is current
+        if not self.filter_current:
+            self.flt,_,self.lhood = self.model.kalman_filter(self.observ)
+            self.filter_current = True
+        
+        self.chain_model.append(self.model.copy())
+        self.chain_state.append(self.state.copy())
+        self.chain_lhood.append(self.lhood)
+    
+    def sample_state_trajectory(self):
+        """
+        Sample a state trajectory conditional on the current model parameters
+        """
+        # Need to make sure the likelihood value is current
+        if not self.filter_current:
+            self.flt,_,self.lhood = self.model.kalman_filter(self.observ)
+            self.filter_current = True
+        self.state = self.model.backward_simulation(self.flt)
     
     
-    def _create_2d_plot_axes(self, paramName, index1=None, index2=None):
+    def _create_2d_plot_axes(self, param, index1=None, index2=None):
         """
         Create a figure, axes, and coordinates for elements of a 2D array
         """
         
         # Get the parameter shape
-        paramShape = self.model.parameters[paramName].shape
+        paramShape = param.shape
         
         # Create index lists if missing
         if index1 is None:
@@ -70,13 +94,13 @@ class AbstractMCMCLearner:
         
         return fig, axs, coords
     
-    def _create_1d_plot_axes(self, paramName, index=None):
+    def _create_1d_plot_axes(self, param, index=None):
         """
         Create a figure, axes, and coordinates for elements of a 1D array
         """
         
         # Get the parameter shape
-        paramShape = self.model.parameters[paramName].shape
+        paramShape = param.shape
         
         # Create index lists if missing
         if index is None:
@@ -98,7 +122,8 @@ class AbstractMCMCLearner:
         return fig, axs, coords
     
     
-    def plot_chain_trace(self, paramName, numBurnIn=0, dims=None):
+    def plot_chain_trace(self, paramName, numBurnIn=0, dims=None,
+                                               trueModel=None, derived=False):
         """
         Make Markov chain trace plots for a chosen parameter
         
@@ -106,30 +131,46 @@ class AbstractMCMCLearner:
         columns should be plotted. If empty then all are plotted.
         """
         
+        # Get a list of parameters
+        if not derived:
+            paramList = [md.parameters[paramName] for md in self.chain_model]
+        else:
+            paramList = eval("[md.{}() for md in self.chain_model]"\
+                                                           .format(paramName))
+        
+        # Get the true value
+        if trueModel is not None:
+            if not derived:
+                trueValue = trueModel.parameters[paramName]
+            else:
+                trueValue = eval("trueModel.{}()".format(paramName))
+        
         # Get the parameter shape
-        paramShape = self.model.parameters[paramName].shape
+        paramShape = paramList[0].shape
         
         if len(paramShape)==1:
-            fig, axs, coords = self._create_1d_plot_axes(paramName, dims)
+            fig, axs, coords = self._create_1d_plot_axes(paramList[0], dims)
         elif len(paramShape)==2:
             if dims is None:
                 dims = (None,None)
-            fig, axs, coords = self._create_2d_plot_axes(paramName, dims[0],
-                                                                      dims[1])
+            fig, axs, coords = self._create_2d_plot_axes(paramList[0], 
+                                                             dims[0], dims[1])
         else:
             raise ValueError("Cannot draw plots for this parameter")
         
         for idx in np.ndindex(coords.shape):
-            samples = [mod.parameters[paramName][coords[idx]] \
-                                                        for mod in self.chain]
+            samples = [pp[coords[idx]] for pp in paramList]
             axs[idx].plot(samples, 'k')
             ylims = axs[idx].get_ylim()
-            axs[idx].plot([numBurnIn]*2, ylims, 'r:')
+            axs[idx].plot([numBurnIn]*2, ylims, 'k:')
             axs[idx].set_ylim(ylims)
+            if trueValue is not None:
+                axs[idx].plot([0,len(samples)-1],[trueValue[coords[idx]]]*2,
+                                                             'r', linewidth=2)
     
     
     def plot_chain_histogram(self, paramName, numBurnIn=0, dims=None,
-                                                              trueValue=None):
+                                               trueModel=None, derived=False):
         """
         Make Markov chain histograms for a chosen parameter
         
@@ -137,50 +178,135 @@ class AbstractMCMCLearner:
         be plotted. If empty then all are plotted.
         """
         
+        # Get a list of parameters
+        if not derived:
+            paramList = [md.parameters[paramName] for md in self.chain_model]
+        else:
+            paramList = eval("[md.{}() for md in self.chain_model]"\
+                                                           .format(paramName))
+        
+        # Get the true value
+        if trueModel is not None:
+            if not derived:
+                trueValue = trueModel.parameters[paramName]
+            else:
+                trueValue = eval("trueModel.{}()".format(paramName))
+        
         # Get the parameter shape
-        paramShape = self.model.parameters[paramName].shape
+        paramShape = paramList[0].shape
         
         if len(paramShape)==1:
-            fig, axs, coords = self._create_1d_plot_axes(paramName, dims)
+            fig, axs, coords = self._create_1d_plot_axes(paramList[0], dims)
         elif len(paramShape)==2:
             if dims is None:
                 dims = (None,None)
-            fig, axs, coords = self._create_2d_plot_axes(paramName, dims[0],
-                                                                      dims[1])
+            fig, axs, coords = self._create_2d_plot_axes(paramList[0], 
+                                                             dims[0], dims[1])
         else:
             raise ValueError("Cannot draw plots for this parameter")
         
         for idx in np.ndindex(coords.shape):
-            samples = [mod.parameters[paramName][coords[idx]] \
-                                            for mod in self.chain[numBurnIn:]]
+            samples = [pp[coords[idx]] for pp in paramList[numBurnIn:]]
             axs[idx].hist(samples, color='0.8')
             if trueValue is not None:
                 ylims = axs[idx].get_ylim()
                 axs[idx].plot([trueValue[coords[idx]]]*2, ylims, 'r',
                                                                   linewidth=2)
                 axs[idx].set_ylim(ylims)
+    
+    
+    def plot_chain_acf(self, paramName, numBurnIn=0, dims=None, nlags=30, 
+                                                               derived=False):
+        """
+        Make Markov chain autocorrelation function plots for a chosen
+        parameter
+        
+        dims is a list or tuple of two lists which specificy which rows and 
+        columns should be plotted. If empty then all are plotted.
+        """
+        
+        nlags = np.minimum( nlags, np.sqrt(len(self.chain_model)-numBurnIn) )
+        
+        # Get a list of parameters
+        if not derived:
+            paramList = [md.parameters[paramName] for md in self.chain_model]
+        else:
+            paramList = eval("[md.{}() for md in self.chain_model]"\
+                                                           .format(paramName))
+        
+        # Get the parameter shape
+        paramShape = paramList[0].shape
+        
+        if len(paramShape)==1:
+            fig, axs, coords = self._create_1d_plot_axes(paramList[0], dims)
+        elif len(paramShape)==2:
+            if dims is None:
+                dims = (None,None)
+            fig, axs, coords = self._create_2d_plot_axes(paramList[0], 
+                                                             dims[0], dims[1])
+        else:
+            raise ValueError("Cannot draw plots for this parameter")
+        
+        for idx in np.ndindex(coords.shape):
+            samples = [pp[coords[idx]] for pp in paramList[numBurnIn:]]
+            acf = stattools.acf(samples,unbiased=False,nlags=nlags)
+            axs[idx].plot(acf, 'k')
+            axs[idx].plot([0,nlags], [0,0], 'k:')
+            axs[idx].set_xlim([0,nlags])
 
 
-
-
-
-class MCMCLearnerForBasicModelWithMNIWPrior(AbstractMCMCLearner):
+class MCMCLearnerObservationDiagonalCovarianceWithIGPrior():
+    __metaclass__ = ABCMeta
     """
     Container for MCMC system learning algorithm.
     Model Type: Basic
+    Unknown Parameters: R (observation covariance, assumed diagonal)
+    Prior Type: Inverse Gamma
+    """
+    
+    def sample_observation_diagonal_covariance(self):
+        """
+        MCMC iteration (Gibbs sampling) for diagonal observation covariance
+        matrix with inverse-gamma prior
+        """
+        
+        # Calculate sufficient statistics using current state trajectory
+        suffStats = smp.evaluate_observation_sufficient_statistics(self.state,
+                                                                  self.observ)
+        
+        # Update hyperparameters
+        a,b = smp.hyperparam_update_basic_ig_observation_variance(
+                                    suffStats,
+                                    self.model.parameters['H'],
+                                    self.hyperparams['a0'],
+                                    self.hyperparams['b0'])
+        
+        # Sample new parameter
+        r = stats.invgamma.rvs(a, scale=b)
+        self.model.parameters['R'] = r*np.identity(self.model.do)
+        
+        # self.flt and self.lhood are no longer up-to-date
+        self.filter_current = False
+
+
+
+
+class MCMCLearnerTransitionBasicModelWithMNIWPrior():
+    __metaclass__ = ABCMeta
+    """
+    Container for MCMC system learning algorithm.
+    Model Type: Basic
+    Unknown Parameters: F,Q
     Prior Type: Matrix Normal-Inverse Wishart
     """
         
-    def iterate_transition(self):
+    def sample_transition(self):
         """
         MCMC iteration (Gibbs sampling) for transition matrix and covariance
         """
         
-        # First sample the state sequence
-        x = self.model.sample_posterior(self.observ)
-        
-        # Calculate sufficient statistics
-        suffStats = smp.evaluate_transition_sufficient_statistics(x)
+        # Calculate sufficient statistics using current state trajectory
+        suffStats = smp.evaluate_transition_sufficient_statistics(self.state)
         
         # Update hyperparameters
         nu,Psi,M,V = smp.hyperparam_update_basic_mniw_transition(
@@ -197,91 +323,17 @@ class MCMCLearnerForBasicModelWithMNIWPrior(AbstractMCMCLearner):
         # Update the model
         self.model.parameters['F'] = F
         self.model.parameters['Q'] = Q
-    
-    def iterate_observation_diagonal_covariance(self):
-        """
-        MCMC iteration (Gibbs sampling) for diagonal observation covariance
-        matrix with inverse-gamma prior
-        """
         
-        # First sample the state sequence
-        x = self.model.sample_posterior(self.observ)
-        
-        # Calculate sufficient statistics
-        suffStats = smp.evaluate_observation_sufficient_statistics(x,
-                                                                  self.observ)
-        
-        # Update hyperparameters
-        a,b = smp.hyperparam_update_basic_ig_observation_variance(
-                                    suffStats,
-                                    self.model.parameters['H'],
-                                    self.hyperparams['a0'],
-                                    self.hyperparams['b0'])
-        
-        # Sample new parameter
-        r = stats.invgamma.rvs(a, scale=b)
-        self.model.parameters['R'] = r*np.identity(self.model.do)
-        
-        
-
-#    def iterate_transition_matrix(self):
-#        """
-#        MCMC iteration (Gibbs sampling) for transition matrix only
-#        """
-#        
-#        # First sample the state sequence
-#        x = self.model.sample_posterior(self.observ)
-#        
-#        # Calculate sufficient statistics
-#        suffStats = smp.evaluate_transition_sufficient_statistics(x)
-#        
-#        # Update hyperparameters
-#        M,V = smp.hyperparam_update_basic_mniw_transition_matrix(
-#                                                    suffStats,
-#                                                    self.hyperparams['M0'],
-#                                                    self.hyperparams['V0'])
-#        
-#        # Sample new parameters
-#        Q = self.model.parameters['Q']
-#        F = smp.sample_matrix_normal(M, Q, V)
-#        
-#        # Update the model
-#        self.model.parameters['F'] = F
-#
-#    def iterate_transition_covariance(self):
-#        """
-#        MCMC iteration (Gibbs sampling) for transition covariance only
-#        """
-#        
-#        # First sample the state sequence
-#        x = self.model.sample_posterior(self.observ)
-#        
-#        # Calculate sufficient statistics
-#        suffStats = smp.evaluate_transition_sufficient_statistics(x)
-#        
-#        # Update hyperparameters
-#        nu,Psi = smp.hyperparam_update_basic_mniw_transition_covariance(
-#                                                suffStats,
-#                                                self.model.parameters['F'],
-#                                                self.hyperparams['nu0'],
-#                                                self.hyperparams['Psi0'])
-#        
-#        # Sample new parameters
-#        Q = la.inv(smp.sample_wishart(nu, la.inv(Psi)))
-#        
-#        # Update the model
-#        self.model.parameters['Q'] = Q
-        
-        
-        
-        
-        
+        # self.flt and self.lhood are no longer up-to-date
+        self.filter_current = False        
                       
 
-class MCMCLearnerForDegenerateModelWithMNIWPrior(MCMCLearnerForBasicModelWithMNIWPrior):
+class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
+    __metaclass__ = ABCMeta
     """
     Container for MCMC system learning algorithm.
     Model Type: Degenerate
+    Unknown Parameters: F,Q,rank(Q)
     Prior Type: Singular Matrix Normal-Inverse Wishart
     """
     
@@ -306,55 +358,26 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(MCMCLearnerForBasicModelWithMNI
         
         return variancePrior + matrixPrior
     
-    def iterate_transition(self, moveType):
+    
+    def sample_transition_covariance(self, moveType):
         """
-        MCMC iteration (Metropolis-Hastings) for transition matrix and
-        covariance.
+        MCMC iteration (Metropolis-Hastings) for transition covariance.
         """
         
-        # Kalman filter
-        flt,_,lhood = self.model.kalman_filter(self.observ)
+        # Need to make sure the likelihood value is current
+        if not self.filter_current:
+            self.flt,_,self.lhood = self.model.kalman_filter(self.observ)
+            self.filter_current = True
         
         # Copy model
         ppsl_model = self.model.copy()
         
         if self.verbose:
-            print("Metropolis-Hastings move type: {}".format(moveType))
+            print("Metropolis-Hastings move for transition covariance."
+                  "Type: {}".format(moveType))
         
         # Propose change
-        if   moveType=='F':
-            
-            # Simulate state trajectory
-            x = ppsl_model.backward_simulation(flt)
-            suffStats = smp.evaluate_transition_sufficient_statistics(x)
-            
-            # Pad the transition covariance
-            padded_Q = ppsl_model.transition_covariance() + \
-                              self.algoparams['Fs']*np.identity(ppsl_model.ds)
-            
-            # Sample a new transition matrix
-            M,V = smp.hyperparam_update_basic_mniw_transition_matrix(
-                                                    suffStats,
-                                                    self.hyperparams['M0'],
-                                                    self.hyperparams['V0'],)
-            ppsl_F = smp.sample_matrix_normal(M,padded_Q,V)
-            fwd_prob = smp.matrix_normal_density(ppsl_F,M,padded_Q,V)
-            ppsl_model.parameters['F'] = ppsl_F
-            
-            # Sample a new trajectory
-            ppsl_x = ppsl_model.sample_posterior(self.observ)
-            ppsl_suffStats = smp.evaluate_transition_sufficient_statistics(
-                                                                       ppsl_x)
-            
-            # Reverse move probaility
-            M,V = smp.hyperparam_update_basic_mniw_transition_matrix(
-                                                    ppsl_suffStats,
-                                                    self.hyperparams['M0'],
-                                                    self.hyperparams['V0'],)
-            bwd_prob = smp.matrix_normal_density(self.model.parameters['F'],
-                                                                 M,padded_Q,V)
-        
-        elif moveType=='Q':
+        if moveType=='rotate':
             
             # Make the change
             rotation = smp.sample_cayley(self.model.ds, self.algoparams['Qs'])
@@ -365,6 +388,7 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(MCMCLearnerForBasicModelWithMNI
             bwd_prob = 0
             
         elif moveType=='rank':
+            # Assumes uniform prior on each possible value of the rank
             
             if ppsl_model.ds == 1:
                 switch = -1                               # Do nothing (1D)
@@ -378,8 +402,6 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(MCMCLearnerForBasicModelWithMNI
             if switch == -1:
                 # No options to change rank
                 
-                prior = 0
-                ppsl_prior = 0
                 fwd_prob = 0
                 bwd_prob = 0
                 
@@ -443,9 +465,7 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(MCMCLearnerForBasicModelWithMNI
                 # Fudge the proposals and jacobian into the proposal terms
                 fwd_prob = valPpslProb
                 bwd_prob = constJac + varJac
-                
-                # Assumes uniform prior on each possible value of the rank
-                
+            
         else:
             raise ValueError("Invalid move type")
         
@@ -457,35 +477,96 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(MCMCLearnerForBasicModelWithMNI
         ppsl_prior = self.transition_prior(ppsl_model)
         
         # Decide
-        acceptRatio =   (ppsl_lhood-lhood) \
+        acceptRatio =   (ppsl_lhood-self.lhood) \
                       + (ppsl_prior-prior) \
                       + (bwd_prob-fwd_prob)
         if self.verbose:
                 print("   Acceptance ratio: {}".format(acceptRatio))
         if np.log(np.random.random())<acceptRatio:
             self.model = ppsl_model
-            flt = ppsl_flt
+            self.flt = ppsl_flt
+            self.lhood = ppsl_lhood
             if self.verbose:
                 print("   accepted")
         else:
             if self.verbose:
                 print("   rejected")
         
-        # Sample within subspace
-        self.iterate_transition_within_subspace(flt)
+        
+    def sample_transition_matrix(self, moveType):
+        """
+        MCMC iteration (Metropolis-Hastings) for transition matrix
+        """
+        
+        # Need to make sure the likelihood value is current
+        if not self.filter_current:
+            self.flt,_,self.lhood = self.model.kalman_filter(self.observ)
+            self.filter_current = True
+        
+        # Copy model
+        ppsl_model = self.model.copy()
+        
+        if self.verbose:
+            print("Metropolis-Hastings move for transition matrix.")
+        
+        # Propose a new transition matrix
+        suffStats = smp.evaluate_transition_sufficient_statistics(self.state)
+        padded_Q = ppsl_model.transition_covariance() + \
+                              self.algoparams['Fs']*np.identity(ppsl_model.ds)
+        M,V = smp.hyperparam_update_basic_mn_transition_matrix(
+                                                    suffStats,
+                                                    self.hyperparams['M0'],
+                                                    self.hyperparams['V0'],)
+        ppsl_F = smp.sample_matrix_normal(M,padded_Q,V)
+        fwd_prob = smp.matrix_normal_density(ppsl_F,M,padded_Q,V)
+        ppsl_model.parameters['F'] = ppsl_F
+        
+        # Sample a new trajectory
+        ppsl_state = ppsl_model.sample_posterior(self.observ)
+        ppsl_suffStats = smp.evaluate_transition_sufficient_statistics(
+                                                                   ppsl_state)
+        
+        # Reverse move probaility
+        M,V = smp.hyperparam_update_basic_mn_transition_matrix(
+                                                    ppsl_suffStats,
+                                                    self.hyperparams['M0'],
+                                                    self.hyperparams['V0'],)
+        bwd_prob = smp.matrix_normal_density(self.model.parameters['F'],
+                                                                 M,padded_Q,V)
+        
+        # Kalman filter
+        ppsl_flt,_,ppsl_lhood = ppsl_model.kalman_filter(self.observ)
+        
+        # Prior terms
+        prior = self.transition_prior(self.model)
+        ppsl_prior = self.transition_prior(ppsl_model)
+        
+        # Decide
+        acceptRatio =   (ppsl_lhood-self.lhood) \
+                      + (ppsl_prior-prior) \
+                      + (bwd_prob-fwd_prob)
+        if self.verbose:
+                print("   Acceptance ratio: {}".format(acceptRatio))
+        if np.log(np.random.random())<acceptRatio:
+            self.model = ppsl_model
+            self.flt = ppsl_flt
+            self.lhood = ppsl_lhood
+            self.state = ppsl_state
+            if self.verbose:
+                print("   accepted")
+        else:
+            if self.verbose:
+                print("   rejected")
     
     
-    def iterate_transition_within_subspace(self, flt):
+    def sample_transition_within_subspace(self):
         """
         MCMC iteration (Gibbs sampling) for transition matrix and covariance
         within the constrained subspace
         """
         
-        # First sample the state sequence
-        x = self.model.backward_simulation(flt)
-        
         # Calculate sufficient statistics
-        suffStats = smp.evaluate_transition_sufficient_statistics(x)
+        suffStats = smp.evaluate_transition_sufficient_statistics(self.state)
         
         # Convert to Givens factorisation form
         U,D = self.model.convert_to_givens_form()
@@ -507,6 +588,9 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(MCMCLearnerForBasicModelWithMNI
         
         # Convert back to eigen-decomposition form
         self.model.update_from_givens_form(U, D)
+        
+        # self.flt and self.lhood are no longer up-to-date
+        self.filter_current = False
     
     
 #            
@@ -560,41 +644,6 @@ class MCMCLearnerForDegenerateModelWithMNIWPrior(MCMCLearnerForBasicModelWithMNI
 
             
 #### DISPLAY ###
-
-#    
-#
-#def draw_chain_autocorrelation(chain, true_model, burn_in, fields, nlags=30):
-#    d = min(4,true_model.ds) # Don't plot too many components - too small
-#    
-#    if len(chain)>burn_in:
-#        
-#        for ff in fields:
-#            if ff in ['F','Q','G','D']:
-#                d = getattr(true_model, ff).shape[0]
-#                d = min(4,d)
-#                fig,ax = plt.subplots(d,d,squeeze=False,figsize=(9,9))
-#                fig.subplots_adjust(wspace=0.3, hspace=0.3)
-#                for rr in range(d):
-#                    for cc in range( getattr(chain[-1],ff).shape[1] ):
-#                        seq = [getattr(mm,ff)[rr,cc] for mm in chain[burn_in:]]
-#                        ac = st.acf(seq,unbiased=False,nlags=nlags,)
-#                        ax[rr,cc].locator_params(nbins=2)
-#                        ax[rr,cc].set_xlim((0,nlags))
-#                        ax[rr,cc].set_ylim((-0.1,1))
-#                        ax[rr,cc].plot(range(len(ac)),ac,'k')
-#                        ax[rr,cc].plot(range(len(ac)),[0]*len(ac),':k')
-#            elif ff in ['givens']:
-#                d = len(getattr(true_model,ff))
-#                fig = plt.figure()
-#                for dd in range(d):
-#                    ax = fig.add_subplot(d,1,dd+1)
-#                    seq = [getattr(mm,ff)[dd] for mm in chain[burn_in:]]
-#                    ac = st.acf(seq,unbiased=False,nlags=nlags,)
-#                    ax.plot(range(len(ac)),ac,'k')
-#                    ax.plot(range(len(ac)),[0]*len(ac),':k')
-#                    ax.set_ylim([-0.1,1])
-#                    
-#    return fig
 #
 #
 #def draw_chain_acceptance(chain_acc, burn_in):

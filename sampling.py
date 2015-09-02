@@ -182,7 +182,7 @@ def hyperparam_update_basic_ig_observation_variance(suffStats, H, a0, b0):
     
     
 
-def hyperparam_update_basic_mniw_transition_matrix(suffStats, M0, V0):
+def hyperparam_update_basic_mn_transition_matrix(suffStats, M0, V0):
     """
     Update matrix-normal hyperparameters for transition matrix conditional
     on observed state trajectory.
@@ -196,19 +196,19 @@ def hyperparam_update_basic_mniw_transition_matrix(suffStats, M0, V0):
 
 
 
-#def hyperparam_update_basic_mniw_transition_covariance(suffStats, F, nu0, Psi0):
-#    """
-#    Update inverse-wishart hyperparameters for transition covariance matrix
-#    conditional on observed state trajectory.
-#    """
-#    
-#    # Posterior hyperparameters    
-#    Fss2 = np.dot(F,suffStats[2].T)
-#    nu  = nu0 + suffStats[0]
-#    Psi = Psi0 + suffStats[3] - Fss2 - Fss2.T \
-#                                          + np.dot(np.dot(F,suffStats[1]),F.T)
-#    
-#    return nu, Psi
+def hyperparam_update_basic_iw_transition_covariance(suffStats, F, nu0, Psi0):
+    """
+    Update inverse-wishart hyperparameters for transition covariance matrix
+    conditional on observed state trajectory.
+    """
+    
+    # Posterior hyperparameters    
+    Fss2 = np.dot(F,suffStats[2].T)
+    nu  = nu0 + suffStats[0]
+    Psi = Psi0 + suffStats[3] - Fss2 - Fss2.T \
+                                          + np.dot(np.dot(F,suffStats[1]),F.T)
+    
+    return nu, Psi
 
 
 

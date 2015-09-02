@@ -5,7 +5,14 @@ from matplotlib import pyplot as plt
 
 from kalman import GaussianDensity
 from linear_models import BasicLinearModel, DegenerateLinearModel
-from learners_mcmc import MCMCLearnerForDegenerateModelWithMNIWPrior
+from learners_mcmc import BaseMCMCLearner, MCMCLearnerObservationDiagonalCovarianceWithIGPrior, MCMCLearnerTransitionBasicModelWithMNIWPrior, MCMCLearnerTransitionDegenerateModelWithMNIWPrior
+
+# Create a learner class for this run
+class MCMCLearner(BaseMCMCLearner,
+                    MCMCLearnerObservationDiagonalCovarianceWithIGPrior,
+                    MCMCLearnerTransitionDegenerateModelWithMNIWPrior):
+    pass
+            
 
 plt.close('all')
 
@@ -48,34 +55,36 @@ algoparams = dict()
 algoparams['Qs'] = 0.1
 algoparams['Fs'] = 0.1
 
-learner = MCMCLearnerForDegenerateModelWithMNIWPrior(est_model, observ, hyperparams, algoparams=algoparams, verbose=True)
+learner = MCMCLearner(est_model, observ, hyperparams, algoparams=algoparams, verbose=True)
 
-num_iter = 200
-num_burn = int(num_iter/5)
+num_iter = 800
+num_burn = int(num_iter/2)
+num_hold = num_burn/2
 
 for ii in range(num_iter):
     print("Running iteration {} of {}.".format(ii+1,num_iter))
     
     if (ii%3)==0:
-        learner.iterate_transition('Q')
+        learner.sample_transition_covariance('rotate')
     elif (ii%3)==1:
-        learner.iterate_transition('rank')
+        learner.sample_transition_covariance('rank')
     else:
-        learner.iterate_transition('F')
-    learner.iterate_diagonal_observation_covariance()
+        learner.sample_transition_matrix('F')
+    learner.sample_transition_within_subspace()
+    if ii > num_hold:
+        learner.sample_observation_diagonal_covariance()
+    learner.sample_state_trajectory()
     learner.save_link()
 
-learner.plot_chain_trace('F', numBurnIn=num_burn)
-learner.plot_chain_trace('rank', numBurnIn=num_burn)
-learner.plot_chain_trace('R', numBurnIn=num_burn)
-#learner.plot_chain_trace('Q', numBurnIn=num_burn)
-#learner.plot_chain_trace('val', numBurnIn=num_burn)
-#learner.plot_chain_trace('vec', numBurnIn=num_burn)
+learner.plot_chain_trace('F', numBurnIn=num_burn, trueModel=model)
+learner.plot_chain_trace('transition_covariance', numBurnIn=num_burn, trueModel=model, derived=True)
+learner.plot_chain_trace('rank', numBurnIn=num_burn, trueModel=model)
+learner.plot_chain_trace('R', numBurnIn=num_burn, trueModel=model)
 
-learner.plot_chain_histogram('F', numBurnIn=num_burn, trueValue=params['F'])
-learner.plot_chain_histogram('rank', numBurnIn=num_burn, trueValue=params['rank'])
-learner.plot_chain_histogram('R', numBurnIn=num_burn, trueValue=params['R'])
-#learner.plot_chain_histogram('Q', numBurnIn=num_burn, trueValue=params['Q'])
-#learner.plot_chain_histogram('val', numBurnIn=num_burn, trueValue=params['val'])
-#learner.plot_chain_histogram('vec', numBurnIn=num_burn, trueValue=params['vec'])
+learner.plot_chain_histogram('F', numBurnIn=num_burn, trueModel=model)
+learner.plot_chain_histogram('transition_covariance', numBurnIn=num_burn, trueModel=model, derived=True)
+learner.plot_chain_histogram('rank', numBurnIn=num_burn, trueModel=model)
+learner.plot_chain_histogram('R', numBurnIn=num_burn, trueModel=model)
 
+learner.plot_chain_acf('F', numBurnIn=num_burn)
+learner.plot_chain_acf('R', numBurnIn=num_burn)
