@@ -37,6 +37,9 @@ class BaseMCMCLearner:
         self.chain_state = []
         self.chain_lhood = []
         
+        self.chain_accept = dict()
+        self.chain_algoparams = dict()
+        
         self.verbose = verbose
     
     def save_link(self):
@@ -50,6 +53,21 @@ class BaseMCMCLearner:
         self.chain_model.append(self.model.copy())
         self.chain_state.append(self.state.copy())
         self.chain_lhood.append(self.lhood)
+
+        
+    def adapt_algorithm_parameters(self, batchLength=20, targetRate=0.44,
+                                                                minReact=0.1):
+        """
+        Adapt algorithm parameters based on recent acceptance history.
+        """
+        for param in list(self.algoparams.keys()):
+            length = np.minimum(batchLength,len(self.chain_accept[param]))
+            actualRate = np.mean(np.array(self.chain_accept[param][-length:]))
+            expnt = np.min(minReact,1.0/np.sqrt(length))
+            if actualRate < targetRate:
+                expnt *= -1
+            self.algoparams[param] *= np.exp(expnt)
+                    
     
     def sample_state_trajectory(self):
         """
@@ -122,6 +140,44 @@ class BaseMCMCLearner:
         return fig, axs, coords
     
     
+    def plot_chain_accept(self, paramName=None, numBurnIn=0):
+        """
+        Make Markov chain accpetance plots for algorithm parameters
+        """
+        
+        if paramName is None:
+            paramName = list(self.chain_accept.keys())
+        numParams = len(paramName)
+        
+        fig, axs = plt.subplots(nrows=1, ncols=numParams, squeeze=False)
+        
+        for ii in range(numParams):
+            samples = self.chain_accept[paramName[ii]]
+            axs[0,ii].plot(np.cumsum(samples), 'k')
+            axs[0,ii].set_title(paramName[ii])
+        
+        plt.show()
+        
+        
+    def plot_chain_adapt(self, paramName=None, numBurnIn=0):
+        """
+        Make Markov chain adaptive algorithm parameters
+        """
+        
+        if paramName is None:
+            paramName = list(self.chain_algoparams.keys())
+        numParams = len(paramName)
+        
+        fig, axs = plt.subplots(nrows=1, ncols=numParams, squeeze=False)
+        
+        for ii in range(numParams):
+            samples = self.chain_algoparams[paramName[ii]]
+            axs[0,ii].plot(samples, 'k')
+            axs[0,ii].set_title(paramName[ii])
+        
+        plt.show()
+
+
     def plot_chain_trace(self, paramName, numBurnIn=0, dims=None,
                                                trueModel=None, derived=False):
         """
@@ -364,6 +420,12 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         MCMC iteration (Metropolis-Hastings) for transition covariance.
         """
         
+        # Make sure there's a dictionary to store stats for this move type
+        if moveType not in self.chain_accept:
+            self.chain_accept[moveType] = []
+        if moveType not in self.chain_algoparams:
+            self.chain_algoparams[moveType] = []
+        
         # Need to make sure the likelihood value is current
         if not self.filter_current:
             self.flt,_,self.lhood = self.model.kalman_filter(self.observ)
@@ -380,12 +442,15 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         if moveType=='rotate':
             
             # Make the change
-            rotation = smp.sample_cayley(self.model.ds, self.algoparams['Qs'])
+            rotation = smp.sample_cayley(self.model.ds,
+                                                    self.algoparams[moveType])
             ppsl_model.rotate_transition_covariance(rotation)
             
             # Random walk, so forward and backward probabilities are same
             fwd_prob = 0
             bwd_prob = 0
+            
+            self.chain_algoparams[moveType].append(self.algoparams[moveType])
             
         elif moveType=='rank':
             # Assumes uniform prior on each possible value of the rank
@@ -398,6 +463,8 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
                 switch = 0                                # Must decrease rank
             else:
                 switch = np.random.random_integers(0,1)   # choose at random
+            
+            self.chain_algoparams[moveType].append(None)
             
             if switch == -1:
                 # No options to change rank
@@ -486,17 +553,26 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
             self.model = ppsl_model
             self.flt = ppsl_flt
             self.lhood = ppsl_lhood
+            self.chain_accept[moveType].append(True)
             if self.verbose:
                 print("   accepted")
         else:
+            self.chain_accept[moveType].append(False)
             if self.verbose:
                 print("   rejected")
         
         
-    def sample_transition_matrix(self, moveType):
+    def sample_transition_matrix(self):
         """
         MCMC iteration (Metropolis-Hastings) for transition matrix
         """
+        
+        # Make sure there's a dictionary to store stats for this move type
+        moveType = 'perturb'
+        if moveType not in self.chain_accept:
+            self.chain_accept[moveType] = []
+        if moveType not in self.chain_algoparams:
+            self.chain_algoparams[moveType] = []        
         
         # Need to make sure the likelihood value is current
         if not self.filter_current:
@@ -512,7 +588,7 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         # Propose a new transition matrix
         suffStats = smp.evaluate_transition_sufficient_statistics(self.state)
         padded_Q = ppsl_model.transition_covariance() + \
-                              self.algoparams['Fs']*np.identity(ppsl_model.ds)
+                          self.algoparams[moveType]*np.identity(ppsl_model.ds)
         M,V = smp.hyperparam_update_basic_mn_transition_matrix(
                                                     suffStats,
                                                     self.hyperparams['M0'],
@@ -520,6 +596,7 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         ppsl_F = smp.sample_matrix_normal(M,padded_Q,V)
         fwd_prob = smp.matrix_normal_density(ppsl_F,M,padded_Q,V)
         ppsl_model.parameters['F'] = ppsl_F
+        self.chain_algoparams[moveType].append(self.algoparams[moveType])
         
         # Sample a new trajectory
         ppsl_state = ppsl_model.sample_posterior(self.observ)
@@ -552,9 +629,11 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
             self.flt = ppsl_flt
             self.lhood = ppsl_lhood
             self.state = ppsl_state
+            self.chain_accept[moveType].append(True)
             if self.verbose:
                 print("   accepted")
         else:
+            self.chain_accept[moveType].append(False)
             if self.verbose:
                 print("   rejected")
     
@@ -591,80 +670,3 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         
         # self.flt and self.lhood are no longer up-to-date
         self.filter_current = False
-    
-    
-#            
-#        
-#    def save_link(self):
-#        """Save the current state of the model as a link in the chain"""
-#        self.chain.append(self.model.copy())
-#        if self.model_type==2:
-#            self.pad_std_chain.append(self.pad_std)
-#            self.rot_std_chain.append(self.rot_std)
-#            self.giv_std_chain.append(self.giv_std)
-##            for gg in range(len(self.model.givens)):
-##                self.giv_std_chain[gg].append(self.giv_std[gg])
-#                
-#    def adapt_std(self, B):
-#        """Adapt proposal distribution parameters"""
-#        ar = np.mean(np.array(self.F_acc[-B:]))
-#        bn = len(self.F_acc)/B
-#        delta = min(0.1,1/np.sqrt(bn))
-#        pad_min = 1E-6
-#        if (ar<0.44):
-#            self.pad_std = np.maximum(pad_min, self.pad_std*np.exp(-delta))
-#        else:
-#            self.pad_std = np.maximum(pad_min, self.pad_std*np.exp(delta))
-#            
-#        ar = np.mean(np.array(self.rot_acc[-B:]))
-#        bn = len(self.rot_acc)/B
-#        delta = min(0.1,1/np.sqrt(bn))
-#        rot_min = 1E-4
-#        if (ar<0.44):
-#            self.rot_std = np.maximum(rot_min, self.rot_std*np.exp(-delta))
-#        else:
-#            self.rot_std = np.maximum(rot_min, self.rot_std*np.exp(delta))
-#        
-#        ar = np.mean(np.array(self.givens_acc[-B:]))
-#        bn = len(self.givens_acc)/B
-#        delta = min(0.1,1/np.sqrt(bn))
-#        if (ar<0.44):
-#            self.giv_std = self.giv_std*np.exp(-delta)
-#        else:
-#            self.giv_std = self.giv_std*np.exp(delta)
-##        
-##        for gg in range(len(self.model.givens)):
-##            ar = np.mean(np.array(self.givens_acc[gg][-B:]))
-##            bn = len(self.givens_acc[gg])/B
-##            delta = min(0.1,1/np.sqrt(bn))
-##            if (ar<0.44):
-##                self.giv_std[gg] = self.giv_std[gg]*np.exp(-delta)
-##            else:
-##                self.giv_std[gg] = self.giv_std[gg]*np.exp(delta)
-
-            
-#### DISPLAY ###
-#
-#
-#def draw_chain_acceptance(chain_acc, burn_in):
-#    d = len(chain_acc)
-#    ax = plt.figure().add_subplot(1,1,1)
-#    maxval = 0
-#    for dd in range(d):
-#        acc_array = np.array(chain_acc[dd])
-#        ax.plot(np.cumsum(acc_array))
-#        maxval = max(maxval,acc_array.sum())
-#    ax.plot([burn_in]*2,[0,maxval])
-#
-#
-#def draw_chain_adaptation(chain_adpt, burn_in):
-#    d = len(chain_adpt)
-#    ax = plt.figure().add_subplot(1,1,1)
-#    maxval = 0
-#    for dd in range(d):
-#        adpt_array = np.array(chain_adpt[dd])
-#        ax.plot(adpt_array)
-#        maxval = max(maxval,adpt_array.max())
-#    ax.plot([burn_in]*2,[0,maxval])
-#
-#     

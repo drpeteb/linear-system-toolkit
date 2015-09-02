@@ -52,14 +52,14 @@ hyperparams['a0'] = 1
 hyperparams['b0'] = 0.2
 
 algoparams = dict()
-algoparams['Qs'] = 0.1
-algoparams['Fs'] = 0.1
+algoparams['rotate'] = 0.1
+algoparams['perturb'] = 0.1
 
 learner = MCMCLearner(est_model, observ, hyperparams, algoparams=algoparams, verbose=True)
 
-num_iter = 800
+num_iter = 1000
 num_burn = int(num_iter/2)
-num_hold = num_burn/2
+num_hold = int(num_burn/2)
 
 for ii in range(num_iter):
     print("Running iteration {} of {}.".format(ii+1,num_iter))
@@ -69,12 +69,15 @@ for ii in range(num_iter):
     elif (ii%3)==1:
         learner.sample_transition_covariance('rank')
     else:
-        learner.sample_transition_matrix('F')
+        learner.sample_transition_matrix()
     learner.sample_transition_within_subspace()
     if ii > num_hold:
         learner.sample_observation_diagonal_covariance()
     learner.sample_state_trajectory()
     learner.save_link()
+    
+    if ((ii+1)%20)==0:
+        learner.adapt_algorithm_parameters()
 
 learner.plot_chain_trace('F', numBurnIn=num_burn, trueModel=model)
 learner.plot_chain_trace('transition_covariance', numBurnIn=num_burn, trueModel=model, derived=True)
@@ -88,3 +91,6 @@ learner.plot_chain_histogram('R', numBurnIn=num_burn, trueModel=model)
 
 learner.plot_chain_acf('F', numBurnIn=num_burn)
 learner.plot_chain_acf('R', numBurnIn=num_burn)
+
+learner.plot_chain_accept()
+learner.plot_chain_adapt()
