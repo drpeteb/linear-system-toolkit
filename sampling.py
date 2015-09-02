@@ -138,10 +138,11 @@ def evaluate_observation_sufficient_statistics(x, y):
 
     # Loop through time incrementing stats
     for kk in range(K):
-        suffStats[0] += 1
-        suffStats[1] += np.outer(x[kk], x[kk])
-        suffStats[2] += np.outer(y[kk], x[kk])
-        suffStats[3] += np.outer(y[kk], y[kk])
+        if not np.any(np.isnan(y[kk])):
+            suffStats[0] += 1
+            suffStats[1] += np.outer(x[kk], x[kk])
+            suffStats[2] += np.outer(y[kk], x[kk])
+            suffStats[3] += np.outer(y[kk], y[kk])
 
     return suffStats
 

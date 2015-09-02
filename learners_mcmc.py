@@ -342,7 +342,12 @@ class MCMCLearnerObservationDiagonalCovarianceWithIGPrior():
                                     self.hyperparams['b0'])
 
         # Sample new parameter
-        r = stats.invgamma.rvs(a, scale=b)
+        try:
+            r = stats.invgamma.rvs(a, scale=b)
+        except ValueError as e:
+            print(a)
+            print(b)
+            raise e
         self.model.parameters['R'] = r*np.identity(self.model.do)
 
         # self.flt and self.lhood are no longer up-to-date

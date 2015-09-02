@@ -143,8 +143,10 @@ class AbstractLinearModel:
             y = observ[kk]
             if not np.any(np.isnan(y)):
                 flt_kk,innov = kal.correct(prd.get_instant(kk), y, H, R)
-                flt.set_instant(kk, flt_kk)
                 lhood = lhood + mvn.logpdf(observ[kk], innov.mn, innov.vr)
+            else:
+                flt_kk = prd_kk
+            flt.set_instant(kk, flt_kk)
 
         return flt, prd, lhood
 
