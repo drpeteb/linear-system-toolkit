@@ -1,3 +1,4 @@
+import pickle
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -26,7 +27,10 @@ plt.close('all')
 np.random.seed(0)
 
 data_path = './mocap-data/'
-model_type = 'basic'#'degenerate'
+test_data_file = './results/mocap-test-data.p'
+
+model_type = 'basic'#'degenerate'#'naive'#
+num_iter = 10
 
 # Import marker data
 markers = np.genfromtxt(data_path+'downsampled_head_markers.csv', delimiter=',')
@@ -42,6 +46,11 @@ test_sections = [np.arange(40,60), np.arange(90,110),
 for sec in test_sections:
     for kk in sec:
         markers[kk] = np.NaN
+
+# Save the data
+fh = open(test_data_file, 'wb')
+pickle.dump(markers, fh)
+fh.close()
 
 # Draw it
 fig, axs = plt.subplots(nrows=num_markers,ncols=1)
@@ -84,7 +93,6 @@ algoparams = dict()
 algoparams['rotate'] = 0.001
 algoparams['perturb'] = 0.001
                                           
-num_iter = 1000
 num_burn = int(num_iter/2)
 num_hold = int(num_burn/4)
 
@@ -136,10 +144,19 @@ elif model_type == 'degenerate':
     learner.plot_chain_accept()
     learner.plot_chain_adapt()
 
+state_mn, state_sd = learner.estimate_state_trajectory(numBurnIn=num_burn)
 for mm in range(num_markers):
-    axs[mm].plot(learner.state[:,0+mm], ':')
-    axs[mm].plot(learner.state[:,3+mm], ':')
-    axs[mm].plot(learner.state[:,6+mm], ':')
+    axs[mm].plot(state_mn[:,0+mm], '--')
+    axs[mm].plot(state_mn[:,3+mm], '--')
+    axs[mm].plot(state_mn[:,6+mm], '--')
+    
+    axs[mm].plot(state_mn[:,0+mm]+2*state_sd[:,0+mm], ':')
+    axs[mm].plot(state_mn[:,3+mm]+2*state_sd[:,3+mm], ':')
+    axs[mm].plot(state_mn[:,6+mm]+2*state_sd[:,6+mm], ':')
+    
+    axs[mm].plot(state_mn[:,0+mm]-2*state_sd[:,0+mm], ':')
+    axs[mm].plot(state_mn[:,3+mm]-2*state_sd[:,3+mm], ':')
+    axs[mm].plot(state_mn[:,6+mm]-2*state_sd[:,6+mm], ':')
 
-filename = "mcmc-mocap-{}".format(model_type)
+filename = "./results/mocap-mcmc-{}.p".format(model_type)
 learner.save(filename)

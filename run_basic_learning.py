@@ -18,7 +18,7 @@ class MCMCLearner(BaseMCMCLearner,
 
 
 plt.close('all')
-filename = 'mcmc-toy-basic'
+filename = './results/toy-mcmc-basic.p'
 
 K = 200
 ds = 3

@@ -98,6 +98,16 @@ class BaseMCMCLearner():
             self.flt,_,self.lhood = self.model.kalman_filter(self.observ)
             self.filter_current = True
         self.state = self.model.backward_simulation(self.flt)
+    
+    def estimate_state_trajectory(self, numBurnIn=0):
+        """
+        Estimate of the state trajectory (mean and standard deviation) using
+        all the samples in the chain
+        """
+        samples = np.array(self.chain_state[numBurnIn:])
+        mn = np.mean(samples, axis=0)
+        sd = np.mean(samples, axis=0)
+        return mn, sd
 
 
     def _create_2d_plot_axes(self, param, index1=None, index2=None):
