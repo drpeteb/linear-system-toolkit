@@ -1,5 +1,6 @@
 # Operational modules
 from abc import ABCMeta
+import pickle
 
 import numpy as np
 import scipy.linalg as la
@@ -10,6 +11,17 @@ import matplotlib.pyplot as plt
 
 # Import from other module files
 import sampling as smp
+
+
+def load_learner(filename):
+    """
+    Loads a pickled learner object.
+    """
+    fileOb = open(filename, 'rb')
+    learner = pickle.load(fileOb)
+    fileOb.close()
+    return learner
+    
 
 class BaseMCMCLearner():
     __metaclass__ = ABCMeta
@@ -40,6 +52,15 @@ class BaseMCMCLearner():
         self.chain_algoparams = dict()
 
         self.verbose = verbose
+    
+    def save(self, filename):
+        """
+        Pickle and save the object.
+        """
+        fileOb = open(filename, 'wb')
+        pickle.dump(self, fileOb)
+        fileOb.close()
+        
 
     def save_link(self):
         """Save the current state of the model as a link in the chain"""

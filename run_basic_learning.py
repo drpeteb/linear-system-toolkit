@@ -18,6 +18,7 @@ class MCMCLearner(BaseMCMCLearner,
 
 
 plt.close('all')
+filename = 'mcmc-toy-basic'
 
 K = 200
 ds = 3
@@ -74,3 +75,5 @@ learner.plot_chain_trace('R', numBurnIn=num_burn, trueModel=model)
 learner.plot_chain_histogram('F', numBurnIn=num_burn, trueModel=model)
 learner.plot_chain_histogram('Q', numBurnIn=num_burn, trueModel=model)
 learner.plot_chain_histogram('R', numBurnIn=num_burn, trueModel=model)
+
+learner.save(filename)

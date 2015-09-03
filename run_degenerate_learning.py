@@ -18,6 +18,7 @@ class MCMCLearner(BaseMCMCLearner,
             
 
 plt.close('all')
+filename = 'mcmc-toy-degenerate'
 
 K = 100
 ds = 3
@@ -96,3 +97,5 @@ learner.plot_chain_acf('R', numBurnIn=num_burn)
 
 learner.plot_chain_accept()
 learner.plot_chain_adapt()
+
+learner.save(filename)
