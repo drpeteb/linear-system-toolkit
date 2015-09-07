@@ -106,7 +106,7 @@ class BaseMCMCLearner():
         """
         samples = np.array(self.chain_state[numBurnIn:])
         mn = np.mean(samples, axis=0)
-        sd = np.mean(samples, axis=0)
+        sd = np.std(samples, axis=0)
         return mn, sd
 
 
@@ -373,12 +373,7 @@ class MCMCLearnerObservationDiagonalCovarianceWithIGPrior():
                                     self.hyperparams['b0'])
 
         # Sample new parameter
-        try:
-            r = stats.invgamma.rvs(a, scale=b)
-        except ValueError as e:
-            print(a)
-            print(b)
-            raise e
+        r = stats.invgamma.rvs(a, scale=b)
         self.model.parameters['R'] = r*np.identity(self.model.do)
 
         # self.flt and self.lhood are no longer up-to-date

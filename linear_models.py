@@ -116,7 +116,7 @@ class AbstractLinearModel:
 
     def kalman_filter(self, observ):
         """Kalman filter using the model on a set of observations"""
-
+        
         # Get system matrices
         F = self.transition_matrix()
         Q = self.transition_covariance()
@@ -139,13 +139,24 @@ class AbstractLinearModel:
                 prd_kk = self.initial_state_prior
             prd.set_instant(kk, prd_kk)
 
-            # Correction - skip if there are NaNs, indicating missing data
+            # Correction - handles misisng data indicated by NaNs
             y = observ[kk]
             if not np.any(np.isnan(y)):
+                # Nothing missing - full update
                 flt_kk,innov = kal.correct(prd.get_instant(kk), y, H, R)
                 lhood = lhood + mvn.logpdf(observ[kk], innov.mn, innov.vr)
-            else:
+            elif np.all(np.isnan(y)):
+                # All missing - no update
                 flt_kk = prd_kk
+            else:
+                # Partially missing - delete missing elements
+                missing = np.where( np.isnan(y) )
+                yp = np.delete(y, missing, axis=0)
+                Hp = np.delete(H, missing, axis=0)
+                Rp = np.delete(np.delete(R, missing, axis=0), missing, axis=1)
+                flt_kk,innov = kal.correct(prd.get_instant(kk), yp, Hp, Rp)
+                lhood = lhood + mvn.logpdf(yp, innov.mn, innov.vr)
+                
             flt.set_instant(kk, flt_kk)
 
         return flt, prd, lhood

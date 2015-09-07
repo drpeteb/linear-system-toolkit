@@ -1,5 +1,6 @@
 import pickle
 import numpy as np
+import scipy.linalg as la
 from matplotlib import pyplot as plt
 
 from kalman import GaussianDensity
@@ -23,6 +24,11 @@ class MCMCDegenerateLearner(
                 MCMCLearnerTransitionDegenerateModelWithMNIWPrior):
     pass
 
+class MCMCNaiveLearner(
+                BaseMCMCLearner,
+                MCMCLearnerObservationDiagonalCovarianceWithIGPrior):
+    pass
+
 plt.close('all')
 np.random.seed(0)
 
@@ -30,7 +36,7 @@ data_path = './mocap-data/'
 test_data_file = './results/mocap-test-data.p'
 
 model_type = 'basic'#'degenerate'#'naive'#
-num_iter = 10
+num_iter = 2000
 
 # Import marker data
 markers = np.genfromtxt(data_path+'downsampled_head_markers.csv', delimiter=',')
@@ -41,11 +47,13 @@ num_markers = int(d/3)
 # Knock out a section to test on
 test_sections = [np.arange(40,60), np.arange(90,110),
                                        np.arange(140,160), np.arange(190,210)]
-    
+
 # Missing data
+missing_marker = 0
 for sec in test_sections:
     for kk in sec:
-        markers[kk] = np.NaN
+        markers[kk][3*missing_marker:3*(missing_marker+1)] = np.NaN
+    missing_marker += 1
 
 # Save the data
 fh = open(test_data_file, 'wb')
@@ -53,12 +61,11 @@ pickle.dump(markers, fh)
 fh.close()
 
 # Draw it
-fig, axs = plt.subplots(nrows=num_markers,ncols=1)
-color_list = 'brg'
+fig, axs = plt.subplots(nrows=3,ncols=1)
+color_list = 'brgc'
 for mm in range(num_markers):
-    axs[mm].plot(markers[:,0+mm], color=color_list[0])
-    axs[mm].plot(markers[:,3+mm], color=color_list[1])
-    axs[mm].plot(markers[:,6+mm], color=color_list[2])
+    for dd in range(3):
+        axs[dd].plot(markers[:,3*mm+dd], color=color_list[mm])
 
 # Set up model
 ds = 2*d
@@ -66,18 +73,25 @@ do = d
 
 # Initial estimate
 est_params = dict()
-est_params['F'] = np.identity(ds)
+Imat = np.identity(d)
+Zmat = np.zeros((d,d))
+
+
+est_params['F'] = np.vstack((np.hstack((Imat,Imat)), np.hstack((Zmat,Imat))))
+est_params['Q'] = np.vstack((np.hstack((Imat,Imat)), np.hstack((Imat,Imat))))
+est_params['val'], est_params['vec'] = la.eigh(est_params['Q'])
 est_params['rank'] = np.array([ds])
-est_params['vec'] = np.identity(ds)
-est_params['val'] = np.ones(ds)
-est_params['Q'] = np.dot( est_params['vec'],
-                      np.dot(np.diag(est_params['val']),est_params['vec'].T) )
+#est_params['vec'] = np.identity(ds)
+#est_params['val'] = np.ones(ds)
+#est_params['Q'] = np.dot( est_params['vec'],
+#                      np.dot(np.diag(est_params['val']),est_params['vec'].T) )
 est_params['H'] = np.hstack((np.identity(d),np.zeros((d,d))))
 est_params['R'] = 0.001*np.identity(d)
 
 prior = GaussianDensity(np.zeros(ds), 1000*np.identity(ds))
 est_degenerate_model = DegenerateLinearModel(ds, do, prior, est_params)
 est_basic_model = BasicLinearModel(ds, do, prior, est_params)
+est_naive_model = BasicLinearModel(ds, do, prior, est_params)
 
 # Hyperparameters
 hyperparams = dict()
@@ -96,7 +110,22 @@ algoparams['perturb'] = 0.001
 num_burn = int(num_iter/2)
 num_hold = int(num_burn/4)
 
-if model_type == 'basic':
+if model_type == 'naive':
+    
+    # Create the MCMC object
+    learner = MCMCNaiveLearner(est_naive_model, markers, 
+                            hyperparams, algoparams=algoparams, verbose=True)
+    
+    # Naive model learning
+    for ii in range(num_iter):
+        print("Running iteration {} of {}.".format(ii+1,num_iter))
+        
+        if ii > num_hold:
+            learner.sample_observation_diagonal_covariance()
+        learner.sample_state_trajectory()
+        learner.save_link()
+
+elif model_type == 'basic':
     
     # Create the MCMC object
     learner = MCMCBasicLearner(est_basic_model, markers, 
@@ -144,19 +173,16 @@ elif model_type == 'degenerate':
     learner.plot_chain_accept()
     learner.plot_chain_adapt()
 
+learner.plot_chain_trace('R', dims=([0],[0]))
+
 state_mn, state_sd = learner.estimate_state_trajectory(numBurnIn=num_burn)
 for mm in range(num_markers):
-    axs[mm].plot(state_mn[:,0+mm], '--')
-    axs[mm].plot(state_mn[:,3+mm], '--')
-    axs[mm].plot(state_mn[:,6+mm], '--')
-    
-    axs[mm].plot(state_mn[:,0+mm]+2*state_sd[:,0+mm], ':')
-    axs[mm].plot(state_mn[:,3+mm]+2*state_sd[:,3+mm], ':')
-    axs[mm].plot(state_mn[:,6+mm]+2*state_sd[:,6+mm], ':')
-    
-    axs[mm].plot(state_mn[:,0+mm]-2*state_sd[:,0+mm], ':')
-    axs[mm].plot(state_mn[:,3+mm]-2*state_sd[:,3+mm], ':')
-    axs[mm].plot(state_mn[:,6+mm]-2*state_sd[:,6+mm], ':')
+    for dd in range(3):
+        axs[dd].plot(state_mn[:,3*mm+dd], '--', color=color_list[mm])
+        axs[dd].plot(state_mn[:,3*mm+dd]+2*state_sd[:,3*mm+dd], ':',
+                                                         color=color_list[mm])
+        axs[dd].plot(state_mn[:,3*mm+dd]-2*state_sd[:,3*mm+dd], ':',
+                                                         color=color_list[mm])
 
 filename = "./results/mocap-mcmc-{}.p".format(model_type)
 learner.save(filename)

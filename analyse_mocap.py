@@ -25,10 +25,10 @@ class MCMCDegenerateLearner(
                 MCMCLearnerTransitionDegenerateModelWithMNIWPrior):
     pass
 
-def mocap_msvd(init_markers, prop_energy=0.95, num_it=1000):
-    markers = init_markers.copy()
-    markers[np.where(np.isnan(init_markers))] = 0
-    last_S = np.nan*np.ones(init_markers.shape[1])
+def mocap_msvd(markers, initial, prop_energy=0.95, num_it=1000):
+    md = np.isnan(markers)
+    markers = np.where(md, initial, markers)
+    last_S = np.nan*np.ones(markers.shape[1])
     
     for it in range(num_it):
         
@@ -41,34 +41,54 @@ def mocap_msvd(init_markers, prop_energy=0.95, num_it=1000):
         cumsumS = np.cumsum(normS)
         num_sing = np.where( cumsumS>prop_energy )[0][0]
         
-        # Reduce components
-        U = U[:,:num_sing]
-        V = V[:num_sing,:]
-        Smat = np.diag(S[:num_sing])
+        # Reconstruct and fill in gaps
+        reconstructed = np.dot(U[:,:num_sing], np.dot(np.diag(S[:num_sing]), 
+                                                              V[:num_sing,:]))
+        markers = np.where(md, reconstructed, markers)
         
-        # Reconstruct
-        reconstructed = np.dot(U,np.dot(Smat,V))
-        markers[np.where(np.isnan(init_markers))] \
-                             = reconstructed[np.where(np.isnan(init_markers))]
-
+        # Keep track of singular values in order to assess convergence
         last_S = S
         
     return markers
 
+def mocap_rmse(truth, estimate):
+    err = truth-estimate
+    return la.norm(err)
+
 # Load the test data
-test_data_file = './results/mocap-test-data.p'
-fh = open(test_data_file, 'rb')
+data_path = './mocap-data/'
+test_path = './results/'
+markers_truth = np.genfromtxt(data_path+'downsampled_head_markers_truth.csv', delimiter=',')
+test_data_file = 'mocap-test-data.p'
+fh = open(test_path+test_data_file, 'rb')
 markers = pickle.load(fh)
 
 # Load the MCMC output
-naive_learner = load_learner('mcmc-mocap-naive')
-basic_learner = load_learner('mcmc-mocap-basic')
-degenerate_learner = load_learner('mcmc-mocap-degenerate')
-
-# Run MSVD as a comparison
-msvd_markers = mocap_msvd(markers)
+naive_learner = load_learner(test_path+'mocap-mcmc-naive.p')
+basic_learner = load_learner(test_path+'mocap-mcmc-basic.p')
+degenerate_learner = load_learner(test_path+'mocap-mcmc-degenerate.p')
 
 # Get state estimates from each algorithm
-state_mn, state_sd = learner.estimate_state_trajectory(numBurnIn=num_burn)
+num_burn = 1000
+basic_mn, basic_sd = basic_learner.estimate_state_trajectory(
+                                                           numBurnIn=num_burn)
+degenerate_mn, degenerate_sd = degenerate_learner.estimate_state_trajectory(
+                                                           numBurnIn=num_burn)
+naive_mn, naive_sd = naive_learner.estimate_state_trajectory(
+                                                           numBurnIn=num_burn)
 
-# Asses RMSE
+# Run MSVD as a comparison
+msvd_markers = mocap_msvd(markers, naive_mn[:,:12])
+
+# Assess RMSE
+basic_rmse = mocap_rmse(markers_truth, basic_mn[:,:12])
+degenerate_rmse = mocap_rmse(markers_truth, degenerate_mn[:,:12])
+naive_rmse = mocap_rmse(markers_truth, naive_mn[:,:12])
+msvd_rmse = mocap_rmse(markers_truth, msvd_markers)
+
+# Display results
+print("Model          | RMSE")
+print("NCVM           | {}".format(naive_rmse))
+print("Basic          | {}".format(basic_rmse))
+print("Degenerate     | {}".format(degenerate_rmse))
+print("MSVD           | {}".format(msvd_rmse))
