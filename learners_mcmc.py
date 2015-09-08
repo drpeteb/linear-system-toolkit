@@ -432,21 +432,27 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         """
         Prior density for transition model parameters
         """
+        Psi0 = model.parameters['rank'][0]*self.hyperparams['rPsi0']
         variancePrior = smp.singular_inverse_wishart_density(
                                             model.parameters['val'],
                                             model.parameters['vec'],
-                                            la.inv(self.hyperparams['Psi0']))
+                                            Psi0)
 
         orthVec = model.complete_basis()
 #        relaxEval = self.hyperparams['alpha']
         relaxEval = np.min(model.parameters['val'])
+#        relaxEval = np.max(model.parameters['val'])
         rowVariance = model.transition_covariance() \
                       + relaxEval*np.dot(orthVec,orthVec.T)
         matrixPrior = smp.matrix_normal_density(model.parameters['F'],
                                                 self.hyperparams['M0'],
                                                 rowVariance,
                                                 self.hyperparams['V0'])
-
+        
+#        print(variancePrior)
+#        print(matrixPrior)
+#        print("")
+        
         return variancePrior + matrixPrior
 
 
@@ -470,7 +476,7 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         ppsl_model = self.model.copy()
 
         if self.verbose:
-            print("Metropolis-Hastings move for transition covariance."
+            print("Metropolis-Hastings move for transition covariance. "
                   "Type: {}".format(moveType))
 
         # Propose change
@@ -530,7 +536,7 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
                 constJac = 0.5*nullDims*np.log(np.pi) \
                          - np.sum(np.log(ppsl_model.parameters['val'])) \
                          - special.gammaln(nullDims/2)
-                varJac = nullDims*np.log(oldValue) \
+                varJac = (nullDims-1)*np.log(oldValue) \
                        + np.sum(np.log(ppsl_model.parameters['val']-oldValue))
 
                 # Fudge the proposals and jacobian into the proposal terms
@@ -559,7 +565,7 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
                          - np.sum(np.log(ppsl_model.parameters['val'])) \
                          - np.log(2.0) \
                          - special.gammaln(nullDims/2)
-                varJac = nullDims*np.log(newValue) \
+                varJac = (nullDims-1)*np.log(newValue) \
                        + np.sum(np.log(ppsl_model.parameters['val']-newValue))
                                 # Add them to the model
                 ppsl_model.add_eigen_value_vector(newValue, newVector)
@@ -577,7 +583,11 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         # Prior terms
         prior = self.transition_prior(self.model)
         ppsl_prior = self.transition_prior(ppsl_model)
-
+        
+#        print(ppsl_lhood-self.lhood)
+#        print(ppsl_prior-prior)
+#        print(bwd_prob-fwd_prob)
+        
         # Decide
         acceptRatio =   (ppsl_lhood-self.lhood) \
                       + (ppsl_prior-prior) \
@@ -619,32 +629,42 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
 
         if self.verbose:
             print("Metropolis-Hastings move for transition matrix.")
-
+        
         # Propose a new transition matrix
-        suffStats = smp.evaluate_transition_sufficient_statistics(self.state)
-        padded_Q = ppsl_model.transition_covariance() + \
-                          self.algoparams[moveType]*np.identity(ppsl_model.ds)
-        M,V = smp.hyperparam_update_basic_mn_transition_matrix(
-                                                    suffStats,
-                                                    self.hyperparams['M0'],
-                                                    self.hyperparams['V0'],)
-        ppsl_F = smp.sample_matrix_normal(M,padded_Q,V)
-        fwd_prob = smp.matrix_normal_density(ppsl_F,M,padded_Q,V)
-        ppsl_model.parameters['F'] = ppsl_F
+        I = np.identity(ppsl_model.ds)
+        ppsl_model.parameters['F'] = smp.sample_matrix_normal(
+                   self.model.parameters['F'], self.algoparams[moveType]*I, I)
         self.chain_algoparams[moveType].append(self.algoparams[moveType])
+        
+        # Random walk, so forward and backward probabilities are same
+        fwd_prob = 0
+        bwd_prob = 0
 
-        # Sample a new trajectory
-        ppsl_state = ppsl_model.sample_posterior(self.observ)
-        ppsl_suffStats = smp.evaluate_transition_sufficient_statistics(
-                                                                   ppsl_state)
-
-        # Reverse move probaility
-        M,V = smp.hyperparam_update_basic_mn_transition_matrix(
-                                                    ppsl_suffStats,
-                                                    self.hyperparams['M0'],
-                                                    self.hyperparams['V0'],)
-        bwd_prob = smp.matrix_normal_density(self.model.parameters['F'],
-                                                                 M,padded_Q,V)
+#        # Propose a new transition matrix
+#        suffStats = smp.evaluate_transition_sufficient_statistics(self.state)
+#        padded_Q = ppsl_model.transition_covariance() + \
+#                          self.algoparams[moveType]*np.identity(ppsl_model.ds)
+#        M,V = smp.hyperparam_update_basic_mn_transition_matrix(
+#                                                    suffStats,
+#                                                    self.hyperparams['M0'],
+#                                                    self.hyperparams['V0'],)
+#        ppsl_F = smp.sample_matrix_normal(M,padded_Q,V)
+#        fwd_prob = smp.matrix_normal_density(ppsl_F,M,padded_Q,V)
+#        ppsl_model.parameters['F'] = ppsl_F
+#        self.chain_algoparams[moveType].append(self.algoparams[moveType])
+#
+#        # Sample a new trajectory
+#        ppsl_state = ppsl_model.sample_posterior(self.observ)
+#        ppsl_suffStats = smp.evaluate_transition_sufficient_statistics(
+#                                                                   ppsl_state)
+#
+#        # Reverse move probaility
+#        M,V = smp.hyperparam_update_basic_mn_transition_matrix(
+#                                                    ppsl_suffStats,
+#                                                    self.hyperparams['M0'],
+#                                                    self.hyperparams['V0'],)
+#        bwd_prob = smp.matrix_normal_density(self.model.parameters['F'],
+#                                                                 M,padded_Q,V)
 
         # Kalman filter
         ppsl_flt,_,ppsl_lhood = ppsl_model.kalman_filter(self.observ)
@@ -652,7 +672,13 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         # Prior terms
         prior = self.transition_prior(self.model)
         ppsl_prior = self.transition_prior(ppsl_model)
-
+        
+        print(ppsl_lhood-self.lhood)
+        print(ppsl_prior-prior)
+#        print(bwd_prob-fwd_prob)
+#        print(bwd_prob)
+#        print(fwd_prob)
+        
         # Decide
         acceptRatio =   (ppsl_lhood-self.lhood) \
                       + (ppsl_prior-prior) \
@@ -663,7 +689,7 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
             self.model = ppsl_model
             self.flt = ppsl_flt
             self.lhood = ppsl_lhood
-            self.state = ppsl_state
+#            self.state = ppsl_state
             self.chain_accept[moveType].append(True)
             if self.verbose:
                 print("   accepted")
@@ -686,10 +712,11 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         U,D = self.model.convert_to_givens_form()
 
         # Sample a new projected transition matrix and transition covariance
+        Psi0 = self.model.parameters['rank'][0]*self.hyperparams['rPsi0']
         nu,Psi,M,V = smp.hyperparam_update_degenerate_mniw_transition(
                                                     suffStats, U,
                                                     self.hyperparams['nu0'],
-                                                    self.hyperparams['Psi0'],
+                                                    Psi0,
                                                     self.hyperparams['M0'],
                                                     self.hyperparams['V0'])
         D = la.inv(smp.sample_wishart(nu, la.inv(Psi)))

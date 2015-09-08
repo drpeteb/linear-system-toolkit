@@ -64,8 +64,8 @@ def singular_wishart_density(val, vec, P):
     """
     d,r = vec.shape
     norm = 0.5*r*(r-d)*np.log(np.pi) - 0.5*r*d*np.log(2.0) \
-          - special.multigammaln(r/2,r) - 0.5*r*la.det(P)
-    pptn = 0.5*(r-d-1)*np.log(np.prod(val)) \
+          - special.multigammaln(r/2,r) - 0.5*r*np.log(la.det(P))
+    pptn = 0.5*(r-d-1)*np.sum(np.log(val)) \
           - 0.5*np.trace( np.dot(np.dot(vec.T,la.solve(P,vec)),np.diag(val)) )
     pdf = norm + pptn
     return pdf
@@ -77,22 +77,22 @@ def singular_inverse_wishart_density(val, vec, P):
     """
     d,r = vec.shape
 
-    norm = 0.5*r*la.det(P) \
+    norm = 0.5*r*np.log(la.det(P)) \
             -0.5*r*d*np.log(2.0) \
             -0.5*r*(d-r)*np.log(np.pi) \
             -special.multigammaln(r/2,r)
 
-    pptn = 0.5*(3*d-r+1)*np.log(np.prod(val)) \
-            -0.5*np.trace( np.dot(np.dot(vec.T,np.dot(P,vec)),np.diag(val)) )
-
+    pptn = -0.5*(3*d-r+1)*np.sum(np.log(val)) \
+           -0.5*np.trace( np.dot(np.dot(vec.T,np.dot(P,vec)),np.diag(1/val)) )
+    
     pdf = norm + pptn
     return pdf
 
 def matrix_normal_density(X, M, U, V):
     """Sample from a matrix normal distribution"""
-    norm = - 0.5*la.det(2*np.pi*U) - 0.5*la.det(2*np.pi*V)
+    norm = - 0.5*np.log(la.det(2*np.pi*U)) - 0.5*np.log(la.det(2*np.pi*V))
     XM = X-M
-    pptn = np.exp(-0.5*np.trace( np.dot(la.solve(U,XM),la.solve(V,XM.T)) ))
+    pptn = -0.5*np.trace( np.dot(la.solve(U,XM),la.solve(V,XM.T)) )
     pdf = norm + pptn
     return pdf
 

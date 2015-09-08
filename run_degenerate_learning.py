@@ -48,23 +48,25 @@ est_model = DegenerateLinearModel(ds, do, prior, est_params)
 
 hyperparams = dict()
 hyperparams['nu0'] = params['rank']
-hyperparams['Psi0'] = params['rank']*np.identity(ds)
+hyperparams['rPsi0'] = np.identity(ds)
 hyperparams['M0'] = np.zeros((ds,ds))
 hyperparams['V0'] = np.identity(ds)
 hyperparams['a0'] = 1
 hyperparams['b0'] = 0.2
+hyperparams['alpha'] = 0.001
 
 algoparams = dict()
 algoparams['rotate'] = 0.1
-algoparams['perturb'] = 0.1
+algoparams['perturb'] = 0.00001
 
 learner = MCMCLearner(est_model, observ, hyperparams, algoparams=algoparams, verbose=True)
 
-num_iter = 3
+num_iter = 50
 num_burn = int(num_iter/2)
-num_hold = int(num_burn/2)
+num_hold = min(20, int(num_burn/2))
 
 for ii in range(num_iter):
+    print("")
     print("Running iteration {} of {}.".format(ii+1,num_iter))
     
     if (ii%3)==0:
@@ -78,6 +80,7 @@ for ii in range(num_iter):
         learner.sample_observation_diagonal_covariance()
     learner.sample_state_trajectory()
     learner.save_link()
+    print("Current rank: {}".format(learner.model.parameters['rank'][0]))
     
     if ((ii+1)%20)==0:
         learner.adapt_algorithm_parameters()

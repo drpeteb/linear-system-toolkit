@@ -25,6 +25,11 @@ class MCMCDegenerateLearner(
                 MCMCLearnerTransitionDegenerateModelWithMNIWPrior):
     pass
 
+class MCMCNaiveLearner(
+                BaseMCMCLearner,
+                MCMCLearnerObservationDiagonalCovarianceWithIGPrior):
+    pass
+
 def mocap_msvd(markers, initial, prop_energy=0.95, num_it=1000):
     md = np.isnan(markers)
     markers = np.where(md, initial, markers)
@@ -51,13 +56,13 @@ def mocap_msvd(markers, initial, prop_energy=0.95, num_it=1000):
         
     return markers
 
-def mocap_rmse(truth, estimate):
+def mocap_rmse(truth, original, estimate):
     err = truth-estimate
-    return la.norm(err)
+    return la.norm(err[np.isnan(original)])
 
 # Load the test data
 data_path = './mocap-data/'
-test_path = './results/'
+test_path = './results/N20000/'#'./results/N2000/'#
 markers_truth = np.genfromtxt(data_path+'downsampled_head_markers_truth.csv', delimiter=',')
 test_data_file = 'mocap-test-data.p'
 fh = open(test_path+test_data_file, 'rb')
@@ -69,7 +74,7 @@ basic_learner = load_learner(test_path+'mocap-mcmc-basic.p')
 degenerate_learner = load_learner(test_path+'mocap-mcmc-degenerate.p')
 
 # Get state estimates from each algorithm
-num_burn = 1000
+num_burn = 10000
 basic_mn, basic_sd = basic_learner.estimate_state_trajectory(
                                                            numBurnIn=num_burn)
 degenerate_mn, degenerate_sd = degenerate_learner.estimate_state_trajectory(
@@ -81,10 +86,10 @@ naive_mn, naive_sd = naive_learner.estimate_state_trajectory(
 msvd_markers = mocap_msvd(markers, naive_mn[:,:12])
 
 # Assess RMSE
-basic_rmse = mocap_rmse(markers_truth, basic_mn[:,:12])
-degenerate_rmse = mocap_rmse(markers_truth, degenerate_mn[:,:12])
-naive_rmse = mocap_rmse(markers_truth, naive_mn[:,:12])
-msvd_rmse = mocap_rmse(markers_truth, msvd_markers)
+basic_rmse = mocap_rmse(markers_truth, markers, basic_mn[:,:12])
+degenerate_rmse = mocap_rmse(markers_truth, markers, degenerate_mn[:,:12])
+naive_rmse = mocap_rmse(markers_truth, markers, naive_mn[:,:12])
+msvd_rmse = mocap_rmse(markers_truth, markers, msvd_markers)
 
 # Display results
 print("Model          | RMSE")

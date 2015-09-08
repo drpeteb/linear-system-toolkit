@@ -35,8 +35,8 @@ np.random.seed(0)
 data_path = './mocap-data/'
 test_data_file = './results/mocap-test-data.p'
 
-model_type = 'basic'#'degenerate'#'naive'#
-num_iter = 2000
+model_type = 'degenerate'#'naive'#'basic'#
+num_iter = 20000
 
 # Import marker data
 markers = np.genfromtxt(data_path+'downsampled_head_markers.csv', delimiter=',')
@@ -96,7 +96,7 @@ est_naive_model = BasicLinearModel(ds, do, prior, est_params)
 # Hyperparameters
 hyperparams = dict()
 hyperparams['nu0'] = ds
-hyperparams['Psi0'] = ds*np.identity(ds)
+hyperparams['rPsi0'] = np.identity(ds)
 hyperparams['M0'] = np.zeros((ds,ds))
 hyperparams['V0'] = 100*np.identity(ds)
 hyperparams['a0'] = 1
@@ -105,10 +105,10 @@ hyperparams['b0'] = 0.001
 # Algorithm parameters
 algoparams = dict()
 algoparams['rotate'] = 0.001
-algoparams['perturb'] = 0.001
+algoparams['perturb'] = 0.000001
                                           
 num_burn = int(num_iter/2)
-num_hold = int(num_burn/4)
+num_hold = min(100,int(num_burn/4))
 
 if model_type == 'naive':
     
@@ -152,6 +152,7 @@ elif model_type == 'degenerate':
         learner.sample_transition_within_subspace()
     
     for ii in range(num_iter):
+        print("")
         print("Running iteration {} of {}.".format(ii+1,num_iter))
         
         if (ii%3)==0:
@@ -165,6 +166,7 @@ elif model_type == 'degenerate':
             learner.sample_observation_diagonal_covariance()
         learner.sample_state_trajectory()
         learner.save_link()
+        print("Current rank: {}".format(learner.model.parameters['rank'][0]))
         
         if ((ii+1)%20)==0:
             learner.adapt_algorithm_parameters()
