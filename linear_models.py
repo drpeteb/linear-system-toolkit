@@ -317,7 +317,7 @@ class DegenerateLinearModel(AbstractLinearModel):
             raise ValueError("Covariance matrix is already full rank.")
         self.parameters['val'] = np.append(self.parameters['val'], value)
         self.parameters['vec'] = np.append(self.parameters['vec'],
-                                           vector[:,np.newaxis], axis=1)
+                                                               vector, axis=1)
         self.parameters['rank'][0] += 1
 
     def remove_min_eigen_value_vector(self):

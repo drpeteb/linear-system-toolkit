@@ -61,29 +61,37 @@ algoparams['perturb'] = 0.00001
 
 learner = MCMCLearner(est_model, observ, hyperparams, algoparams=algoparams, verbose=True)
 
-num_iter = 50
+num_iter = 200
 num_burn = int(num_iter/2)
-num_hold = min(20, int(num_burn/2))
+num_hold = min(50, int(num_burn/2))
 
 for ii in range(num_iter):
     print("")
     print("Running iteration {} of {}.".format(ii+1,num_iter))
     
-    if (ii%3)==0:
-        learner.sample_transition_covariance('rotate')
-    elif (ii%3)==1:
-        learner.sample_transition_covariance('rank')
-    else:
-        learner.sample_transition_matrix()
+#    if (ii%3)==0:
+#        learner.sample_transition_covariance('rotate')
+#    elif (ii%3)==1:
+#        learner.sample_transition_covariance('rank')
+#    else:
+#        learner.sample_transition_matrix()
+#    learner.sample_transition_within_subspace()
+#    if ii > num_hold:
+#        learner.sample_observation_diagonal_covariance()
+#    learner.sample_state_trajectory()
+    
+    #learner.sample_transition_covariance('rank')
     learner.sample_transition_within_subspace()
     if ii > num_hold:
         learner.sample_observation_diagonal_covariance()
+    learner.sample_transition()
     learner.sample_state_trajectory()
+    
     learner.save_link()
     print("Current rank: {}".format(learner.model.parameters['rank'][0]))
     
-    if ((ii+1)%20)==0:
-        learner.adapt_algorithm_parameters()
+#    if ((ii+1)%20)==0:
+#        learner.adapt_algorithm_parameters()
 
 learner.plot_chain_trace('F', numBurnIn=num_burn, trueModel=model)
 learner.plot_chain_trace('transition_covariance', numBurnIn=num_burn, trueModel=model, derived=True)

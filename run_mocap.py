@@ -105,7 +105,7 @@ hyperparams['b0'] = 0.001
 # Algorithm parameters
 algoparams = dict()
 algoparams['rotate'] = 0.001
-algoparams['perturb'] = 0.000001
+algoparams['perturb'] = 0.000000001
                                           
 num_burn = int(num_iter/2)
 num_hold = min(100,int(num_burn/4))
@@ -155,21 +155,31 @@ elif model_type == 'degenerate':
         print("")
         print("Running iteration {} of {}.".format(ii+1,num_iter))
         
-        if (ii%3)==0:
-            learner.sample_transition_covariance('rotate')
-        elif (ii%3)==1:
-            learner.sample_transition_covariance('rank')
-        else:
-            learner.sample_transition_matrix()
+        #learner.sample_transition_covariance('rank')
         learner.sample_transition_within_subspace()
         if ii > num_hold:
             learner.sample_observation_diagonal_covariance()
+        if ii > 10:
+            learner.sample_transition()
         learner.sample_state_trajectory()
         learner.save_link()
         print("Current rank: {}".format(learner.model.parameters['rank'][0]))
         
-        if ((ii+1)%20)==0:
-            learner.adapt_algorithm_parameters()
+#        if (ii%3)==0:
+#            learner.sample_transition_covariance('rotate')
+#        elif (ii%3)==1:
+#            learner.sample_transition_covariance('rank')
+#        else:
+#            learner.sample_transition_matrix()
+#        learner.sample_transition_within_subspace()
+#        if ii > num_hold:
+#            learner.sample_observation_diagonal_covariance()
+#        learner.sample_state_trajectory()
+#        learner.save_link()
+#        print("Current rank: {}".format(learner.model.parameters['rank'][0]))
+#        
+#        if ((ii+1)%20)==0:
+#            learner.adapt_algorithm_parameters()
         
     learner.plot_chain_trace('rank', numBurnIn=num_burn)
     learner.plot_chain_accept()

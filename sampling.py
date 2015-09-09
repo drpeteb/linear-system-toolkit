@@ -48,15 +48,26 @@ def sample_cayley(d, s):
 
     return M
 
-def sample_orthogonal_haar(d):
+def sample_orthogonal_haar(d, r):
     """
-    Sample a unit vector uniformly from the (d-1)-sphere
+    Sample a matrix of orthogonal vectors from the d,r Stiefel manifold
     """
-    z = stats.multivariate_normal.rvs(mean=np.zeros(d),cov=np.identity(d))
-    z /= la.norm(z)
-    if d == 1:
-        z = z[np.newaxis] # This undoes the squeeze if only 1D
-    return z
+    if r>d:
+        raise ValueError("Number of columns cannot be more than dimensions.")
+    if r==0:
+        u = np.zeros((d,0))
+    else:
+        z = stats.norm.rvs(size=(d,r))
+        u,_,_ = la.svd(z,full_matrices=False)
+    return u
+
+def sample_truncated_invgamma(a,b,c):
+    """Sample from a inverse gamma distribution truncated above a cutoff"""
+    ub = stats.invgamma.cdf(c,a,scale=b)
+    u = stats.uniform.rvs(loc=0,scale=ub)
+    x = stats.invgamma.ppf(u,a,scale=b)
+    print((a,b,c,ub,u,x))
+    return x
 
 def singular_wishart_density(val, vec, P):
     """
@@ -84,6 +95,22 @@ def singular_inverse_wishart_density(val, vec, P):
 
     pptn = -0.5*(3*d-r+1)*np.sum(np.log(val)) \
            -0.5*np.trace( np.dot(np.dot(vec.T,np.dot(P,vec)),np.diag(1/val)) )
+    
+    pdf = norm + pptn
+    return pdf
+
+def inverse_wishart_density(Q, nu, Psi):
+    """
+    Density of a inverse wishart distribution
+    """
+    d = Q.shape[0]
+    
+    norm = 0.5*nu*np.log(la.det(Psi)) \
+            -0.5*nu*d*np.log(2.0) \
+            -special.multigammaln(nu/2,d)
+
+    pptn = -0.5*(nu+d+1)*np.log(la.det(Q)) \
+           -0.5*np.trace( la.solve(Q, Psi) )
     
     pdf = norm + pptn
     return pdf
