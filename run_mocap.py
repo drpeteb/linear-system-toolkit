@@ -6,11 +6,11 @@ from matplotlib import pyplot as plt
 from kalman import GaussianDensity
 from linear_models import BasicLinearModel, DegenerateLinearModel
 from learners_mcmc import (
-    BaseMCMCLearner, 
+    BaseMCMCLearner,
     MCMCLearnerObservationDiagonalCovarianceWithIGPrior,
     MCMCLearnerTransitionBasicModelWithMNIWPrior,
     MCMCLearnerTransitionDegenerateModelWithMNIWPrior)
-    
+
 # Create a learner class for this run
 class MCMCBasicLearner(
                 BaseMCMCLearner,
@@ -106,65 +106,68 @@ hyperparams['b0'] = 0.001
 algoparams = dict()
 algoparams['rotate'] = 0.001
 algoparams['perturb'] = 0.000000001
-                                          
+
 num_burn = int(num_iter/2)
 num_hold = min(100,int(num_burn/4))
+num_warm = 20
 
 if model_type == 'naive':
-    
+
     # Create the MCMC object
-    learner = MCMCNaiveLearner(est_naive_model, markers, 
+    learner = MCMCNaiveLearner(est_naive_model, markers,
                             hyperparams, algoparams=algoparams, verbose=True)
-    
+
     # Naive model learning
     for ii in range(num_iter):
         print("Running iteration {} of {}.".format(ii+1,num_iter))
-        
+
         if ii > num_hold:
             learner.sample_observation_diagonal_covariance()
         learner.sample_state_trajectory()
         learner.save_link()
 
 elif model_type == 'basic':
-    
+
     # Create the MCMC object
-    learner = MCMCBasicLearner(est_basic_model, markers, 
+    learner = MCMCBasicLearner(est_basic_model, markers,
                             hyperparams, algoparams=algoparams, verbose=True)
-    
+
     # Basic model learning
     for ii in range(num_iter):
         print("Running iteration {} of {}.".format(ii+1,num_iter))
-    
+
         learner.sample_transition()
         if ii > num_hold:
             learner.sample_observation_diagonal_covariance()
         learner.sample_state_trajectory()
         learner.save_link()
-    
+
 elif model_type == 'degenerate':
-    
+
     # Create the MCMC object
-    learner = MCMCDegenerateLearner(est_degenerate_model, markers, 
+    learner = MCMCDegenerateLearner(est_degenerate_model, markers,
                             hyperparams, algoparams=algoparams, verbose=True)
-    
-    # Degenerate model learning
-    for ii in range(10):
+
+    # Warm up
+    for ii in range(num_warm):
         learner.sample_transition_within_subspace()
-    
+        learner.sample_observation_diagonal_covariance()
+        learner.sample_state_trajectory()
+
+    # Degenerate model learning
     for ii in range(num_iter):
         print("")
         print("Running iteration {} of {}.".format(ii+1,num_iter))
-        
+
         #learner.sample_transition_covariance('rank')
         learner.sample_transition_within_subspace()
         if ii > num_hold:
             learner.sample_observation_diagonal_covariance()
-        if ii > 10:
-            learner.sample_transition()
+        learner.sample_transition()
         learner.sample_state_trajectory()
         learner.save_link()
         print("Current rank: {}".format(learner.model.parameters['rank'][0]))
-        
+
 #        if (ii%3)==0:
 #            learner.sample_transition_covariance('rotate')
 #        elif (ii%3)==1:
@@ -177,10 +180,10 @@ elif model_type == 'degenerate':
 #        learner.sample_state_trajectory()
 #        learner.save_link()
 #        print("Current rank: {}".format(learner.model.parameters['rank'][0]))
-#        
+#
 #        if ((ii+1)%20)==0:
 #            learner.adapt_algorithm_parameters()
-        
+
     learner.plot_chain_trace('rank', numBurnIn=num_burn)
     learner.plot_chain_accept()
     learner.plot_chain_adapt()

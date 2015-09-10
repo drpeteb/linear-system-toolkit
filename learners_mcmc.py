@@ -21,7 +21,7 @@ def load_learner(filename):
     learner = pickle.load(fileOb)
     fileOb.close()
     return learner
-    
+
 
 class BaseMCMCLearner():
     __metaclass__ = ABCMeta
@@ -52,7 +52,7 @@ class BaseMCMCLearner():
         self.chain_algoparams = dict()
 
         self.verbose = verbose
-    
+
     def save(self, filename):
         """
         Pickle and save the object.
@@ -60,7 +60,7 @@ class BaseMCMCLearner():
         fileOb = open(filename, 'wb')
         pickle.dump(self, fileOb)
         fileOb.close()
-        
+
 
     def save_link(self):
         """Save the current state of the model as a link in the chain"""
@@ -98,7 +98,7 @@ class BaseMCMCLearner():
             self.flt,_,self.lhood = self.model.kalman_filter(self.observ)
             self.filter_current = True
         self.state = self.model.backward_simulation(self.flt)
-    
+
     def estimate_state_trajectory(self, numBurnIn=0):
         """
         Estimate of the state trajectory (mean and standard deviation) using
@@ -448,9 +448,9 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
                                                 self.hyperparams['M0'],
                                                 rowVariance,
                                                 self.hyperparams['V0'])
-        
+
         return variancePrior + matrixPrior
-    
+
     def augmented_transition_prior(self, model):
         """
         Prior density for augmented transition model parameters
@@ -464,32 +464,44 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
                                                 self.hyperparams['M0'],
                                                 Q,
                                                 self.hyperparams['V0'])
-        
+
         return variancePrior + matrixPrior
 
-        
+
     def sample_eigenvalue_extension(self, d, val):
         """
         Sample some extra eigenvalues
         """
         r = val.shape[0]
         shape = 0.5*(d+r-1)
-        scale = r/2
-        
+        scale = 0.5*r*la.det(self.hyperparams['rPsi0'])**(1./d)
+
         newValues = np.zeros(d-r)
-        upperBound = np.min(val)
         for ii in range(d-r):
-            v = smp.sample_truncated_invgamma(shape,scale,upperBound)
-            
-            print(upperBound)
-            print(v)
-            
+            v = stats.invgamma.rvs(shape,scale=scale)
+
             newValues[ii] = v
-            upperBound = v
-        
+
         return newValues
-        
-    
+
+#        r = val.shape[0]
+#        shape = 0.5*(d+r-1)
+#        scale = 0.5*r*la.det(self.hyperparams['rPsi0'])**(1./d)
+#
+#        newValues = np.zeros(d-r)
+#        upperBound = np.min(val)
+#        for ii in range(d-r):
+#            v = smp.sample_truncated_invgamma(shape,scale,upperBound)
+#
+#            print(upperBound)
+#            print(v)
+#
+#            newValues[ii] = v
+#            upperBound = v
+#
+#        return newValues
+
+
     def eigenvalue_extension_density(self, newValues, val):
         """
         Density for the extra eigenvalues
@@ -497,38 +509,54 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         r = val.shape[0]
         d = r + newValues.shape[0]
         shape = 0.5*(d+r-1)
-        scale = r/2
-        
-        upperBound = np.min(val)
+        scale = 0.5*r*la.det(self.hyperparams['rPsi0'])**(1./d)
+
         prob = 0
         for ii in range(d-r):
             gampdf = stats.invgamma.logpdf(newValues[ii], shape, scale=scale)
-            correct = -np.log(1-special.gammainc(shape,scale/upperBound))
-            prob += gampdf + correct
-            upperBound = newValues[ii]
-        
+            prob += gampdf
+
         if np.isnan(prob):
             prob = -np.inf
-        
+
         return prob
-    
-    
+
+#        r = val.shape[0]
+#        d = r + newValues.shape[0]
+#        shape = 0.5*(d+r-1)
+#        scale = 0.5*r*la.det(self.hyperparams['rPsi0'])**(1./d)
+#
+#        upperBound = np.min(val)
+#        prob = 0
+#        for ii in range(d-r):
+#            gampdf = stats.invgamma.logpdf(newValues[ii], shape, scale=scale)
+#            correct = -np.log(1-special.gammainc(shape,scale/upperBound))
+#            prob += gampdf + correct
+#            print((newValues[ii],shape,scale,upperBound,gampdf,correct))
+#            upperBound = newValues[ii]
+#
+#        if np.isnan(prob):
+#            prob = -np.inf
+#
+#        return prob
+
+
     def sample_transition(self):
         """
         MCMC interation (Metropolis-Hastings) for transition matrices, using
         the method of 'augmenting' up to full rank.
         """
-        
+
         # Make sure there's a dictionary to store stats for this move type
         moveType = 'augment'
         if moveType not in self.chain_accept:
             self.chain_accept[moveType] = []
-        
+
         # Need to make sure the likelihood value is current
         if not self.filter_current:
             self.flt,_,self.lhood = self.model.kalman_filter(self.observ)
             self.filter_current = True
-        
+
         # Copy model
         ppsl_model = self.model.copy()
         aug_model = self.model.copy()
@@ -536,40 +564,51 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         if self.verbose:
             print("Metropolis-Hastings move for transition model. "
                   "Type: {}".format(moveType))
-        
+
+        ds = aug_model.ds
+        rank = ppsl_model.parameters['rank'][0]
+
         # Sample extra eigenvectors
         nullSpace = aug_model.complete_basis()
         nullDims = nullSpace.shape[1]
         coefs = smp.sample_orthogonal_haar(nullDims,nullDims)
         newVectors = np.dot(nullSpace, coefs)
-        
+
         # Sample extra eigenvalues
         newValues = self.sample_eigenvalue_extension(aug_model.ds,
                                                   aug_model.parameters['val'])
         valExtnProb = self.eigenvalue_extension_density(
                                        newValues, aug_model.parameters['val'])
-                
+
         # Build the augmented covariance matrix
         aug_model.parameters['val'] = np.concatenate(
                            (aug_model.parameters['val'], np.array(newValues)))
         aug_model.parameters['vec'] = np.concatenate(
                             (aug_model.parameters['vec'], newVectors), axis=1)
-        
+        order = np.argsort(aug_model.parameters['val'])[::-1]
+        aug_model.parameters['val'] = aug_model.parameters['val'][order]
+        aug_model.parameters['vec'] = aug_model.parameters['vec'][:,order]
+
+        # Probability of the reverse
+        val = aug_model.parameters['val']
+        deleteProb = 1./val
+        deleteProb/= np.sum(deleteProb)
+        idx = np.arange(rank,ds)
+        deleteValProb = np.sum(np.log(deleteProb[idx]))
+
         # Sample a state trajectory
         aug_prior = self.augmented_transition_prior(aug_model)
         aug_flt,_,aug_lhood = aug_model.kalman_filter(self.observ)
         aug_state = aug_model.backward_simulation(aug_flt)
-        
+
         # Calculate Jacobian
-        ds = aug_model.ds
-        rank = ppsl_model.parameters['rank'][0]
         jac = -nullDims*np.log(2) \
                 + rank*np.sum(np.log(aug_model.parameters['val'][:rank])) \
                 + ds*np.sum(np.log(aug_model.parameters['val'][rank:]))
         for jj in range(rank,ds):
             jac += np.sum(np.log(aug_model.parameters['val'][:jj-1] \
                                             -aug_model.parameters['val'][jj]))
-        
+
         # Sample a new augmented covariance and transition matrix
         aug_suffStats = smp.evaluate_transition_sufficient_statistics(
                                                                     aug_state)
@@ -583,7 +622,7 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
                                                     self.hyperparams['V0'])
         ppsl_aug_Q = la.inv(smp.sample_wishart(nu, la.inv(Psi)))
         ppsl_F = smp.sample_matrix_normal(M, ppsl_aug_Q, V)
-        
+
         # Choose new rank
         rank_change = np.random.random_integers(-1,1)
         if rank == self.model.ds:
@@ -591,31 +630,40 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         if rank == 1:
             rank_change = np.maximum(rank_change,0)
         ppsl_rank = rank + rank_change
-        
+
         # Remove the extra eigenvalue/vectors
         val,vec = la.eigh(ppsl_aug_Q)
+        deleteProb = 1./val
+        deleteProb/= np.sum(deleteProb)
+        idx = np.random.choice(ds, size=(ds-ppsl_rank), replace=False, p=deleteProb)
+        ppsl_model.parameters['rank'][0] = ppsl_rank
+        ppsl_model.parameters['val'] = np.delete(val, idx)
+        ppsl_model.parameters['vec'] = np.delete(vec, idx, axis=1)
+        ppsl_newValues = val[idx]
+        ppsl_deleteValProb = np.sum(np.log(deleteProb[idx]))
+
+#        ppsl_model.parameters['rank'][0] = ppsl_rank
+#        ppsl_model.parameters['val'] = val[:ppsl_rank]
+#        ppsl_model.parameters['vec'] = vec[:,:ppsl_rank]
+#        ppsl_newValues = val[ppsl_rank:]
+
+        # Update the augmented model
         order = np.argsort(val)[::-1]
         val = val[order]
         vec = vec[:,order]
-        ppsl_model.parameters['rank'][0] = ppsl_rank
-        ppsl_model.parameters['val'] = val[:ppsl_rank]
-        ppsl_model.parameters['vec'] = vec[:,:ppsl_rank]
-        ppsl_newValues = val[ppsl_rank:]
-        
-        # Update the augmented model
         ppsl_aug_model = aug_model.copy()
         ppsl_aug_model.parameters['F'] = ppsl_F
         ppsl_aug_model.parameters['val'] = val
         ppsl_aug_model.parameters['vec'] = vec
-        
+
         # Calculate the extension density for the extra eigenvalues
         ppsl_valExtnProb = self.eigenvalue_extension_density(
                                   ppsl_newValues, aug_model.parameters['val'])
-        
+
         # Calculate posterior prob with augmented covariances
         ppsl_aug_prior = self.augmented_transition_prior(ppsl_aug_model)
         _,_,ppsl_aug_lhood = ppsl_aug_model.kalman_filter(self.observ)
-        
+
         # Calculate Jacobian
         ppsl_jac = -nullDims*np.log(2) \
                 + ppsl_rank*np.sum(np.log(ppsl_aug_model.parameters['val'][:ppsl_rank])) \
@@ -623,35 +671,31 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         for jj in range(ppsl_rank,ds):
             ppsl_jac += np.sum(np.log(ppsl_aug_model.parameters['val'][:jj-1] \
                                             -ppsl_aug_model.parameters['val'][jj]))
-        
+
         # Proposal probabilities
-        fwd_prob = ppsl_jac + ppsl_aug_prior + ppsl_aug_lhood + valExtnProb
-        bwd_prob = jac + aug_prior + aug_lhood + ppsl_valExtnProb
-        
+        fwd_prob = ppsl_jac + ppsl_aug_prior + ppsl_aug_lhood + valExtnProb + ppsl_deleteValProb
+        bwd_prob = jac + aug_prior + aug_lhood + ppsl_valExtnProb + deleteValProb
+
 #        print(aug_model.parameters['val'])
-#        
+#
 #        print(jac)
 #        print(ppsl_jac)
-#        
+#
 #        print(aug_prior)
 #        print(ppsl_aug_prior)
-#        
+#
 #        print(aug_lhood)
 #        print(ppsl_aug_lhood)
-        
+
         # Kalman filter
         ppsl_flt,_,ppsl_lhood = ppsl_model.kalman_filter(self.observ)
 
         # Prior terms
         prior = self.transition_prior(self.model)
-        try:
-            ppsl_prior = self.transition_prior(ppsl_model)
-        except ValueError:
-            print(ppsl_model.parameters)
-        
-        
-        print(aug_prior)
-        print(ppsl_aug_prior)
+        ppsl_prior = self.transition_prior(ppsl_model)
+
+#        print(aug_prior)
+#        print(ppsl_aug_prior)
 #        print("")
 #        print(ppsl_lhood-self.lhood)
 #        print(aug_lhood-ppsl_aug_lhood)
@@ -661,29 +705,36 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
 #        print("")
 #        print(ppsl_jac-jac)
 #        print(bwd_prob-fwd_prob)
-        
+
         # Decide
         acceptRatio =   (ppsl_lhood-self.lhood) \
                       + (ppsl_prior-prior) \
                       + (bwd_prob-fwd_prob)
-        
-        if np.isnan(acceptRatio):
-            print(aug_model.parameters['val'])
-            
+
+        #if np.isnan(acceptRatio) or np.isinf(acceptRatio):
+        if True:
+
             print(jac)
             print(ppsl_jac)
-            
+
             print(aug_prior)
             print(ppsl_aug_prior)
-            
+
             print(aug_lhood)
             print(ppsl_aug_lhood)
+
+            print(ppsl_valExtnProb)
+            print(valExtnProb)
+
+            print(deleteValProb)
+            print(ppsl_deleteValProb)
+
             print("")
             print(ppsl_lhood-self.lhood)
             print(ppsl_prior-prior)
             print(bwd_prob-fwd_prob)
-            raise ValueError("Invalid acceptance probability")
-        
+#            raise ValueError("Invalid acceptance probability")
+
         if self.verbose:
             print("   Acceptance ratio: {}".format(acceptRatio))
         if np.log(np.random.random()) < acceptRatio:
@@ -697,7 +748,7 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
             self.chain_accept[moveType].append(False)
             if self.verbose:
                 print("   rejected")
-        
+
 
     def sample_transition_covariance(self, moveType):
         """
@@ -826,11 +877,11 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         # Prior terms
         prior = self.transition_prior(self.model)
         ppsl_prior = self.transition_prior(ppsl_model)
-        
+
 #        print(ppsl_lhood-self.lhood)
 #        print(ppsl_prior-prior)
 #        print(bwd_prob-fwd_prob)
-        
+
         # Decide
         acceptRatio =   (ppsl_lhood-self.lhood) \
                       + (ppsl_prior-prior) \
@@ -872,13 +923,13 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
 
         if self.verbose:
             print("Metropolis-Hastings move for transition matrix.")
-        
+
         # Propose a new transition matrix
         I = np.identity(ppsl_model.ds)
         ppsl_model.parameters['F'] = smp.sample_matrix_normal(
                    self.model.parameters['F'], self.algoparams[moveType]*I, I)
         self.chain_algoparams[moveType].append(self.algoparams[moveType])
-        
+
         # Random walk, so forward and backward probabilities are same
         fwd_prob = 0
         bwd_prob = 0
@@ -915,13 +966,13 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         # Prior terms
         prior = self.transition_prior(self.model)
         ppsl_prior = self.transition_prior(ppsl_model)
-        
+
 #        print(ppsl_lhood-self.lhood)
 #        print(ppsl_prior-prior)
 #        print(bwd_prob-fwd_prob)
 #        print(bwd_prob)
 #        print(fwd_prob)
-        
+
         # Decide
         acceptRatio =   (ppsl_lhood-self.lhood) \
                       + (ppsl_prior-prior) \
