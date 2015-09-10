@@ -440,18 +440,14 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
 
         orthVec = model.complete_basis()
 #        relaxEval = self.hyperparams['alpha']
-        relaxEval = np.min(model.parameters['val'])
-#        relaxEval = np.max(model.parameters['val'])
+#        relaxEval = np.min(model.parameters['val'])
+        relaxEval = np.max(model.parameters['val'])
         rowVariance = model.transition_covariance() \
                       + relaxEval*np.dot(orthVec,orthVec.T)
         matrixPrior = smp.matrix_normal_density(model.parameters['F'],
                                                 self.hyperparams['M0'],
                                                 rowVariance,
                                                 self.hyperparams['V0'])
-        
-#        print(variancePrior)
-#        print(matrixPrior)
-#        print("")
         
         return variancePrior + matrixPrior
 
@@ -631,9 +627,13 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
             print("Metropolis-Hastings move for transition matrix.")
         
         # Propose a new transition matrix
-        I = np.identity(ppsl_model.ds)
-        ppsl_model.parameters['F'] = smp.sample_matrix_normal(
-                   self.model.parameters['F'], self.algoparams[moveType]*I, I)
+        ds = ppsl_model.ds
+        I = np.identity(ds)
+        sf = smp.sample_matrix_normal(np.zeros((ds,ds)),
+                                               self.algoparams[moveType]*I, I)
+        ppsl_model.parameters['F'] *= np.exp(sf)
+#        ppsl_model.parameters['F'] = smp.sample_matrix_normal(
+#                   self.model.parameters['F'], self.algoparams[moveType]*I, I)
         self.chain_algoparams[moveType].append(self.algoparams[moveType])
         
         # Random walk, so forward and backward probabilities are same
@@ -673,11 +673,8 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         prior = self.transition_prior(self.model)
         ppsl_prior = self.transition_prior(ppsl_model)
         
-        print(ppsl_lhood-self.lhood)
-        print(ppsl_prior-prior)
-#        print(bwd_prob-fwd_prob)
-#        print(bwd_prob)
-#        print(fwd_prob)
+#        print(ppsl_lhood-self.lhood)
+#        print(ppsl_prior-prior)
         
         # Decide
         acceptRatio =   (ppsl_lhood-self.lhood) \

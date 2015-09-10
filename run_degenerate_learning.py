@@ -56,12 +56,12 @@ hyperparams['b0'] = 0.2
 hyperparams['alpha'] = 0.001
 
 algoparams = dict()
-algoparams['rotate'] = 0.1
-algoparams['perturb'] = 0.00001
+algoparams['rotate'] = 1E-1
+algoparams['perturb'] = 1E-6
 
 learner = MCMCLearner(est_model, observ, hyperparams, algoparams=algoparams, verbose=True)
 
-num_iter = 50
+num_iter = 200
 num_burn = int(num_iter/2)
 num_hold = min(20, int(num_burn/2))
 

@@ -97,3 +97,8 @@ print("NCVM           | {}".format(naive_rmse))
 print("Basic          | {}".format(basic_rmse))
 print("Degenerate     | {}".format(degenerate_rmse))
 print("MSVD           | {}".format(msvd_rmse))
+
+# Trace plots
+naive_learner.plot_chain_trace('R', dims=([0],[0]))
+basic_learner.plot_chain_trace('R', dims=([0],[0]))
+degenerate_learner.plot_chain_trace('R', dims=([0],[0]))
