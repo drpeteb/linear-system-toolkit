@@ -21,7 +21,7 @@ def load_learner(filename):
     learner = pickle.load(fileOb)
     fileOb.close()
     return learner
-    
+
 
 class BaseMCMCLearner():
     __metaclass__ = ABCMeta
@@ -52,7 +52,7 @@ class BaseMCMCLearner():
         self.chain_algoparams = dict()
 
         self.verbose = verbose
-    
+
     def save(self, filename):
         """
         Pickle and save the object.
@@ -60,7 +60,7 @@ class BaseMCMCLearner():
         fileOb = open(filename, 'wb')
         pickle.dump(self, fileOb)
         fileOb.close()
-        
+
 
     def save_link(self):
         """Save the current state of the model as a link in the chain"""
@@ -70,7 +70,7 @@ class BaseMCMCLearner():
             self.flt,_,self.lhood = self.model.kalman_filter(self.observ)
             self.filter_current = True
 
-        self.chain_model.append(self.model.copy())
+        self.chain_model.append(self.model.parameters.copy())
         self.chain_state.append(self.state.copy())
         self.chain_lhood.append(self.lhood)
 
@@ -98,7 +98,7 @@ class BaseMCMCLearner():
             self.flt,_,self.lhood = self.model.kalman_filter(self.observ)
             self.filter_current = True
         self.state = self.model.backward_simulation(self.flt)
-    
+
     def estimate_state_trajectory(self, numBurnIn=0):
         """
         Estimate of the state trajectory (mean and standard deviation) using
@@ -219,10 +219,13 @@ class BaseMCMCLearner():
 
         # Get a list of parameters
         if not derived:
-            paramList = [md.parameters[paramName] for md in self.chain_model]
+            paramList = [md[paramName] for md in self.chain_model]
         else:
-            paramList = eval("[md.{}() for md in self.chain_model]"\
-                                                           .format(paramName))
+            raise NotImplementedError("Doesn't work because of the change"
+                                      "in the way the chain is stored.")
+#            #TODO Fix this
+#            paramList = eval("[md.{}() for md in self.chain_model]"\
+#                                                           .format(paramName))
 
         # Get the true value
         if trueModel is not None:
@@ -268,10 +271,13 @@ class BaseMCMCLearner():
 
         # Get a list of parameters
         if not derived:
-            paramList = [md.parameters[paramName] for md in self.chain_model]
+            paramList = [md[paramName] for md in self.chain_model]
         else:
-            paramList = eval("[md.{}() for md in self.chain_model]"\
-                                                           .format(paramName))
+            raise NotImplementedError("Doesn't work because of the change"
+                                      "in the way the chain is stored.")
+#            #TODO Fix this
+#            paramList = eval("[md.{}() for md in self.chain_model]"\
+#                                                           .format(paramName))
 
         # Get the true value
         if trueModel is not None:
@@ -320,11 +326,13 @@ class BaseMCMCLearner():
 
         # Get a list of parameters
         if not derived:
-            paramList = [md.parameters[paramName] for md in self.chain_model]
+            paramList = [md[paramName] for md in self.chain_model]
         else:
-            paramList = eval("[md.{}() for md in self.chain_model]"\
-                                                           .format(paramName))
-
+            raise NotImplementedError("Doesn't work because of the change"
+                                      "in the way the chain is stored.")
+#            #TODO Fix this
+#            paramList = eval("[md.{}() for md in self.chain_model]"\
+#                                                           .format(paramName))
         # Get the parameter shape
         paramShape = paramList[0].shape
 
@@ -448,7 +456,7 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
                                                 self.hyperparams['M0'],
                                                 rowVariance,
                                                 self.hyperparams['V0'])
-        
+
         return variancePrior + matrixPrior
 
 
@@ -579,11 +587,11 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         # Prior terms
         prior = self.transition_prior(self.model)
         ppsl_prior = self.transition_prior(ppsl_model)
-        
+
 #        print(ppsl_lhood-self.lhood)
 #        print(ppsl_prior-prior)
 #        print(bwd_prob-fwd_prob)
-        
+
         # Decide
         acceptRatio =   (ppsl_lhood-self.lhood) \
                       + (ppsl_prior-prior) \
@@ -625,7 +633,7 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
 
         if self.verbose:
             print("Metropolis-Hastings move for transition matrix.")
-        
+
         # Propose a new transition matrix
         ds = ppsl_model.ds
         I = np.identity(ds)
@@ -635,7 +643,7 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
 #        ppsl_model.parameters['F'] = smp.sample_matrix_normal(
 #                   self.model.parameters['F'], self.algoparams[moveType]*I, I)
         self.chain_algoparams[moveType].append(self.algoparams[moveType])
-        
+
         # Random walk, so forward and backward probabilities are same
         fwd_prob = 0
         bwd_prob = 0
@@ -672,10 +680,10 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         # Prior terms
         prior = self.transition_prior(self.model)
         ppsl_prior = self.transition_prior(ppsl_model)
-        
+
 #        print(ppsl_lhood-self.lhood)
 #        print(ppsl_prior-prior)
-        
+
         # Decide
         acceptRatio =   (ppsl_lhood-self.lhood) \
                       + (ppsl_prior-prior) \

@@ -36,7 +36,7 @@ data_path = './mocap-data/'
 test_data_file = './results/mocap-test-data.p'
 
 model_type = 'degenerate'#'naive'#'basic'#
-num_iter = 20000
+num_iter = 50000
 
 # Import marker data
 markers = np.genfromtxt(data_path+'downsampled_head_markers.csv', delimiter=',')
@@ -110,8 +110,8 @@ algoparams['rotate'] = 1E-4
 algoparams['perturb'] = 1E-8
 
 num_burn = int(num_iter/2)
-num_hold = min(100,int(num_burn/2))
-num_warm = 1000
+num_hold = 0#min(100,int(num_burn/2))
+num_warm = 500
 
 if model_type == 'naive':
 
@@ -177,8 +177,8 @@ elif model_type == 'degenerate':
         if ((ii+1)%20)==0:
             learner.adapt_algorithm_parameters()
 
-        if ((ii+1)%1000)==0:
-            learner.save('intermediate-results.p')
+        if ((ii+1)%10000)==0:
+            learner.save('intermediate-results-{}.p'.format(ii+1))
             plt.close("all")
             learner.plot_chain_trace('rank', numBurnIn=num_burn)
             learner.plot_chain_accept()

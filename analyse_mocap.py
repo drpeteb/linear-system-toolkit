@@ -7,11 +7,11 @@ from kalman import GaussianDensity
 from linear_models import BasicLinearModel, DegenerateLinearModel
 from learners_mcmc import (
     load_learner,
-    BaseMCMCLearner, 
+    BaseMCMCLearner,
     MCMCLearnerObservationDiagonalCovarianceWithIGPrior,
     MCMCLearnerTransitionBasicModelWithMNIWPrior,
     MCMCLearnerTransitionDegenerateModelWithMNIWPrior)
-    
+
 # Create learner classes
 class MCMCBasicLearner(
                 BaseMCMCLearner,
@@ -34,9 +34,9 @@ def mocap_msvd(markers, initial, prop_energy=0.95, num_it=1000):
     md = np.isnan(markers)
     markers = np.where(md, initial, markers)
     last_S = np.nan*np.ones(markers.shape[1])
-    
+
     for it in range(num_it):
-        
+
         U,S,V = la.svd(markers)
         if np.allclose(S,last_S,1E-7):
             break
@@ -45,15 +45,15 @@ def mocap_msvd(markers, initial, prop_energy=0.95, num_it=1000):
         normS = S/np.sum(S)
         cumsumS = np.cumsum(normS)
         num_sing = np.where( cumsumS>prop_energy )[0][0]
-        
+
         # Reconstruct and fill in gaps
-        reconstructed = np.dot(U[:,:num_sing], np.dot(np.diag(S[:num_sing]), 
+        reconstructed = np.dot(U[:,:num_sing], np.dot(np.diag(S[:num_sing]),
                                                               V[:num_sing,:]))
         markers = np.where(md, reconstructed, markers)
-        
+
         # Keep track of singular values in order to assess convergence
         last_S = S
-        
+
     return markers
 
 def mocap_rmse(truth, original, estimate):
@@ -71,7 +71,8 @@ markers = pickle.load(fh)
 # Load the MCMC output
 naive_learner = load_learner(test_path+'mocap-mcmc-naive.p')
 basic_learner = load_learner(test_path+'mocap-mcmc-basic.p')
-degenerate_learner = load_learner(test_path+'mocap-mcmc-degenerate.p')
+#degenerate_learner = load_learner(test_path+'mocap-mcmc-degenerate.p')
+degenerate_learner = load_learner('intermediate-results-60000.p')
 
 # Get state estimates from each algorithm
 num_burn = 10000
