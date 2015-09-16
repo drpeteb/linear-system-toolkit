@@ -35,8 +35,13 @@ np.random.seed(0)
 data_path = './mocap-data/'
 test_data_file = './results/mocap-test-data.p'
 
-model_type = 'degenerate'#'naive'#'basic'#
-num_iter = 50000
+model_type = 'basic'#'degenerate'#'naive'#'basic'#
+num_iter = 20000
+
+num_burn = 10000#int(num_iter-10000)
+num_hold = 0#min(100,int(num_burn/2))
+num_warm = 50
+
 
 # Import marker data
 markers = np.genfromtxt(data_path+'downsampled_head_markers.csv', delimiter=',')
@@ -98,6 +103,7 @@ est_naive_model = BasicLinearModel(ds, do, prior, est_params)
 # Hyperparameters
 hyperparams = dict()
 hyperparams['nu0'] = ds
+hyperparams['Psi0'] = ds*np.identity(ds)
 hyperparams['rPsi0'] = np.identity(ds)
 hyperparams['M0'] = np.zeros((ds,ds))
 hyperparams['V0'] = 100*np.identity(ds)
@@ -108,10 +114,6 @@ hyperparams['b0'] = 0.001
 algoparams = dict()
 algoparams['rotate'] = 1E-4
 algoparams['perturb'] = 1E-8
-
-num_burn = int(num_iter/2)
-num_hold = 0#min(100,int(num_burn/2))
-num_warm = 500
 
 if model_type == 'naive':
 

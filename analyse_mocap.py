@@ -62,7 +62,7 @@ def mocap_rmse(truth, original, estimate):
 
 # Load the test data
 data_path = './mocap-data/'
-test_path = './results/N20000/'#'./results/N2000/'#
+test_path = './results/'#'./results/N20000/'#'./results/N2000/'#
 markers_truth = np.genfromtxt(data_path+'downsampled_head_markers_truth.csv', delimiter=',')
 test_data_file = 'mocap-test-data.p'
 fh = open(test_path+test_data_file, 'rb')
@@ -71,8 +71,8 @@ markers = pickle.load(fh)
 # Load the MCMC output
 naive_learner = load_learner(test_path+'mocap-mcmc-naive.p')
 basic_learner = load_learner(test_path+'mocap-mcmc-basic.p')
-#degenerate_learner = load_learner(test_path+'mocap-mcmc-degenerate.p')
-degenerate_learner = load_learner('intermediate-results-60000.p')
+degenerate_learner = load_learner(test_path+'mocap-mcmc-degenerate.p')
+#degenerate_learner = load_learner('longresults/intermediate-results-60000.p')
 
 # Get state estimates from each algorithm
 num_burn = 10000
