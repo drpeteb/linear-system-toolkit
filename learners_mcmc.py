@@ -717,10 +717,12 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
         U,D = self.model.convert_to_givens_form()
 
         # Sample a new projected transition matrix and transition covariance
-        Psi0 = self.model.parameters['rank'][0]*self.hyperparams['rPsi0']
+        rank = self.model.parameters['rank'][0]
+        nu0 = rank
+        Psi0 = rank*self.hyperparams['rPsi0']
         nu,Psi,M,V = smp.hyperparam_update_degenerate_mniw_transition(
                                                     suffStats, U,
-                                                    self.hyperparams['nu0'],
+                                                    nu0,
                                                     Psi0,
                                                     self.hyperparams['M0'],
                                                     self.hyperparams['V0'])
