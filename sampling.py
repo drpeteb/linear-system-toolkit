@@ -84,7 +84,7 @@ def singular_inverse_wishart_density(val, vec, P):
 
     pptn = -0.5*(3*d-r+1)*np.sum(np.log(val)) \
            -0.5*np.trace( np.dot(np.dot(vec.T,np.dot(P,vec)),np.diag(1/val)) )
-    
+
     pdf = norm + pptn
     return pdf
 
@@ -222,6 +222,25 @@ def hyperparam_update_degenerate_mniw_transition(suffStats, U, nu0, Psi0,
     Psi = UPsi0U + np.dot(U.T, np.dot(UPsiU, U)) - np.dot(M, la.solve(V,M.T))
 
     return nu, Psi, M, V
+
+def hyperparam_update_degenerate_iw_transition_covariance(suffStats, U, F,
+                                                          nu0, Psi0):
+    """
+    Update inverse-wishart hyperparameters for within-subspace
+    comonents of the transition covariance conditional on observed state
+    trajectory.
+    """
+
+    # Posterior hyperparameters
+    nu = nu0 + suffStats[0]
+    UPsi0U = la.inv(np.dot(U.T,la.solve(Psi0,U)))
+    UPsiU = np.dot(F,np.dot(suffStats[1],F.T)) \
+            - np.dot(F, suffStats[2].T) \
+            - np.dot(suffStats[2], F.T) \
+            + suffStats[3]
+    Psi = UPsi0U + np.dot(U.T, np.dot(UPsiU, U))
+
+    return nu, Psi
 
 def project_degenerate_transition_matrix(Fold, FU, U):
     """

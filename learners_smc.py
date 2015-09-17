@@ -186,9 +186,9 @@ class DegenerateSMCLearner():
         d = chain_model[0]['F'].shape[0]
         r = chain_model[0]['val'].shape[0]
         self.approx[d] = DegenerateModelSMCApproximation(N, d, r)
-        self.state[d-1] = np.zeros((N, 1, K, d)) # Note that the (r-1)th entry of state stores samples corresponding to the (r)th rank
+        self.state[d] = np.zeros((N, 1, K, d)) # Note that the (r-1)th entry of state stores samples corresponding to the (r)th rank
         for nn in range(N):
-            self.state[d-1][nn,0,:,:] = chain_state[nn].copy()
+            self.state[d][nn,0,:,:] = chain_state[nn].copy()
             self.approx[d].F[nn,:,:] = chain_model[nn]['F'].copy()
             self.approx[d].val[nn,:] = chain_model[nn]['val'].copy()
             self.approx[d].vec[nn,:,:] = chain_model[nn]['vec'].copy()
@@ -323,10 +323,10 @@ class DegenerateSMCLearner():
                      - jac \
                      + exten
 
-            print(lhood-old_lhood)
-            print(prior-old_prior)
-            print(exten)
-            print(jac)
+#            print(lhood-old_lhood)
+#            print(prior-old_prior)
+#            print(exten)
+#            print(jac)
 
             if self.verbose:
                 print("Particle log-weight: {}".format(weight))
@@ -356,13 +356,13 @@ class DegenerateSMCLearner():
 
 
 
-    def estimate_state_trajectory(self, numBurnIn=0):
+    def estimate_state_trajectory(self, rank):
         """
         Estimate of the state trajectory (mean and standard deviation) using
-        all the samples in the chain
+        the samples from a particular rank of covariance matrix
         """
-        #TODO Rewrite for SMC
-        samples = np.array(self.chain_state[numBurnIn:])
+        shape = (self.num_rejuv*self.num_samples, self.K, self.ds)
+        samples = np.reshape(self.state[rank-1], shape,order='F')
         mn = np.mean(samples, axis=0)
         sd = np.std(samples, axis=0)
         return mn, sd

@@ -87,12 +87,16 @@ smclearner = DegenerateSMCLearner(learner.chain_model[num_burn:],
 
 mlhoodratios = np.zeros(ds)
 effsampsizes = np.zeros(ds)
+rmse = np.zeros(ds)
 for rr in reversed(range(1,ds)):
     print("")
     print("Running SMC sampler for rank {}.".format(rr))
     smclearner.smc_reduce_rank(rr)
     mlhoodratios[rr] = normalising_constant_estimate(smclearner.approx[rr].weight)
     effsampsizes[rr] = effective_sample_size(smclearner.approx[rr].weight)
+    if rr > 2:
+        state_mn, state_sd = smclearner.estimate_state_trajectory(rr)
+        rmse[rr] = np.sqrt(np.sum((state-state_mn)**2))
 
 fig = plt.figure()
 ax = fig.add_subplot(1,1,1)
@@ -102,6 +106,11 @@ plt.show()
 fig = plt.figure()
 ax = fig.add_subplot(1,1,1)
 ax.plot(range(1,ds), effsampsizes[1:])
+plt.show()
+
+fig = plt.figure()
+ax = fig.add_subplot(1,1,1)
+ax.plot(range(1,ds), rmse[1:])
 plt.show()
 
 #learner.plot_chain_trace('F', numBurnIn=num_burn, trueModel=model)
