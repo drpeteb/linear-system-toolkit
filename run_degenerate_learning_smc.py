@@ -62,7 +62,7 @@ algoparams = dict()
 
 learner = MCMCLearner(est_model, observ, hyperparams, algoparams=algoparams, verbose=True)
 
-num_iter = 1000
+num_iter = 20
 num_burn = int(num_iter/2)
 
 # MCMC with full rank
@@ -96,12 +96,12 @@ for rr in reversed(range(1,ds)):
 
 fig = plt.figure()
 ax = fig.add_subplot(1,1,1)
-ax.plot(range(ds), mlhoodratios)
+ax.plot(range(1,ds), np.cumsum(mlhoodratios[::-1])[::-1][1:])
 plt.show()
 
 fig = plt.figure()
 ax = fig.add_subplot(1,1,1)
-ax.plot(range(ds), effsampsizes)
+ax.plot(range(1,ds), effsampsizes[1:])
 plt.show()
 
 #learner.plot_chain_trace('F', numBurnIn=num_burn, trueModel=model)

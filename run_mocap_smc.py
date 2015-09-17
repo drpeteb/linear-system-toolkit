@@ -27,10 +27,10 @@ np.random.seed(0)
 data_path = './mocap-data/'
 test_data_file = './results/mocap-test-data.p'
 
-num_iter = 1000
+num_iter = 750
 num_burn = 500
 thin = 5
-num_rejuv = 1
+num_rejuv = 2
 
 # Import marker data
 markers = np.genfromtxt(data_path+'downsampled_head_markers.csv', delimiter=',')

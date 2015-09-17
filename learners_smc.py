@@ -186,9 +186,9 @@ class DegenerateSMCLearner():
         d = chain_model[0]['F'].shape[0]
         r = chain_model[0]['val'].shape[0]
         self.approx[d] = DegenerateModelSMCApproximation(N, d, r)
-        self.state[d] = np.zeros((N, 1, K, d))
+        self.state[d-1] = np.zeros((N, 1, K, d)) # Note that the (r-1)th entry of state stores samples corresponding to the (r)th rank
         for nn in range(N):
-            self.state[d][nn,0,:,:] = chain_state[nn].copy()
+            self.state[d-1][nn,0,:,:] = chain_state[nn].copy()
             self.approx[d].F[nn,:,:] = chain_model[nn]['F'].copy()
             self.approx[d].val[nn,:] = chain_model[nn]['val'].copy()
             self.approx[d].vec[nn,:,:] = chain_model[nn]['vec'].copy()
@@ -201,7 +201,7 @@ class DegenerateSMCLearner():
                                                         hyperparams)
 
 
-
+        self.filters = None
 
         self.observ = observ
         self.hyperparams = hyperparams
@@ -230,6 +230,15 @@ class DegenerateSMCLearner():
             raise ValueError("Need to do rank {} first.".format(rank+1))
         self.approx[rank] = DegenerateModelSMCApproximation(self.num_samples,
                                                             self.ds, rank)
+
+        # Create space to store the state trajectories
+        self.state[rank] = np.zeros((self.num_samples,
+                                     self.num_rejuv,
+                                     self.K,
+                                     self.ds))
+
+        # Create a store for the filter results for RM in the next iteration
+        filters = []
 
         # Resampling
         w = self.approx[rank+1].weight.copy()
@@ -264,6 +273,30 @@ class DegenerateSMCLearner():
                                           self.initial_state_prior,
                                           parameters)
 
+            # Resample-move with Gibbs sampling to improve diversity
+            if (self.filters is not None) and (self.num_rejuv > 0):
+                flt = self.filters[ai]
+                for ii in range(self.num_rejuv):
+                    state = model.backward_simulation(flt)
+                    model = sample_transition_within_subspace(model, state,
+                                                              self.hyperparams)
+                    model = sample_observation_diagonal_covariance(
+                                                            model,
+                                                            state,
+                                                            self.observ,
+                                                            self.hyperparams)
+                    flt,_,old_lhood = model.kalman_filter(self.observ)
+                    self.state[rank][nn,ii,:,:] = state
+                old_prior = transition_prior(rank,
+                                             model.parameters['val'],
+                                             model.parameters['vec'],
+                                             model.parameters['F'],
+                                             self.hyperparams)
+            else:
+                old_prior = self.approx[rank+1].prior[ai]
+                old_lhood = self.approx[rank+1].lhood[ai]
+
+
             # Remove smallest eigenvalue/vector pair
             remVal, remVec = model.remove_min_eigen_value_vector()
 
@@ -285,32 +318,21 @@ class DegenerateSMCLearner():
             # Calculate weight
             weight = + prior \
                      + lhood \
-                     - self.approx[rank+1].prior[ai] \
-                     - self.approx[rank+1].lhood[ai] \
+                     - old_prior \
+                     - old_lhood \
                      - jac \
                      + exten
+
+            print(lhood-old_lhood)
+            print(prior-old_prior)
+            print(exten)
+            print(jac)
 
             if self.verbose:
                 print("Particle log-weight: {}".format(weight))
 
-            # Gibbs sampling to improve diversity
-            self.state[rank] = np.zeros((self.num_samples,
-                                         self.num_rejuv,
-                                         self.K,
-                                         self.ds))
-            for ii in range(self.num_rejuv):
-                state = model.backward_simulation(flt)
-                model = sample_transition_within_subspace(model, state,
-                                                          self.hyperparams)
-                model = sample_observation_diagonal_covariance(
-                                                        model,
-                                                        state,
-                                                        self.observ,
-                                                        self.hyperparams)
-                flt,_,lhood = model.kalman_filter(self.observ)
-                self.state[rank][nn,ii,:,:] = state
-
             # Store everything
+            filters.append(flt)
             self.approx[rank].prior[nn] = prior
             self.approx[rank].lhood[nn] = lhood
             self.approx[rank].weight[nn] = weight
@@ -320,6 +342,9 @@ class DegenerateSMCLearner():
             self.approx[rank].Rs[nn] = model.parameters['R'][0][0]
 
         # End of particle loop
+
+        # Save the filter results for later
+        self.filters = filters
 
         if self.verbose:
             print("For rank {}, effective sample size: {}".format(rank,
