@@ -1,0 +1,769 @@
+\documentclass[journal,10pt]{IEEEtran}
+% \documentclass[11pt,draftcls,onecolumn]{IEEEtran}
+% \documentclass[a4paper,10pt]{article}
+
+\usepackage{amsmath}
+\usepackage{amsfonts}
+%\usepackage{IEEEtrantools}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+% \usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{subfig}
+\usepackage{cite}
+
+\usepackage{tikz}
+\usepackage{pgfplots}
+\usepgfplotslibrary{groupplots}
+ \usetikzlibrary{plotmarks}
+ \pgfplotsset{compat=newest}
+ \pgfplotsset{plot coordinates/math parser=false}
+ \usepgfplotslibrary{external}
+ \tikzexternalize[prefix=tikz/]
+
+\input{linear-system-learning-macros.tex}
+\newcommand{\meta}[1]{{\color{red}\em #1}}
+
+%opening
+\title{Bayesian Learning of Degenerate Linear~Gaussian~State~Space~Models using~Markov~Chain~Monte~Carlo}
+\author{Pete Bunch$^*$, James Murphy and Simon Godsill
+  \thanks{Department of Engineering, University of Cambridge, Cambridge, UK.}
+  \thanks{Email: $\{$pb404,jm362,sjg30$\}$@cam.ac.uk}%
+}
+
+\begin{document}
+
+\maketitle
+
+
+
+\begin{abstract}
+Linear Gaussian state space models are ubiquitous in signal processing, and an important procedure is that of estimating system parameters from observed data. Rather than making a single point estimate, it is often desirable to conduct Bayesian learning, in which the entire posterior distribution of the unknown parameters is sought. This can be achieved using Markov chain Monte Carlo. On some occasions it is possible deduce the form of the unknown system matrices in terms of a small number of scalar parameters, by considering the underlying physical processes involved. Here we study the case where this is not possible, and the entire matrices must be treated as unknowns. An efficient Gibbs sampling algorithm exists for the basic formulation of linear model. We extend this to the more challenging situation where the transition model is degenerate. Appropriate Markov kernels are devised and demonstrated with simulations.
+\end{abstract}
+
+
+
+\section{Introduction}
+
+State space models are frequently used to describe time-varying systems, and Linear Gaussian models in particular are ubiquitous throughout signal processing. The physical phenomena modelled within this framework include the kinematics of moving targets \cite{Bar-Shalom2002}, audio signals \cite{Godsill1998}, genetic networks \cite{Beal2005}, and many others. The popularity of linear Gaussian state space models stems in part from their analytic tractability. Inference tasks can be performed in closed form using algorithms such as the Kalman filter \cite{Kalman1960} and Rauch-Tung-Striebel (RTS) smoother \cite{Rauch1965}.
+
+A linear Gaussian state space model is specified by a number of system matrices which govern the latent state and observation processes. An important consideration is how to learn these fixed matrices from observed data. The parametric approach to this problem is to deduce the form of the system matrices in terms of a small number of scalar parameters by considering the physical mechanisms underlying the system, and then attempt to learn these. (See e.g. \cite{Kantas2009,Andrieu2010}.) However, in many systems there may not be an obvious parametric form, and it may be better to treat each system matrix in its entirety as an unknown variable to be learned. This type of non-parametric learning for linear Gaussian state space models is the focus of this paper. There is a large body of research on this topic, which has generally concentrated on point estimate methods. These include subspace identification approaches \cite{VanOverschee1991,Viberg1995}, and maximum likelihood estimates using either gradient-based algorithms (see e.g. \cite{Cappe2005,Sarkka2013}) or Expectation-Maximisation (EM) \cite{Shumway1982,Digalakis1993,Ghahramani1996,Gibson2005,Li2009}.
+
+More recently, Bayesian approaches have been developed for non-parametric learning of linear Gaussian state space models, in which full posterior distributions for the system parameters are calculated. Since this is not possible analytically (see discussion in \cite{Beal2003}), approximations must be employed. One possibility is to take a variational approach, approximating the full joint posterior distribution as a product of independent marginals \cite{Ghahramani2001,Beal2003,Barber2007}. Alternatively, the true joint posterior can be targeted using Markov chain Monte Carlo (MCMC). This has the advantage of providing consistent estimates not only of the system matrices but also of any function of these quantities (e.g. phase margins, system poles). The price we pay is in computation; it is necessary to allow the Markov chains to run until convergence in order to form good estimates. Generic Metropolis-Hastings strategies such as those adopted in \cite{Ninness2010} are liable to mix very slowly and exact too great a computational demand. However, if conjugate priors are assumed for the various system matrices, then a Gibbs sampler may be implemented which attains substantially improved efficiency and requires almost no algorithm tuning \cite{Wills2012}.
+
+The Gibbs sampler approach developed in \cite{Wills2012} is effective on the basic flavour of linear Gaussian state space models. However, it is not able to handle the case in which the transition model is degenerate, i.e. when the transition covariance matrix is not full rank. In this paper we extend the MCMC learning framework to encompass this scenario. This is achieved by appropriate factorisations of the covariance matrix which allow us still to exploit the fast-mixing Gibbs kernel. Furthermore, an extended distribution construction is introduced which enables the sampler to learn the rank of the transition covariance matrix.
+
+%and parameterising the attainable subspace using a set of Givens rotations \cite{Anderson1987,Shalit2014,Yang1994,Cao2011,Cron2014}.
+
+The paper is structured as follows. In section~\ref{sec:linear_gaussian_models} we review the Gibbs sampler for basic linear Gaussian state space systems, focusing on the transition model. In section~\ref{sec:degenerate_transition_models} we describe modifications for degenerate transitions. Simulations on a toy model, and a motion capture application are presented in section~\ref{sec:applications}.
+
+
+% Citations which might be useful
+% Linear systems with stability constraints: \cite{Boots2008}
+% Givens rotations: \cite{Yang1994,Cao2011,Cron2014} (for covariance) \cite{Anderson1987,Shalit2014} (for generic orthogonal matrixes)
+
+
+
+\section{Basic Linear Gaussian Models} \label{sec:linear_gaussian_models}
+State space models are used to represent time-varying systems, and consist of a latent state process $\{\ls{\ti}\}_{\ti=1:\timax}$ and a related observation process $\{\ob{\ti}\}_{\ti=1:\timax}$. The challenge is to infer the sequence of unknown latent states, and learn parameters of the model, from the sequence of known observations. It is usually assumed that the state process is Markovian (i.e. $\ls{\ti}|\ls{\ti-1}$ is independent of $\ls{1:\ti-2}$) and that each observation depends only on the current state (i.e. $\ob{\ti}|\ls{\ti}$ is independent of $\ls{1:\ti-1}$ and $\ls{\ti+1:\timax}$).
+
+A basic linear state space model therefore obeys the following recursive system equations,
+%
+\begin{IEEEeqnarray}{rCl}
+ \ls{\ti} & = & \lgtm \ls{\ti-1} + \tn{\ti} \\
+ \ob{\ti} & = & \lgom \ls{\ti}   + \on{\ti}       ,
+\end{IEEEeqnarray}
+%
+where $\ls{\ti} \in \reals^{\lsd}$ and $\ob{\ti} \in \reals^{\obd}$. In addition, we assume the state disturbance and observation noise variables have a Gaussian distribution,
+%
+\begin{IEEEeqnarray}{rCl}
+ \tn{\ti} & \sim & \normalden{\tn{\ti}}{0}{\lgtv} \\
+ \on{\ti} & \sim & \normalden{\on{\ti}}{0}{\lgov}     ,
+\end{IEEEeqnarray}
+%
+where $\lgtv$ and $\lgov$ are positive definite covariance matrices. This model can be written equivalently in terms of transition and observation densities,
+%
+\begin{IEEEeqnarray}{rCl}
+ \den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgtv) & = & \normalden{\ls{\ti}}{\lgtm\ls{\ti-1}}{\lgtv} \\
+ \den(\ob{\ti}|\ls{\ti},\lgom,\lgov)   & = & \normalden{\ob{\ti}}{\lgom\ls{\ti}}{\lgov}      .
+\end{IEEEeqnarray}
+%
+The initial state $\ls{1}$ may be known or may be assigned a Gaussian prior.
+
+The system is parameterised by the four matrices $\left\{\lgtm, \lgom, \lgtv, \lgov\right\}$. In this paper we focus on learning the transition model, i.e. $\lgtm$ and $\lgtv$, and treat $\lgom$ and $\lgov$ as fixed and known throughout. Conditional on these matrices, state inference may be carried out analytically. Posterior filtering and smoothing densities may be calculated using the Kalman filter \cite{Kalman1960} and Rauch-Tung-Striebel (RTS) smoother \cite{Rauch1965}. Furthermore, the Kalman filter may also be used to evaluate the marginal likelihood $\den(\ob{1:\timax}|\lgtm, \lgtv)$, and it is possible to draw posterior samples from the state posterior $\den(\ls{1:\timax}|\ob{1:\timax}, \lgtm, \lgtv)$ using the forward-filtering-backward-sampling method \cite{Chib1996}. The purpose of a learning algorithm is estimate unknown values of $\left\{\lgtm, \lgtv\right\}$ from a sequence of observations. Within the Bayesian framework this means calculating or approximating the posterior distribution $\den(\lgtm, \lgtv|\ob{1:\timax})$, which we can achieve using MCMC. 
+
+In order to conduct Bayesian learning, we first need to define prior distributions for the unknown system matrices $\lgtm$ and $\lgtv$. Although these should be selected to reflect prior belief about the system in question, there is substantial benefit in using conjugate priors, as these enable us to use Gibbs sampling moves. Typically, we will not have strong prior beliefs about the parameters, so it is reasonable to use an uninformative conjugate prior. However, if we do have prior knowledge to take into account which means that a conjugate prior is not appropriate, then we can treat each Gibbs move as a proposal in a Metropolis-Hastings scheme and use an accept/reject stage to account for the difference between the true prior and the conjugate prior used for the sampling \cite{Wills2012}.
+
+
+
+\subsection{System Matrix Priors}
+
+The conjugate prior for $\lgtm, \lgtv$ is a matrix normal--inverse Wishart distribution \cite{Wills2012},
+%
+\begin{align}
+ \lgtv &\sim \iwishartdist{\priordof}{\priorscalematrix} \\
+ \lgtm | \lgtv &\sim \matrixnormaldist{\priormeanmatrix}{\lgtv}{\priorcolumnvariance}     ,
+\end{align}
+%
+with the following density function,
+%
+\begin{equation}
+ \den(\lgtm, \lgtv) =  \den(\lgtm | \lgtv) \den(\lgtv)
+\end{equation}
+%
+\begin{align}
+\den(\lgtv) &= \frac{ \determ{\priorscalematrix}^{\frac{\priordof}{2}} }{ 2^{\frac{\priordof}{2}} \gammafun\left(\frac{\priordof}{2}\right) } \determ{\lgtv}^{-\frac{\priordof+\lsd+1}{2}} \exp\left( -\half \trace\left[\lgtv\inv\priorscalematrix\right] \right) \\
+\den(\lgtm | \lgtv) &= \determ{2 \pi \lgtv}^{-\half} \determ{2 \pi \priorcolumnvariance}^{-\half} \exp\left(-\half \trace\left[ \lgtv\inv (\lgtm-\priormeanmatrix) \priorcolumnvariance\inv (\lgtm-\priormeanmatrix)\tr \right] \right) 
+\end{align}
+%
+$\priordof\in\reals, \priordof>\lsd-1$. $\priorscalematrix$ and $\priorcolumnvariance$ are $\lsd\times\lsd$ positive definite matrices. $\priormeanmatrix \in \reals^{\lsd\times\lsd}$.
+
+
+
+\subsection{MCMC for Basic Linear Gaussian Models}
+
+Our principal interest is to learn the system matrices $\lgtm$ and $\lgtv$ from a sequence of observations $\ob{1:\timax}$. The appropriate posterior distribution is not amenable to efficient MCMC sampling, so instead we introduce the latent state sequence $\ls{1:\timax}$ as a nuisance variable and target the joint posterior,
+%
+\begin{IEEEeqnarray}{rCl}
+ \postden(\lgtm, \lgtv, \ls{1:\timax}) & = & \den(\lgtm, \lgtv, \ls{1:\timax} | \ob{1:\timax}) \\
+ & \propto & \den(\ob{1:\timax}|\ls{1:\timax}) \den(\ls{1:\timax}|\lgtm,\lgtv) \den(\lgtm|\lgtv) \den(\lgtv) \nonumber      .
+\end{IEEEeqnarray}
+
+An appropriate Gibbs sampler can be constructed by sampling alternately from the following conditional posterior distributions,
+%
+\begin{IEEEeqnarray}{l}
+ \postden(\ls{1:\timax}|\lgtm, \lgtv) \nonumber \\
+ \postden(\lgtm, \lgtv| \ls{1:\timax}) \nonumber      .
+\end{IEEEeqnarray}
+%
+The distribution of the sampled values will then converge to the target posterior distribution \cite{Roberts1994}. The state conditional $\postden(\ls{1:\timax}|\lgtm, \lgtv)$ can be sampled using the forward-filtering-backward-sampling algorithm \cite{Chib1996,Wills2012}, which works by first running a Kalman filter forwards through the data, then running backwards in time sampling each state conditional on those in the future. The parameter conditional may also be sampled directly. This depends on the state sequence probability,
+%
+\begin{IEEEeqnarray}{rCl}
+ \IEEEeqnarraymulticol{3}{l}{ \den(\ls{1:\timax}|\lgtm,\lgtv) \propto \prod_{\ti=2}^{\timax} \den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgtv) } \\
+ \quad\quad & \propto & \determ{\lgtv}^{-\frac{\timax-1}{2}} \exp\left( -\half \sum_{\ti=2}^{\timax} (\ls{\ti}-\lgtm\ls{\ti-1})\tr \lgtv\inv (\ls{\ti}-\lgtm\ls{\ti-1}) \right)      .
+\end{IEEEeqnarray} 
+
+It is straightforward to show that the required conditional distribution is also a matrix normal--inverse Wishart distribution \cite{Wills2012},
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgtv | \ls{1:\timax} &\sim& \iwishartdist{\postdof}{\postscalematrix} \\
+ \lgtm | \lgtv, \ls{1:\timax} &\sim& \matrixnormaldist{\postmeanmatrix}{\lgtv}{\postcolumnvariance}     ,
+\end{IEEEeqnarray}
+%
+with the following updated hyperparameters,
+%
+\begin{align}
+ \postcolumnvariance\inv                 &= \priorcolumnvariance\inv + \suffstats{1} \\
+ \postmeanmatrix \postcolumnvariance\inv &= \priormeanmatrix \priorcolumnvariance\inv + \suffstats{2}\\
+ \postdof                                &= \priordof + \suffstats{0} \\
+ \postscalematrix                        &= \priorscalematrix + \suffstats{3} + \priormeanmatrix \priorcolumnvariance\inv \priormeanmatrix\tr - \postmeanmatrix \postcolumnvariance\inv \postmeanmatrix\tr    ,
+\end{align}
+%
+in which the following sufficient statistics are used,
+%
+\begin{align}
+ \suffstats{0} &= \timax - 1 \\
+ \suffstats{1} &= \sum_{t=2}^{\timax} \ls{\ti-1}\ls{\ti-1}\tr \\
+ \suffstats{2} &= \sum_{t=2}^{\timax} \ls{\ti}\ls{\ti-1}\tr \\
+ \suffstats{3} &= \sum_{t=2}^{\timax} \ls{\ti}\ls{\ti}\tr      .
+\end{align}
+
+Both matrix normal and inverse Wishart distributions may be sampled using standard methods. Hence we have all the components necessary to implement a Gibbs sampler for this model.
+
+
+
+\section{Degenerate Transitions} \label{sec:degenerate_transition_models}
+
+A commonly encountered variation on the basic linear Gaussian state space model is as follows,
+%
+\begin{IEEEeqnarray}{rCl}
+ \ls{\ti} & = & \lgtm \ls{\ti-1} + \lgdm \tn{\ti} \label{eq:degenerate_transition} \\
+ \tn{\ti} & \sim & \normalden{\tn{\ti}}{0}{\idmat}      .
+\end{IEEEeqnarray}
+%
+This is almost equivalent, with $\lgtv=\lgdm\lgdm\tr$. However, whereas before $\lgtv$ was required to be positive definite, this is not necessarily the case for $\lgdm\lgdm\tr$. When this occurs, the conventional transition density $\den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgdm)$ is not defined, and the sampling operations underlying our Gibbs sampler are no longer valid. Degenerate models such as these arise in tracking applications (see \cite{Maskell2004} for a discussion of this phenomenon); when non-Markovian models, such as autoregressive process, are converted to state space form; and when it is natural to parameterise a system with more latent states than there are degrees of freedom (see section~\ref{sec:mocap}). In this section, we introduce a parameterisation for such degenerate transition models which can uniquely represent any such system, and show how MCMC moves may be implemented for learning.
+
+
+
+
+
+
+Attempting to learn $\lgdm$ directly is problematic, as this matrix is not identifiable. The distribution of $\lgdm\tn{\ti}$ is identical to that of $\lgdm \Xi \tn{\ti}$ where $\Xi$ is an arbitrary orthogonal matrix. Therefore, there is not a unique value of $\lgdm$ which maximises the probability of the state sequence $\den(\ls{1:\timax}|\lgtm,\lgdm)$. Instead, as in the basic model, we parameterise the system with a $\lsd\times\lsd$ precision matrix $\lgtp$ which is positive semi-definite with rank $\tnd$. For a particular value of $\lgtp$, $\lgdm$ may be any matrix such that,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgdm\lgdm\tr & = & \lgtp\pinv     ,
+\end{IEEEeqnarray}
+%
+where $\pinv$ denote the pseudo-inverse.
+
+Learning degenerate transition models is challenging because each transition, $(\ls{\ti}-\lgtm\ls{\ti-1})$, is constrained to lie in a particular $\tnd$-dimensional subspace within the state space; specifically, within the column space of $\lgdm$. This subspace is fixed conditional on any sampled state trajectory $\ls{1:\timax}$ (provided that $\timax>\tnd$). This makes standard Gibbs sampling from $\postden(\lgtp|\lgtm,\ls{1:\timax})$ and $\postden(\lgtm|\lgtp,\ls{1:\timax})$ insufficient, since there are values of $\lgtm$ and $\lgtp$ which can never be reached.
+
+In order to allow the Markov chain to fully explore the parameter space, we introduce Markov kernels which target alternative conditional distributions, specifically $\postden(\lgtm, \ls{1:\timax}|\lgtp)$ and $\postden(\lgtp|\lgtm)$. Drawing from these distributions exactly is not possible, but we can use Metropolis-Hastings. Naively, we might simply try to propose changes to the elements of $\lgtm$ and $\lgtp$, but this is very inefficient. Better schemes can be formulated by exploiting the following factorisations.
+
+For a rank-$\tnd$ positive semi-definite precision matrix $\lgtp$,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgtp & = & \tnmo \tnmd \tnmo\tr \nonumber      ,
+\end{IEEEeqnarray}
+%
+where $\tnmd = \diag([\tnmev{1},\tnmev{2},\dots])$ is the diagonal matrix of $\tnd$ \emph{positive} eigenvalues (such that $\tnmev{1} > \tnmev{2} > \dots > \tnmev{\tnd}$), and $\tnmo$ is a $\lsd\times\tnd$ matrix of orthonormal eigenvectors. This is a standard eigendecomposition. As in \cite{Muirhead1982}, the first non-zero element in each column of $\tnmo$ is required to be positive for each $i$. This resolves the sign ambiguity in the eigenvectors and thus ensures that the transformation from $\lgtp$ to $\{\tnmo,\tnmd\}$ is bijective.
+
+An alternative decomposition will also be useful. For a rank-$\tnd$ positive semi-definite precision matrix $\lgtp$,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgtp & = & \tnmocrossred \tnmf \tnmocrossred\tr \label{eq:degenerate_covariance_factorisation}      ,
+\end{IEEEeqnarray}
+%
+where,
+%
+$\tnmf$ is a $\tnd\times\tnd$ positive definite matrix and $\tnmocrossred$ is a $\lsd\times\tnd$ matrix of orthonormal vectors subject to certain conditions. The transformation from $\lgtp$ to $\{\tnmocrossred,\tnmf\}$ is also bijective. See appendix~\ref{app:givens-factorisation} for details.
+
+
+\subsection{Degenerate Transition Priors}
+
+In the basic linear model, when $\lgtp$ was positive definite, we used a Wishart prior for this matrix. The singular Wishart distribution is an extension over the space of positive semi-definite matrices \cite{Uhlig1994}, and has the following density with respect to the Lebesgue measure on the distinct matrix elements, conditional on a known value of $\tnd$,
+%
+\begin{IEEEeqnarray}{rCl}
+ \den(\lgtp|\tnd) & = & \wishartden{\lgtp}{\tnd}{\Ppscale} \nonumber \\
+ & \propto & \determ{\tnmd}^{\frac{\tnd-\lsd-1}{2}} \exp\left( -\half \trace\left[ \Ppscale\inv \lgtp \right] \right)     .
+\end{IEEEeqnarray}
+%
+The prior is completed by specifying a distribution on the integer $\tnd \in [1,\lsd]$.
+
+In order to exploit the two transformations of $\lgtp$ introduced in the previous section, we will need the prior distributions induced on $\{\tnmo,\tnmd\}$ and $\{\tnmocrossred,\tnmf\}$ by the singular Wishart distribution on $\lgtp$.
+
+For the first, if we constrain the scale matrix to be proportional to the identity matrix, $\Ppscale = \Ppscalescalar \idmat$, then it can be shown (see \cite{Uhlig1994,Srivastava2003} and \cite[chapter 3]{Muirhead1982}) that the eigenvectors and eigenvalues of $\lgtp$ are independent. Furthermore, the distribution for the eigenvector matrix is uniform (i.e. a normalised Haar measure, conditional on the first element being positive), and for the eigenvalues,
+%
+\begin{IEEEeqnarray}{rCl}
+ \den(\tnmd|\tnd) & = & \frac{ \pi^{\half\tnd^2} }{ (2\Ppscalescalar)^{\half\tnd\lsd} \gammafun[\tnd](\frac{\tnd}{2}) \gammafun[\tnd](\frac{\lsd}{2}) } \left[ \prod_{i<j}^{\tnd} (\tnmev{i}-\tnmev{j}) \right] \nonumber \\
+ & & \qquad \times \left[ \prod_{i=1}^{\tnd} \tnmev{i}^{\half(\lsd-\tnd-1)} \exp\left(-\frac{1}{2\Ppscalescalar} \tnmev{i}\right) \right]      . \nonumber \\ \label{eq:eigenvalue_prior}
+\end{IEEEeqnarray}
+
+For the second factorisation of $\lgtp$, since $\tnmf = \tnmocrossred\tr \lgtp \tnmocrossred$, we find that,
+%
+\begin{IEEEeqnarray}{rCl}
+ \den(\tnmf|\tnmocrossred, \tnd) & = & \wishartden{\tnmf}{\tnd}{\Ppscalescalar \idmat}      .
+\end{IEEEeqnarray}
+%
+(See \cite[theorem 3.2.5]{Muirhead1982}.) It is possible to derive a corresponding prior distribution for a parameterisation of $\tnmocrossred$ using a set of Givens rotations, but this will not be needed.
+
+
+
+\subsection{MCMC for Degenerate Transitions}
+
+As discussed above, standard Gibbs sampling from $\postden(\lgtp|\lgtm,\ls{1:\timax})$ and $\postden(\lgtm|\lgtp,\ls{1:\timax})$ does not allow the Markov chain to fully explore the parameter space because of the constraint that each transition $(\ls{\ti}-\lgtm\ls{\ti-1})$ must lie in the $\tnd$-dimensional column space of $\lgdm$. Nevertheless, we can sample from these distributions exactly, and doing so allows the chain to efficiently explore values of the transition matrix and transition covariance within the permitted regions.
+
+In addition to the within-subspace Gibbs moves, we introduce three efficient Metropolis-Hastings moves which target $\postden(\lgtp|\lgtm)$ and $\postden(\lgtm, \ls{1:\timax}|\lgtp)$, thus allowing the transition subspace to be changed and the parameter space to be fully explored by the Markov chain. 
+
+\subsubsection{Gibbs Sampling within the Subspace}
+
+It is here that we exploit the transformation from $\lgtp$ to $\{\tnmocrossred,\tnmf\}$ introduced in \eqref{eq:degenerate_covariance_factorisation}. In the degenerate case, the transition density $\den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgtp)$ with respect to the Lebesgue measure does not exist. However, since the set of possible values for $\ls{\ti}$ constitutes a hyperplane, we can project this onto a lower dimensional space in which a density does exist. From \eqref{eq:degenerate_transition} and \eqref{eq:degenerate_covariance_factorisation}, 
+%
+\begin{IEEEeqnarray}{rCl}
+ \tnmocrossred\tr(\ls{\ti}-\lgtm\ls{\ti-1}) & \sim & \normaldist{0}{\tnmf\inv}        .
+\end{IEEEeqnarray}
+%
+The likelihood of the state trajectory can then be written as,
+%
+\begin{IEEEeqnarray}{rCl}
+ \IEEEeqnarraymulticol{3}{l}{ \den(\ls{1:\timax}|\lgtm,\tnmf,\tnmocross) } \nonumber \\
+ & \propto & \begin{cases}
+                                  \determ{\tnmf}^{\frac{\timax-1}{2}} \exp\left( -\half \sum\limits_{\ti=1}^{\timax} (\ls{\ti}-\lgtm\ls{\ti-1})\tr\tnmocrossred \tnmf \tnmocrossred^T(\ls{\ti}-\lgtm\ls{\ti-1}) \right) \\ \hphantom{0} \qquad \text{if }\forall \,\, \ti, (\ls{\ti}-\lgtm\ls{\ti-1}) \text{ lies in the column space of } \tnmocrossred \\
+                                  0 \qquad \text{otherwise}     .
+                                                        \end{cases} \nonumber 
+\end{IEEEeqnarray}
+
+We now re-formulate the posterior conditional for $\lgtp$ in terms of $\tnmocrossred$ and $\tnmf$,
+%
+\begin{IEEEeqnarray}{rCl}
+ \postden(\tnmocrossred, \tnmf | \lgtm,\ls{1:\timax}) & = & \postden(\tnmf | \tnmocrossred, \lgtm,\ls{1:\timax}) \postden(\tnmocrossred | \lgtm,\ls{1:\timax})    .
+\end{IEEEeqnarray}
+%
+Because of the subspace constraint, $\tnmocrossred$ is uniquely defined conditional on $\ls{1:\timax}$, and thus sampling from $\postden(\tnmocrossred | \lgtm,\ls{1:\timax})$ simply implies keeping the existing value of $\tnmocrossred$. This can be proved using a ``degrees of freedom'' argument. The set of points $\{(\ls{\ti}-\lgtm\ls{\ti-1})\}_{t=1}^{\timax}$ lie in a $\tnd$-dimensional subspace, characterised by $\tnd(\lsd-\tnd)$ independent parameters. This is the same number as the parameters used to describe $\tnmocrossred$. (See appendix~\ref{app:givens-factorisation}.)
+
+For $\tnmf$ the appropriate conditional is,
+%
+\begin{IEEEeqnarray}{rCl}
+ \postden(\tnmf|\lgtm, \tnmocrossred, \tnd, \ls{1:\timax}) &\propto& \den(\ls{1:\timax}|\lgtm,\tnmf,\tnmocrossred) \den(\tnmf) \nonumber \\
+% \qquad & \propto & \determ{\tnmf}^{\frac{\timax-2}{2}} \exp\left( -\half \trace\left[ \tnmf \left( \frac{1}{\Ppscalescalar}\idmat + \sum_{\ti=2}^{\timax} \tnmocrossred\tr(\ls{\ti}-\lgtm\ls{\ti-1})(\ls{\ti}-\lgtm\ls{\ti-1})\tr\tnmocrossred \right) \right] \right)  \nonumber \\
+ & = & \wishartden{\tnmf}{\Ppdof''}{\Ppscale''}      ,
+\end{IEEEeqnarray}
+%
+where,
+%
+\begin{IEEEeqnarray}{rCl}
+ \Ppdof''   & = & \tnd + \timax - 1 \nonumber \\
+ \Ppscale'' & = & \left[\frac{1}{\Ppscalescalar}\idmat + \sum_{\ti=2}^{\timax} \tnmocrossred\tr(\ls{\ti}-\lgtm\ls{\ti-1})(\ls{\ti}-\lgtm\ls{\ti-1})\tr\tnmocrossred \right]\inv \label{eq:D_posterior_params}      ,
+\end{IEEEeqnarray}
+%
+which closely resembles that for the precision matrix in the full rank case.
+
+For $\lgtm$, if the current value is $\lgtm^*$, then the values which meet the constraint after sampling from $\postden(\lgtm|\tnmf,\tnmocrossred, \tnd, \ls{1:\timax})$ can be written as,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgtm & = & \lgtm^* + \tnmocrossred \lgtmchange
+\end{IEEEeqnarray}
+%
+where $\lgtmchange$ is an arbitrary $\tnd\times\lsd$ matrix. We can then re-frame the sampling operation to draw $\lgtmchange$ from an appropriate conditional. The state sequence probability becomes,
+%
+\begin{IEEEeqnarray}{rCl}
+ \IEEEeqnarraymulticol{3}{l}{ \den(\ls{1:\timax}|\lgtm^*,\lgtmchange,\tnmf,\tnmocross) } \nonumber \\
+ & \propto & \exp\left( -\half \left[ \sum_{\ti=1}^{\timax} \ls{\ti-1}\tr \lgtmchange\tr \tnmf \lgtmchange \ls{\ti-1} \right.\right. \nonumber \\
+ & & \qquad\qquad \left.\left.\vphantom{\sum_{\ti=1}^{\timax}}  -\:2 (\ls{\ti}-\lgtm^*\ls{\ti-1})\tr \tnmocrossred \tnmf \lgtmchange \ls{\ti-1} \right] \right)     . 
+\end{IEEEeqnarray}
+%
+Since $\lgtmchange = \tnmocrossred\tr(\lgtm-\lgtm^*)$, the prior for $\lgtmchange$ is simply a Gaussian, with mean and variance transformed from those of $\lgtm$. The prior and likelihood may be combined using the vectorisation method in a manner analogous to \eqref{eq:vectorisation_trick}, leading to a Gaussian distribution for $\lgtmchange$ which is closely related to that for $\lgtm$ in the full rank case.
+
+We will write $\mcmckern{\lgtp,\lgtm}(\cdot|\lgtm,\lgtp,\ls{1:\timax})$ to represent the Markov kernel which corresponds to transforming from $\lgtp$ to $\{\tnmocrossred,\tnmf\}$, sampling $\lgtm$ and $\tnmf$ from their posterior conditionals, and then transforming back.
+
+
+
+\subsubsection{A Markov Kernel for the Precision Matrix}
+
+In order to allow the Markov chain to fully explore the parameter space, we use Metropolis-Hastings moves to target the marginal distribution $\postden(\lgtp|\lgtm)$. The resulting kernel constitutes a \emph{collapsed Gibbs} move \cite{Dyk2008}. For $\lgtp$, we can construct an efficient Metropolis-Hastings kernel as follows. We sample a rotation matrix $\mhrot$ from some proposal distribution $\mhrotppsl$ and then apply the following transformation,
+%
+\begin{IEEEeqnarray}{rCl}
+ \begin{bmatrix}
+  \lgtp\mcnew \\ \mhrot\mcnew
+ \end{bmatrix}
+ & = &
+ \begin{bmatrix}
+  \mhrot\lgtp\mhrot\tr \\ \mhrot\tr
+ \end{bmatrix} \nonumber     ,
+\end{IEEEeqnarray}
+%
+which is clearly its own inverse. Since $\determ{\mhrot}=1$, it is straightforward to show that the Jacobian of this transformation is $1$, and hence using the reversible jump interpretation of Metropolis-Hastings \cite{Green1995,Green2009}, the acceptance probability is,
+%
+\begin{IEEEeqnarray}{rCl}
+ \mhap(\lgtp\to\lgtp\mcnew) & = & \min\left\{1, \frac{ \postden(\lgtp\mcnew|\lgtm)\mhrotppsl(\mhrot\mcnew) }{ \postden(\lgtp|\lgtm)\mhrotppsl(\mhrot) } \right\}  \\
+ & = & \min\left\{1, \frac{\den(\ob{1:\timax}|\lgtm,\lgtp\mcnew)}{\den(\ob{1:\timax}|\lgtm,\lgtp)} \times \frac{\den(\lgtp\mcnew) \mhrotppsl(\mhrot\mcnew)}{\den(\lgtp) \mhrotppsl(\mhrot)} \right\} \nonumber     .
+\end{IEEEeqnarray}
+%
+The first term is simply a ratio of Kalman filter likelihoods. We will write $\mcmckern{\lgtp,1}(\cdot|\lgtm,\lgtp)$ to represent this Markov kernel.
+
+There are numerous ways to sample the rotation matrix $\mhrot$ from a suitable proposal distribution $\mhrotppsl$. For example, we could use the Cayley transform \cite{Leon2006}, a bijective mapping from the skew-symmetric matrices to the rotation matrices, defined by,
+%
+\begin{IEEEeqnarray}{rCl}
+ P(S) & = & (\idmat - S)\inv(I+S)     .
+\end{IEEEeqnarray}
+%
+To sample from $\mhrotppsl$, we draw $\half\lsd(\lsd-1)$ independent scalar random variables $\{s_{i,j}\}_{0<i<j<\lsd}$ from any zero-mean distribution; a nice choice is,
+%
+\begin{IEEEeqnarray}{rCl}
+ s_{k,l} & \sim & \normaldist{0}{\sigma_s^2} \label{eq:skewsymmetric_proposal}     .
+\end{IEEEeqnarray}
+%
+Use these to construct a skew-symmetric matrix $S$,
+%
+\begin{IEEEeqnarray}{rCl}
+ S_{k,l} & = & \begin{cases}
+                s_{k,l}  & k<l \\
+                -s_{l,k} & k>l \\
+                0        & k=l     ,
+               \end{cases}
+\end{IEEEeqnarray}
+%
+and then set $\mhrot=P(S)$. The Cayley transform has the property that $P(-S)=P(S\tr)=P(S)\inv=P(S)\tr$, which implies that $\mhrotppsl(\mhrot)=\mhrotppsl(\mhrot\tr)=\mhrotppsl(\mhrot\mcnew)$, leading to a cancellation in the acceptance probability.
+
+There is an alternative using Givens rotations. First sample $i \in [1,\lsd]$, $j \in [1,\lsd]\setminus i$, and $\givrot{} \in [-\pi/2,\pi/2]$ from some zero-mean distribution. Form the Givens matrix $\givmat{i}{j}{\givrot{}}$ such that,
+%
+\begin{IEEEeqnarray}{rCl}
+ \left[\givmat{i}{j}{\givrot{}} - \idmat\right]_{k,l} & = & \begin{cases}
+                                                    \cos(\givrot{})-1 & k=l=i \text{ or } k=l=j \\
+                                                    \sin(\givrot{}) & k=i,l=j \\
+                                                    -\sin(\givrot{}) & k=j,l=i \\
+                                                    0 & \text{ otherwise,}
+                                                 \end{cases}
+\end{IEEEeqnarray}
+%
+and use $\mhrot=\givmat{i}{j}{\givrot{}}$. This also has the property that $\givmat{i}{j}{-\givrot{}} = \givmat{i}{j}{\givrot{}}\tr$, meaning that we achieve the same cancellation of the proposals as before.
+
+\subsubsection{A Markov Kernel for the Precision Rank}
+
+It is unlikely that the rank of $\lgtp$ will be known a priori. We can learn this within the MCMC scheme by using the transformation of $\lgtp$ to $\{\tnmo,\tnmd\}$ and allowing the sampler to add and remove eigenvalue-eigenvector pairs using reversible jump moves \cite{Green1995,Green2009}. This can be achieved with a matching pair of moves.
+
+\begin{algorithm}
+\begin{algorithmic}
+ \REQUIRE{$\tnd'$, $\tnmd'$, $\tnmo'$}
+ \STATE Set $\tnd = \tnd' - 1$.
+ \STATE Remove largest eigenvalue $\tnmev{1}$. Form $\tnmd$ from the remaining eigenvalues.
+ \STATE Remove corresponding eigenvector $\tnmevec{1}$. Form $\tnmo$ from the remaining eigenvectors.
+ \RETURN{$\tnd$, $\tnmd$, $\tnmo$}
+\end{algorithmic}
+\caption{Reversible Jump Move: Decrease rank}
+\label{alg:rjmcmc-down}
+\end{algorithm}
+
+\begin{algorithm}
+\begin{algorithmic}
+ \REQUIRE{$\tnd$, $\tnmd$, $\tnmo$}
+ \STATE Set $\tnd' = \tnd + 1$.
+ \STATE Sample an eigenvalue $\tnmev{}^* \in (\tnmev{1},\infty)$ from $\ppslden{\tnmev{}}(\tnmev{})$. Form $\tnmd'$ from the new set of eigenvalues.
+ \STATE Sample a corresponding eigenvector $\tnmevec{}^*$ from $\ppslden{\tnmevec{}}(\tnmevec{})$. Form $\tnmo'$ from the new set of eigenvectors.
+ \RETURN{$\tnd'$, $\tnmd'$, $\tnmo'$}
+\end{algorithmic}
+\caption{Reversible Jump Move: Increase rank}
+\label{alg:rjmcmc-up}
+\end{algorithm}
+
+The acceptance probability for the increase move is then,
+%
+\begin{IEEEeqnarray}{rCl}
+ \IEEEeqnarraymulticol{3}{l}{ \mhap\left( \tnd,\tnmd,\tnmo \to \tnd',\tnmd',\tnmo' \right) } \nonumber \\
+ \qquad & = & \min\left\{1, \frac{ \postden(\lgtm, \tnd',\tnmd',\tnmo') }{ \postden(\lgtm, \tnd,\tnmd,\tnmo) } \times \frac{1}{\ppslden{\tnmevec{}}(\tnmevec{}^*)\ppslden{\tnmev{}}(\tnmev{}^*)} \right\} \nonumber \\
+ & = & \min\Bigg\{1, \frac{\den(\ob{1:\timax} | \lgtm, \tnd',\tnmd',\tnmo') }{ \den(\ob{1:\timax} | \lgtm, \tnd,\tnmd,\tnmo) } \nonumber \\
+ & & \quad \times \frac{\den(\tnmevec{1},\dots,\tnmevec{\tnd},\tnmevec{}^*)\den(\tnmev{1},\dots,\tnmev{\tnd},\tnmev{}^*|\tnd')\den(\tnd')}{\den(\tnmevec{1},\dots,\tnmevec{\tnd})\den(\tnmev{1},\dots,\tnmev{\tnd}|\tnd)\den(\tnd) \ppslden{\tnmevec{}}(\tnmevec{}^*)\ppslden{\tnmev{}}(\tnmev{}^*)} \Bigg\} \nonumber      ,
+\end{IEEEeqnarray}
+%
+where $\tnmevec{1},\dots,\tnmevec{\tnd}$ are the eigenvectors comprising $\tnmo$ and $\tnmev{1},\dots,\tnmev{\tnd}$ the eigenvalues comprising $\tnmd$. The first term is simply a ratio of Kalman filter likelihoods. For the decrease move, the ratio is replaced by its reciprocal.
+
+The conditional prior distribution $\den(\tnmevec{}^*|\tnmevec{1},\dots,\tnmevec{\tnd})$ is the normalised Haar measure on the manifold $\tnmo\tr\tnmevec{}^*=0$, conditional on the constraint we imposed to resolve the sign ambiguity \cite{Muirhead1982}. We can simulate according to this prior by sampling a standard Gaussian random vector and then using Gram-Schmidt orthogonalisation. This implies setting $\ppslden{\tnmevec{}}(\tnmevec{}^*)=\den(\tnmevec{}^*|\tnmevec{1},\dots,\tnmevec{\tnd})$, which results in a cancellation in the acceptance probability.
+
+For the eigenvalues, inspection of the joint density \eqref{eq:eigenvalue_prior} suggests the following truncated gamma proposal,
+%
+\begin{IEEEeqnarray}{rCl}
+ \ppslden{\tnmev{}}(\tnmev{}^*) & \propto & \begin{cases}
+                                               \gammaden{\tnmev{}^*}{\frac{\lsd-\tnd}{2}}{2\Ppscalescalar} & \tnmev{}^*>\tnmev{1} \\
+                                               0 & \text{otherwise}
+                                              \end{cases} \nonumber \\
+ & = & \begin{cases} 
+ \frac{ (\tnmev{}^*)^{\frac{\lsd-\tnd}{2}-1} \exp\left( -\frac{\tnmev{}^*}{2\Ppscalescalar} \right) }{(2\Ppscalescalar)^{\frac{\lsd-\tnd}{2}} \compnormincgammafun\left(\frac{\lsd-\tnd}{2},\frac{\tnmev{1}}{2\Ppscalescalar}\right) }  & \tnmev{}^*>\tnmev{1} \\
+ 0 & \text{otherwise}     ,
+ \end{cases}
+\end{IEEEeqnarray}
+%
+where $\compnormincgammafun(\cdot,\cdot)$ is the complement of the normalised incomplete gamma function.
+%
+This leads to the following cancellation,
+%
+\begin{IEEEeqnarray}{rCl}
+ \frac{\den(\tnmev{1},\dots,\tnmev{\tnd},\tnmev{}^*|\tnd')}{\den(\tnmev{1},\dots,\tnmev{\tnd}|\tnd)\ppslden{\tnmev{}}(\tnmev{}^*)} & = & \frac{ \pi^{\half} \compnormincgammafun\left(\frac{\lsd-\tnd}{2},\frac{\tnmev{1}}{2\Ppscalescalar}\right) }{ (2\Ppscalescalar)^{\frac{\tnd}{2}} \gammafun\left(\frac{\tnd+1}{2}\right) } \prod_{i=1}^{\tnd} \tnmev{i}^{-\half}(\tnmev{}^*-\tnmev{i}) \nonumber \\
+\end{IEEEeqnarray}
+%
+Thus simplifying the acceptance probability,
+%
+\begin{IEEEeqnarray}{rCl}
+ \IEEEeqnarraymulticol{3}{l}{ \mhap\left( \tnd,\tnmd,\tnmo \to \tnd',\tnmd',\tnmo' \right) } \nonumber \\
+ \qquad & = & \min\Bigg\{1, \frac{\den(\ob{1:\timax} | \lgtm, \tnd',\tnmd',\tnmo') }{ \den(\ob{1:\timax} | \lgtm, \tnd,\tnmd,\tnmo) } \times \frac{\den(\tnd')}{\den(\tnd)} \nonumber \\
+ & & \qquad\qquad \times \frac{ \pi^{\half} \compnormincgammafun\left(\frac{\lsd-\tnd}{2},\frac{\tnmev{1}}{2\Ppscalescalar}\right) }{ (2\Ppscalescalar)^{\frac{\tnd}{2}} \gammafun\left(\frac{\tnd+1}{2}\right) } \prod_{i=1}^{\tnd} \tnmev{i}^{-\half}(\tnmev{}^*-\tnmev{i}) \Bigg\} \nonumber      ,
+\end{IEEEeqnarray}
+%
+We will write $\mcmckern{\lgtp,2}(\cdot|\lgtm,\lgtp)$ for the Markov kernel which corresponds to transforming from $\lgtp$ to $\{\tnmo,\tnmd\}$, conducting a reversible jump move as described above, and then transforming back.
+
+
+
+\subsubsection{A Markov Kernel for the Transition Matrix}
+
+Next we turn to $\lgtm$. If we modify the covariance matrix slightly so that it is no longer singular, then we can use the existing sampling procedure from the basic linear model and treat the resulting value of $\lgtm$ as a proposal in a Metropolis-Hastings kernel targeting $\postden(\lgtm, \ls{1:\timax}|\lgtp)$.
+
+Suppose we start with sampled values of $\lgtm$,$\lgtp$ and $\ls{1:\timax}$. A suitably modified precision matrix is,
+%
+\begin{IEEEeqnarray}{rCl}
+ \paddedlgtp & = & \left(\lgtp\pinv + \Qpadding \idmat\right)\inv \label{eq:padded_transition_precision}      ,
+\end{IEEEeqnarray}
+%
+where $\Qpadding$ is a small positive constant. We propose a new value of $\lgtm$ by sampling,
+%
+\begin{IEEEeqnarray}{rCl}
+%  \lgtm' & \sim & \ppslden{\lgtm}(\lgtm|\lgtp,\ls{1:\timax}) & = & \postden(\lgtm|\paddedlgtp,\ls{1:\timax})     .
+ \lgtm' & \sim & (\lgtm|\paddedlgtp,\ls{1:\timax})     .
+\end{IEEEeqnarray}
+%
+This distribution is simply a Gaussian and we can evaluate the density using \eqref{eq:basic_F_conditional}. Finally, we also sample a new state trajectory using forward filtering backward sampling,
+%
+\begin{IEEEeqnarray}{rCl}
+ \ls{1:\timax}' & \sim & \postden(\ls{1:\timax}|\lgtm', \lgtp)      .
+\end{IEEEeqnarray}
+%
+The acceptance probability is simply,
+%
+\begin{IEEEeqnarray}{rCl}
+ \IEEEeqnarraymulticol{3}{l}{ \mhap\left(\lgtm,\ls{1:\timax}\to\lgtm',\ls{1:\timax}'\right) } \nonumber \\
+ \quad\quad & = & \min\left\{1,\frac{ \postden(\lgtm',\ls{1:\timax}'|\lgtp) \postden(\ls{1:\timax}|\lgtm,\lgtp) \postden(\lgtm|\paddedlgtp,\ls{1:\timax}')   }{ \postden(\lgtm,\ls{1:\timax}|\lgtp) \postden(\ls{1:\timax}'|\lgtm',\lgtp) \postden(\lgtm'|\paddedlgtp,\ls{1:\timax}) }\right\} \nonumber \\
+ & = & \min\left\{1,\frac{ \postden(\lgtm'|\lgtp) \postden(\lgtm|\paddedlgtp,\ls{1:\timax}')   }{ \postden(\lgtm|\lgtp)\postden(\lgtm'|\paddedlgtp,\ls{1:\timax}) }\right\} \nonumber \\
+ & = & \min\left\{1, \frac{ \den(\ob{1:\timax}|\lgtm',\lgtp) }{ \den(\ob{1:\timax}|\lgtm,\lgtp)} \times \frac{ \den(\lgtm') }{ \den(\lgtm)} \times \frac{ \postden(\lgtm|\paddedlgtp,\ls{1:\timax}')   }{ \postden(\lgtm'|\paddedlgtp,\ls{1:\timax}) }\right\} \nonumber      , \\
+\end{IEEEeqnarray}
+%
+in which the first term is a ratio of Kalman filter likelihoods. We will write $\mcmckern{\lgtm,\ls{}}(\cdot|\lgtm,\lgtp,\ls{1:\timax})$ for this Markov kernel.
+
+
+\subsubsection{The Complete Sampler}
+
+In this section we have described four Markov kernels which can be composed in order to learn a degenerate linear state space model. Each one by construction targets some conditional of the full posterior distribution and together they allow us to fully explore the parameter space. One iteration of the final algorithm consists of the following cycle. Starting with $\{\lgtm,\lgtp,\ls{1:\timax}\}$,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgtm',\ls{1:\timax} & \sim & \mcmckern{\lgtm,\ls{}}(\cdot|\lgtm,\lgtp,\ls{1:\timax}) \nonumber \\
+ \lgtp' & \sim & \mcmckern{\lgtp,1}(\cdot|\lgtm',\lgtp) \nonumber \\
+ \ls{1:\timax}'' & \sim & \postden(\cdot|\lgtm',\lgtp') \nonumber \\
+ \lgtp'' & \sim & \mcmckern{\lgtp,2}(\cdot|\lgtm',\lgtp') \nonumber \\
+ \ls{1:\timax}''' & \sim & \postden(\ls{1:\timax}|\lgtm',\lgtp'') \nonumber \\
+ \lgtm'',\lgtp''' & \sim & \mcmckern{\lgtp,\lgtm}(\cdot|\lgtm',\lgtp'',\ls{1:\timax}''') \nonumber     .
+\end{IEEEeqnarray}
+
+The only tuning required is to select the Metropolis-Hastings proposal distributions for $\mcmckern{\lgtp,1}$ and $\mcmckern{\lgtm,\ls{}}$. In both cases these can be reduced to a single scale parameter; $\Qpadding$ in \eqref{eq:padded_transition_precision} for $\mcmckern{\lgtm,\ls{}}$ and $\sigma_s$ in \eqref{eq:skewsymmetric_proposal} for $\mcmckern{\lgtp,1}$. An adaptive MCMC scheme, such as those discussed in \cite{Roberts2009}, can be used to modify these values as the chain runs for maximum efficiency.
+
+
+
+\subsection{Example}
+
+The algorithm was tested using the transition matrix specified in section~\ref{sec:example_basic}, but with the transition covariance changed to,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgdm\lgdm\tr & = & \begin{bmatrix}
+              0.26 &  0.33 &  0.26 & -0.42 \\
+              0.33 &  1.14 &  0.46 & -0.85 \\ 
+              0.26 &  0.46 &  0.29 & -0.48 \\
+             -0.42 & -0.85 & -0.48 &  0.81
+             \end{bmatrix} \nonumber      ,
+\end{IEEEeqnarray}
+%
+(showing $2$ decimal places) which has a rank of $2$.
+
+The MCMC algorithm was run using an adaptation scheme from \cite{Roberts2009}, adjusting the two proposal parameters based on the acceptance rate of the associated Metropolis-Hastings moves. Posterior histograms for $\lgtm$, $\lgtv$, and for the rank of $\lgtv$, are shown in figure~\ref{fig:degenerate_FQ_histograms} and~\ref{fig:degenerate_rank_histograms} for one MCMC run.
+
+\begin{figure}
+ \centering
+ \subfloat[]{\includegraphics[width=0.7\columnwidth]{../code/degenerate_F_with_rank.pdf} \label{subf:degenerate_FQ_histograms:F}} \\
+ \subfloat[]{\includegraphics[width=0.7\columnwidth]{../code/degenerate_Q_with_rank.pdf} \label{subf:degenerate_FQ_histograms:Q}}
+ \caption{MCMC Posterior histograms for \protect\subref{subf:degenerate_FQ_histograms:F} $\lgtm$ and \protect\subref{subf:degenerate_FQ_histograms:Q} $\lgtv$. Degenerate transition model. Unknown rank.}
+ \label{fig:degenerate_FQ_histograms}
+\end{figure}
+
+\begin{figure}
+ \centering
+ \includegraphics[width=0.7\columnwidth]{../code/degenerate_rank_with_rank.pdf} 
+ \caption{MCMC Posterior histogram for $\tnd$. Degenerate transition model.}
+ \label{fig:degenerate_rank_histograms}
+\end{figure}
+
+
+
+\section{Applications} \label{sec:applications}
+
+\subsection{Example} \label{sec:example_basic}
+
+We demonstrate the efficacy of the Gibbs sampler with a simple simulation example on a 4-dimensional model. The following transition matrix is used,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgtm & = & \begin{bmatrix}
+              0.9 & 0.7 & 0.7  & 0    \\
+              0   & 0.9 & -0.5 & 0.1  \\
+              0   & 0   & 1.6  & -0.8 \\
+              0   & 0   & 1    & 0
+             \end{bmatrix} \nonumber      .
+\end{IEEEeqnarray}
+%
+The transfer function associated with $\lgtm$ has two real and two complex poles, all on or close to the unit circle. The transition covariance matrix is,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgtv & = & \begin{bmatrix}
+              1.0  & 0.5  & 0.5  & 0.5 \\
+              0.5  & 1.0  & 0.5  & 0.5 \\ 
+              0.5  & 0.5  & 1.0  & 0.5 \\
+              0.5  & 0.5  & 0.5  & 1.0
+             \end{bmatrix} \nonumber      .
+\end{IEEEeqnarray}
+%
+For the observation model, $\lgom = \idmat$ and $\lgov = \idmat{}$.
+
+A data set with $\timax=100$ time instants simulated from the model is shown in figure~\ref{fig:data_fullrank}. Running the Gibbs sampler results in rapid convergence. The resulting posterior histograms are shown in figure~\ref{fig:basic_FQ_histograms}, using $5000$ samples following a burn in of $1000$ iterations.
+
+\begin{figure}
+ \centering
+% \includegraphics[width=0.9\columnwidth]{../code/data_fullrank.pdf}
+ \caption{An example simulated data set. States (solid line) and observations (dots) of the four state components.}
+ \label{fig:data_fullrank}
+\end{figure}
+
+\begin{figure}
+ \centering
+% \subfloat[]{\includegraphics[width=0.7\columnwidth]{../code/basic_F.pdf} \label{subf:basic_FQ_histograms:F}} \\
+% \subfloat[]{\includegraphics[width=0.7\columnwidth]{../code/basic_Q.pdf} \label{subf:basic_FQ_histograms:Q}}
+ \caption{MCMC Posterior histograms for \protect\subref{subf:basic_FQ_histograms:F} $\lgtm$ and \protect\subref{subf:basic_FQ_histograms:Q} $\lgtv$. Basic linear transition model. Vertical lines indicate true values}
+ \label{fig:basic_FQ_histograms}
+\end{figure}
+
+
+\subsection{Rigid-Body Modelling with Motion Capture} \label{sec:mocap}
+
+In this section, the MCMC algorithm for degenerate transition models is applied to a simplified motion capture task. The data used is from \cite{Aristidou2013}. A motion capture system was used to measure the $3$-dimensional coordinates of a number of markers attached to a subject's body. Here we consider the four markers attached to the head. Since these are all attached to the same rigid body, we expect there to be substantial correlation in their motion. The linear model used is slightly modified from that introduced before. The latent state $\ls{\ti}$ consists of two parts,
+%
+\begin{IEEEeqnarray}{rCl}
+ \ls{\ti} & = & \begin{bmatrix}
+                 r_{\ti} \\ v_{\ti}
+                \end{bmatrix} \nonumber 
+\end{IEEEeqnarray}
+%
+where the vector $r_{\ti}$ denotes the positions of the markers and $v_{\ti}$ their corresponding velocities. A constant velocity model \cite{Li2003} is used with the following transition equation,
+%
+\begin{IEEEeqnarray}{rCl}
+ \begin{bmatrix} r_{\ti} \\ v_{\ti} \end{bmatrix} & = & \begin{bmatrix} \idmat & \idmat \\ \zmat & \idmat \end{bmatrix} \begin{bmatrix} r_{\ti-1} \\ v_{\ti-1} \end{bmatrix} + \begin{bmatrix} \zmat \\ \lgdm \end{bmatrix} \tn{\ti} \nonumber \\
+ \tn{\ti} & \sim & \normalden{\tn{\ti}}{0}{\idmat}      .
+\end{IEEEeqnarray}
+%
+Our objective is to learn $\lgdm$. Defining $\lgtp$ as before, the MCMC kernels derived in section~\ref{sec:degenerate_transition_models} can all be applied. The measured marker positions are modelled as independent noisy observations of $r_t$, i.e. with,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgov & = & \frac{1}{\xi} \idmat \nonumber     .
+\end{IEEEeqnarray}
+%
+It is straightforward to Gibbs sample $\xi$; the posterior conditional is a Gamma distribution.
+
+The original data is down-sampled to $5$Hz, and consists of $250$ time instants with occasional measurements missing due to occlusion. The full data set is shown in figure~\ref{fig:mocap_data}.
+
+\begin{figure}
+ \centering
+% \includegraphics[width=0.9\columnwidth]{../code/mocap_data.pdf}
+ \caption{Motion capture data. Showing the three position coordinates over time for each of the four head markers.}
+ \label{fig:mocap_data}
+\end{figure}
+
+In order to test the learning algorithm, we discard the observations from one marker at a time in $4$ sections each of $20$ time instants (i.e. $4$s each). The remaining observations are used to learn the system parameters with MCMC. Kalman smoothing with the resulting model is then used to estimate the marker positions in the sections of missing data, and a root-mean-square-error may be calculated by comparing the estimated marker positions to the true values. 
+
+The MCMC learning is run with $1000$ iterations, of which $500$ are discarded as burn-in. The sampler rapidly settles on a rank of $6$ and remains there for the rest of the chain. This accords with the fact that specifying the position of a solid body requires $6$ degrees of freedom. Figure~\ref{fig:mocap_Qhist} shows posterior histograms for a $6\times6$ block of the full covariance matrix.
+
+\begin{figure}
+ \centering
+% \includegraphics[width=0.9\columnwidth]{../mocap/mocap_Qhist.pdf}
+ \caption{Motion capture MCMC model learning. Posterior histograms for the elements of $\lgtv$ corresponding to the first two markers.}
+ \label{fig:mocap_Qhist}
+\end{figure}
+
+Two other baseline methods are used for comparison: a Kalman smoother with $\lgdm=\idmat$, which corresponds to independent interpolation of each missing variable; and the missing value singular value decomposition algorithm \cite{Srebro2003,Liu2006,Li2009}, in which we use components sufficient to capture $95\%$ of the energy in each iteration. Results are shown in table~\ref{tab:mocap_rmse}. Figure~\ref{fig:missing_marker} shows one of the missing data sections and the estimates generated by the various methods.
+
+\begin{table}[t]
+\centering
+\begin{tabular}{l|c}
+ Algorithm                              & RMSE \\
+ \hline
+ Independent interpolation              & $0.505$ \\
+ MSVD                                   & $0.101$ \\
+ MCMC model mearning + Kalman Smoother  & $0.019$
+\end{tabular}
+\caption{RMSE results for missing marker estimation.}
+\label{tab:mocap_rmse}
+\end{table}
+
+\begin{figure}
+ \centering
+% \includegraphics[width=0.9\columnwidth]{../code/missing_marker.pdf}
+ \caption{First position coordinate of marker $1$, with data missing from time instant $90$ to $110$, showing ground truth (solid), Kalman smoother estimate with the learned model (mean as dashed, $\pm$2 standard deviations as dotted), independent interpolation (dash-dotted, upper), and MSVD (dash-dotted, lower).}
+ \label{fig:missing_marker}
+\end{figure}
+
+
+
+\section{Conclusions}
+
+Markov chain Monte Carlo algorithms are an effective method for Bayesian learning of linear state space systems. In this paper, we have introduced a number of new MCMC kernels for the linear system toolkit. New parameterisations have enabled us to formulate algorithms for learning transition models when it is known a priori that the model is (i) sparse or (ii) degenerate. The new algorithms are efficient and require minimal tuning, and have been verified with simulations.
+
+
+
+\section*{Acknowledgements}
+The authors are supported by the EPSRC BTaRoT grant. Our thanks to Michael Burke for advice and assistance with the motion capture application, and to Rich Wareham for his geometric insights.
+
+
+
+\appendices
+
+\section{A~Matrix~Factorisation for Positive~Semidefinite~Matrices} \label{app:givens-factorisation}
+
+For a $\lsd\times\lsd$, rank-$\tnd$ positive semi-definite precision matrix $\lgtp$, we write the full eigendecomposition as,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgtp & = & \tnmofull \begin{bmatrix}
+                        \tnmd & \zmat \\
+                        \zmat & \zmat
+                       \end{bmatrix} \tnmofull\tr \nonumber      .
+\end{IEEEeqnarray}
+%
+where $\tnmofull$ is a square orthogonal matrix and $\tnmd$ is a diagonal matrix of $\tnd$ eigenvalues.% This is not a unique factorisation, since $\lsd-\tnd$ of the columns of $\tnmofull$ do not contribute to $\lgtp$ at all.
+
+Next we consider factorising $\tnmofull$ using Givens rotations. A Givens rotation matrix has the following structure,
+%
+\begin{IEEEeqnarray}{rCl}
+ \left[\givmat{i}{j}{\givrot{}} - \idmat\right]_{k,l} & = & \begin{cases}
+                                                    \cos(\givrot{})-1 & k=l=i \text{ or } k=l=j \\
+                                                    \sin(\givrot{}) & k=i,l=j \\
+                                                    -\sin(\givrot{}) & k=j,l=i \\
+                                                    0 & \text{ otherwise}     ,
+                                                 \end{cases}
+\end{IEEEeqnarray}
+%
+where $\givrot{} \in [-\pi/2,\pi/2]$ is a rotation in the plane of the $i$ and $j$ coordinate directions. Any orthogonal matrix may be written as a product of $\half d(d-1)$ such rotations in the following way \cite{Anderson1987},
+%
+\begin{IEEEeqnarray}{rCl}
+\tnmosign &\times& \left[ \givmat{1}{2}{\givrot{1,2}}\right] \times \dotsm \nonumber\\
+&\times& \left[\givmat{1}{d-1}{\givrot{1,d-1}} \dotsm \givmat{d-2}{d-1}{\givrot{d-2,d-1}} \right] \nonumber\\
+&\times& \left[\givmat{1}{d}{\givrot{1,d}} \dotsm \givmat{d-1}{d}{\givrot{d-1,d}} \right] \label{eq:standard_givens}     ,
+\end{IEEEeqnarray}
+%
+where $\tnmosign$ is a diagonal matrix in which the diagonal elements are $\pm1$. This factorisation may be derived (and also calculated) by iteratively multiplying the original matrix by a Givens rotation matrix such that one element is set to $0$. The matrix remaining once all the elements below the diagonal have been eliminated is $\tnmosign$, and the factorisation above results from a straightforward rearrangement. See \cite{Anderson1987} for details.
+
+The order of the rotation matrices in the Givens factorisation is not unique. By successively eliminating elements using both left and right multiplication with Givens matrices, it is possible in the same way to show that there is a unique factorisation,
+%
+\begin{IEEEeqnarray}{rCl}
+ \tnmofull & = & \tnmocross \tnmosign \tnmorow \tnmonull      ,
+\end{IEEEeqnarray}
+%
+where
+%
+\begin{IEEEeqnarray}{rCl}
+ \tnmonull & = & \left[\givmat{r+1}{r+2}{\givrot{r+1,r+2}}\right] \times \dotsm \nonumber \\
+ & & \qquad\qquad \times \left[\givmat{r+1}{d}{\givrot{r+1,d}} \dots \givmat{d-1}{d}{\givrot{d-1,d}}\right] \nonumber \\
+ \tnmorow  & = & \left[\givmat{1}{2}{\givrot{1,2}}\right] \times \dotsm \nonumber \\
+ & & \qquad\qquad \times \left[\givmat{1}{r}{\givrot{1,r}} \dots \givmat{r-1}{r}{\givrot{r-1,r}}\right] \nonumber \\
+ \tnmocross & = & \left[\givmat{1}{r+1}{\givrot{1,r+1}}\dots\givmat{1}{d}{\givrot{1,d}}\right] \times \dotsm \nonumber \\
+ & & \qquad\qquad \times \left[\givmat{r}{r+1}{\givrot{r,r+1}} \dots \givmat{r}{d}{\givrot{r,d}}\right] \nonumber      ,
+\end{IEEEeqnarray}
+%
+and $\tnmosign$ is as before. The terms $\tnmonull$ and $\tnmorow$ have the following particular form,
+%
+\begin{IEEEeqnarray}{rCl}
+ \tnmonull & = & \begin{bmatrix}
+                  \idmat[r\times r] & \zmat[r\times(d-r)] \\
+                  \zmat[(d-r)\times r] & \tnmonullred
+                 \end{bmatrix} \nonumber \\
+ \tnmorow & = & \begin{bmatrix}
+                  \tnmorowred & \zmat[r\times(d-r)] \\
+                  \zmat[(d-r)\times r] & \idmat[(d-r)\times(d-r)]
+                 \end{bmatrix} \nonumber      .
+\end{IEEEeqnarray}
+%
+Substituting into the eigendecomposition,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgtp & = & \tnmofull \begin{bmatrix}
+                        \tnmd & \zmat \\
+                        \zmat & \zmat
+                       \end{bmatrix} \tnmofull\tr \nonumber \\
+ & = & \tnmocross \tnmosign \tnmorow \tnmonull \begin{bmatrix}
+                        \tnmd & \zmat \\
+                        \zmat & \zmat
+                       \end{bmatrix} \tnmonull\tr \tnmorow\tr \tnmosign\tr \tnmocross\tr \nonumber \\
+ & = & \tnmocross \begin{bmatrix}
+                        \tnmosignred\tnmorowred\tnmd\tnmorowred\tr\tnmosignred\tr & \zmat \\
+                        \zmat & \zmat
+                       \end{bmatrix} \tnmocross\tr \nonumber      ,
+\end{IEEEeqnarray}
+%
+where $\tnmosignred$ is the top-left $r\times r$ block of $\tnmosign$. Comparing with \eqref{eq:standard_givens}, $\tnmosignred\tnmorowred$ can represent any $r\times r$ orthogonal matrix and hence $\tnmosignred\tnmorowred\tnmd\tnmorowred\tr\tnmosignred\tr$ is a unique positive definite matrix, which we write $\tnmf$. Finally, define $\tnmocrossred$ as the first $r$ columns of $\tnmocross$, and we reach,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgtp & = & \tnmocrossred \tnmf \tnmocrossred\tr      .
+\end{IEEEeqnarray}
+%
+Note that the space of possible values for $\tnmocrossred$ is restricted by the Givens factorisation. In particular, note that it is defined by $r(d-r)$ independent parameters. However, since we keep $\tnmocrossred$ fixed when using this factorisation, this restriction does not matter.
+
+
+
+\bibliographystyle{IEEEtran}
+\bibliography{/home/pete/Dropbox/PhD/bibliographies/Cleanbib}
+% \bibliography{/users/pete/Dropbox/PhD/Cleanbib}
+% \bibliography{/users/pete/Dropbox/PhD/OTbib}
+% \bibliography{/home/pete/Dropbox/PhD/OTbib}
+\end{document}
+
+
+
+\end{document}
