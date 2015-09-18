@@ -179,6 +179,24 @@ def hyperparam_update_basic_ig_observation_variance(suffStats, H, a0, b0):
 
     return a,b
 
+def hyperparam_update_ncvm_ig_transition_variance(suffStats, F, Qs, a0, b0):
+    """
+    Update inverse gamma hyperparameters for the scale factor on the
+    transition covariance (which is assumed to be a fixed matrix, Qs, times
+    the scale factor, like an NCVM)
+    """
+    dx = F.shape[0]
+    Fss2 = np.dot(F,suffStats[2].T)
+    sumSquares = suffStats[3] - Fss2 - Fss2.T \
+                                          + np.dot(np.dot(F,suffStats[1]),F.T)
+
+    # Posterior hyperparameters
+    a = a0 + 0.5*dx*suffStats[0]
+    b = b0 + 0.5*np.trace( sumSquares )
+
+    return a,b
+
+
 def hyperparam_update_basic_mn_transition_matrix(suffStats, M0, V0):
     """
     Update matrix-normal hyperparameters for transition matrix conditional

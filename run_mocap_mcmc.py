@@ -8,6 +8,7 @@ from linear_models import BasicLinearModel, DegenerateLinearModel
 from learners_mcmc import (
     BaseMCMCLearner,
     MCMCLearnerObservationDiagonalCovarianceWithIGPrior,
+    MCMCLearnerNCVMTransitionCovarianceWithIGPrior,
     MCMCLearnerTransitionBasicModelWithMNIWPrior,
     MCMCLearnerTransitionDegenerateModelWithMNIWPrior)
 from learners_mcmc_augmented import CleverDegenerateMCMCLearner
@@ -27,6 +28,7 @@ class MCMCDegenerateLearner(
 
 class MCMCNaiveLearner(
                 BaseMCMCLearner,
+                MCMCLearnerNCVMTransitionCovarianceWithIGPrior,
                 MCMCLearnerObservationDiagonalCovarianceWithIGPrior):
     pass
 
@@ -36,12 +38,11 @@ np.random.seed(0)
 data_path = './mocap-data/'
 test_data_file = './results/mocap-test-data.p'
 
-model_type = 'degenerate_augmented'#'degenerate'#'naive'#'basic'#
-num_iter = 2000
+model_type = 'naive'#'degenerate_augmented'#'degenerate'#'naive'#'basic'#
+num_iter = 20000
 
-num_burn = 1000#int(num_iter-10000)
-num_hold = 0#min(100,int(num_burn/2))
-num_warm = 10
+num_burn = 10000#int(num_iter-10000)
+num_warm = 100
 
 
 # Import marker data
@@ -85,7 +86,7 @@ Zmat = np.zeros((d,d))
 
 est_params['F'] = np.vstack((np.hstack((Imat,Imat)), np.hstack((Zmat,Imat))))
 
-est_params['Q'] = np.vstack((np.hstack((Imat,Imat)), np.hstack((Imat,Imat))))
+est_params['Q'] = 0.001*np.vstack((np.hstack((Imat,Imat)), np.hstack((Imat,Imat))))
 est_params['val'], est_params['vec'] = la.eigh(est_params['Q'])
 est_params['rank'] = np.array([ds])
 #val,vec = la.eigh(est_params['Q'])
@@ -104,8 +105,8 @@ est_naive_model = BasicLinearModel(ds, do, prior, est_params)
 # Hyperparameters
 hyperparams = dict()
 hyperparams['nu0'] = ds
-hyperparams['Psi0'] = ds*np.identity(ds)
-hyperparams['rPsi0'] = np.identity(ds)
+hyperparams['rPsi0'] = 0.001*np.identity(ds)
+hyperparams['Psi0'] = ds*hyperparams['rPsi0']
 hyperparams['M0'] = np.zeros((ds,ds))
 hyperparams['V0'] = 100*np.identity(ds)
 hyperparams['a0'] = 1
@@ -115,7 +116,7 @@ hyperparams['b0'] = 0.001
 algoparams = dict()
 algoparams['rotate'] = 1E-4
 algoparams['perturb'] = 1E-8
-algoparams['pseudo_dof'] = 1000
+algoparams['pseudo_dof'] = None#1000
 #algoparams['pseudo_sd'] = 0.0001
 #algoparams['pseudo_shape'] = 1000
 
@@ -129,8 +130,8 @@ if model_type == 'naive':
     for ii in range(num_iter):
         print("Running iteration {} of {}.".format(ii+1,num_iter))
 
-        if ii > num_hold:
-            learner.sample_observation_diagonal_covariance()
+        learner.sample_observation_diagonal_covariance()
+        learner.sample_transition_ncvm_covariance()
         learner.sample_state_trajectory()
         learner.save_link()
 
@@ -145,8 +146,7 @@ elif model_type == 'basic':
         print("Running iteration {} of {}.".format(ii+1,num_iter))
 
         learner.sample_transition()
-        if ii > num_hold:
-            learner.sample_observation_diagonal_covariance()
+        learner.sample_observation_diagonal_covariance()
         learner.sample_state_trajectory()
         learner.save_link()
 
@@ -167,15 +167,22 @@ elif model_type == 'degenerate':
         print("")
         print("Running iteration {} of {}.".format(ii+1,num_iter))
 
-        if (ii%3)==0:
-            learner.sample_transition_covariance('rotate')
-        elif (ii%3)==1:
-            learner.sample_transition_covariance('rank')
+        if ii < 100:
+            move_prob = np.cumsum([0.4,0.3,0.3])
         else:
+            move_prob = np.cumsum([0.2,0.4,0.4])
+
+        u = np.random.random()
+
+        if (u>0) and (u<move_prob[0]):
+            learner.sample_transition_covariance('rank')
+        elif (u>move_prob[0]) and (u<move_prob[1]):
+            learner.sample_transition_covariance('rotate')
+        elif (u>move_prob[1]) and (u<move_prob[2]):
             learner.sample_transition_matrix()
+
         learner.sample_transition_within_subspace()
-        if ii > num_hold:
-            learner.sample_observation_diagonal_covariance()
+        learner.sample_observation_diagonal_covariance()
         learner.sample_state_trajectory()
         learner.save_link()
         print("Current rank: {}".format(learner.model.parameters['rank'][0]))
@@ -205,12 +212,21 @@ elif model_type == 'degenerate_augmented':
         print("")
         print("Running iteration {} of {}.".format(ii+1,num_iter))
 
-        rchange = np.random.random_integers(-1,1)
+        if ii < 100:
+            move_prob = np.array([0.3,0.4,0.3])
+        else:
+            move_prob = np.array([0.2,0.6,0.2])
+        rchange = np.random.choice([-1,0,1], p=move_prob)
+        #rchange = np.random.random_integers(-1,1)
+
         rank = max(min(learner.model.parameters['rank'][0] + rchange, ds),1)
         learner.sample_transition(rank)
 
         learner.save_link()
         print("Current rank: {}".format(learner.model.parameters['rank'][0]))
+
+        if ((ii+1)%1000)==0:
+            learner.save('degenaugment_intermediate-results-{}.p'.format(ii+1))
 
 # Plot chain stats
 plt.close("all")

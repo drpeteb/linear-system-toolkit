@@ -27,9 +27,9 @@ np.random.seed(0)
 data_path = './mocap-data/'
 test_data_file = './results/mocap-test-data.p'
 
-num_iter = 750
-num_burn = 500
-thin = 5
+num_iter = 200
+num_burn = 100
+thin = 1
 num_rejuv = 2
 
 # Import marker data
@@ -72,7 +72,7 @@ Zmat = np.zeros((d,d))
 
 
 est_params['F'] = np.vstack((np.hstack((Imat,Imat)), np.hstack((Zmat,Imat))))
-est_params['Q'] = np.vstack((np.hstack((Imat,Imat)), np.hstack((Imat,Imat))))
+est_params['Q'] = 0.001*np.vstack((np.hstack((Imat,Imat)), np.hstack((Imat,Imat))))
 est_params['val'], est_params['vec'] = la.eigh(est_params['Q'])
 est_params['rank'] = np.array([ds])
 est_params['H'] = np.hstack((np.identity(d),np.zeros((d,d))))
@@ -85,7 +85,7 @@ est_naive_model = BasicLinearModel(ds, do, prior, est_params)
 
 # Hyperparameters
 hyperparams = dict()
-hyperparams['rPsi0'] = np.identity(ds)
+hyperparams['rPsi0'] = 0.001*np.identity(ds)
 hyperparams['M0'] = np.zeros((ds,ds))
 hyperparams['V0'] = 100*np.identity(ds)
 hyperparams['a0'] = 1

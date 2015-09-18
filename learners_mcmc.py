@@ -388,6 +388,40 @@ class MCMCLearnerObservationDiagonalCovarianceWithIGPrior():
         self.filter_current = False
 
 
+class MCMCLearnerNCVMTransitionCovarianceWithIGPrior():
+    __metaclass__ = ABCMeta
+    """
+    Container for MCMC system learning algorithm.
+    Model Type: Basic
+    Unknown Parameters: Q (transition covariance, assumed scaled NCVM)
+    Prior Type: Inverse Gamma
+    """
+
+    def sample_transition_ncvm_covariance(self):
+        """
+        MCMC iteration (Gibbs sampling) for diagonal observation covariance
+        matrix with inverse-gamma prior
+        """
+
+        # Calculate sufficient statistics using current state trajectory
+        suffStats = smp.evaluate_transition_sufficient_statistics(self.state)
+
+        # Update hyperparameters
+        Qs = self.model.parameters['Q']
+        Qs /= Qs[0,0]
+        a,b = smp.hyperparam_update_ncvm_ig_transition_variance(
+                                    suffStats,
+                                    self.model.parameters['F'],
+                                    Qs,
+                                    self.hyperparams['a0'],
+                                    self.hyperparams['b0'])  # This uses the same hyperparameters as the observation variance because I'm lazy and want to go to bed.
+
+        # Sample new parameter
+        s = stats.invgamma.rvs(a, scale=b)
+        self.model.parameters['Q'] = s*Qs
+
+        # self.flt and self.lhood are no longer up-to-date
+        self.filter_current = False
 
 
 class MCMCLearnerTransitionBasicModelWithMNIWPrior():
