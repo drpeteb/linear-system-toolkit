@@ -38,7 +38,7 @@ np.random.seed(0)
 data_path = './mocap-data/'
 test_data_file = './results/mocap-test-data.p'
 
-model_type = 'naive'#'degenerate_augmented'#'degenerate'#'naive'#'basic'#
+model_type = 'degenerate'#'degenerate_augmented'#'degenerate'#'naive'#'basic'#
 num_iter = 20000
 
 num_burn = 10000#int(num_iter-10000)
@@ -108,7 +108,8 @@ hyperparams['nu0'] = ds
 hyperparams['rPsi0'] = 0.001*np.identity(ds)
 hyperparams['Psi0'] = ds*hyperparams['rPsi0']
 hyperparams['M0'] = np.zeros((ds,ds))
-hyperparams['V0'] = 100*np.identity(ds)
+hyperparams['V0'] = 1E4*np.identity(ds)
+hyperparams['alpha'] = 0.001
 hyperparams['a0'] = 1
 hyperparams['b0'] = 0.001
 
@@ -116,7 +117,7 @@ hyperparams['b0'] = 0.001
 algoparams = dict()
 algoparams['rotate'] = 1E-4
 algoparams['perturb'] = 1E-8
-algoparams['pseudo_dof'] = None#1000
+#algoparams['pseudo_dof'] = None#1000
 #algoparams['pseudo_sd'] = 0.0001
 #algoparams['pseudo_shape'] = 1000
 

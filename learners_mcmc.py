@@ -481,9 +481,9 @@ class MCMCLearnerTransitionDegenerateModelWithMNIWPrior():
                                             Psi0)
 
         orthVec = model.complete_basis()
-#        relaxEval = self.hyperparams['alpha']
+        relaxEval = self.hyperparams['alpha']
 #        relaxEval = np.min(model.parameters['val'])
-        relaxEval = np.max(model.parameters['val'])
+#        relaxEval = np.max(model.parameters['val'])
         rowVariance = model.transition_covariance() \
                       + relaxEval*np.dot(orthVec,orthVec.T)
         matrixPrior = smp.matrix_normal_density(model.parameters['F'],
