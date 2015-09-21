@@ -218,6 +218,8 @@ $\tvfull$ is a $\rk\times\rk$ positive definite matrix and $\tvrot$ is a $\lsd\t
 
 \subsection{Degenerate Transition Priors}
 
+\meta{Handle these consistently.}
+
 The matrix normal--inverse Wishart conjugate prior will need some modifications in order to apply it to degenerate models.
 
 An appropriate prior distribution for the degenerate transition covariance matrix may be defined by setting the degrees of freedom of an inverse Wishart distribution to the desired rank, $\priordof=\rk$. This results in a singular inverse Wishart distribution over the rank-$\rk$ positive semi-definite matrices \cite{Diaz-Garcia2006}. The density (with respect to the Lesbegue measure on the distinct elements),
@@ -358,7 +360,7 @@ Gibbs sampling is very efficient and requires no algorithm tuning but it only al
 
 \subsubsection{Covariance Random Walk}
 
-The covariance matrix is specified by its eigenvalues and eigenvectors. The sampler is already able to explore the possible eigenvalues using the constrained Gibbs moves, but the eigenvector matrix is partially fixed during this process. We can allow the sampler to reach any possible eigenvector matrix using a rotational random walk. Suppose the current value of the transition covariance is $\lgtv\mcold$, a new value of $\lgtv$ is proposed using the following procedure:
+The covariance matrix is specified by its eigenvalues and eigenvectors. The sampler is already able to explore the possible eigenvalues using the constrained Gibbs moves, but the eigenvector matrix is partially fixed during this process. We can allow the sampler to reach any possible eigenvector matrix using a rotational random walk. Suppose the current value of the transition covariance is $\lgtv\mcold$, a new value is proposed using the following procedure:
 %
 \begin{itemize}
  \item Sample an orthogonal matrix $\mhrot$ from some distribution $\mhrotppsl$.
@@ -368,15 +370,9 @@ The covariance matrix is specified by its eigenvalues and eigenvectors. The samp
 The transformation is invertible and has a Jacobian of $1$. If in addition we require that $\mhrotppsl(\mhrot) = \mhrotppsl(\mhrot\tr)$, then the proposal distribution is symmetric and the acceptance probability is simply,
 %
 \begin{IEEEeqnarray}{rCl}
- \mhap(\lgtp\mcold\to\lgtp\mcnew) & = & \min\left\{1, \frac{ \postden(\lgtm, \lgtp\mcnew) }{ \postden(\lgtm,\lgtp\mcold) } \right\} \\
-  & = & \min\left\{1, \frac{\den(\ob{1:\timax}|\lgtm,\lgtp\mcnew)}{\den(\ob{1:\timax}|\lgtm,\lgtp\mcold)} \times \frac{\den(\lgtm,\lgtp\mcnew)}{\den(\lgtm,\lgtp\mcold)} \right\} \nonumber     .
+ \mhap(\lgtv\mcold\to\lgtv\mcnew) & = & \min\left\{1, \frac{ \postden(\lgtm, \lgtv\mcnew) }{ \postden(\lgtm,\lgtv\mcold) } \right\} \\
+  & = & \min\left\{1, \frac{\den(\ob{1:\timax}|\lgtm,\lgtv\mcnew)}{\den(\ob{1:\timax}|\lgtm,\lgtv\mcold)} \times \frac{\den(\lgtm,\lgtv\mcnew)}{\den(\lgtm,\lgtv\mcold)} \right\} \nonumber     .
 \end{IEEEeqnarray}
-
-
-
-
-
-
 
 
 There are numerous ways to sample the rotation matrix $\mhrot$ from a suitable proposal distribution $\mhrotppsl$. For example, we could use the Cayley transform \cite{Leon2006}, a bijective mapping from the skew-symmetric matrices to the rotation matrices, defined by,
@@ -388,7 +384,7 @@ There are numerous ways to sample the rotation matrix $\mhrot$ from a suitable p
 To sample from $\mhrotppsl$, we draw $\half\lsd(\lsd-1)$ independent scalar random variables $\{s_{i,j}\}_{0<i<j<\lsd}$ from any zero-mean distribution; a nice choice is,
 %
 \begin{IEEEeqnarray}{rCl}
- s_{k,l} & \sim & \normaldist{0}{\sigma_s^2} \label{eq:skewsymmetric_proposal}     .
+ s_{k,l} & \sim & \normaldist{0}{\sigma_Q^2} \label{eq:skewsymmetric_proposal}     .
 \end{IEEEeqnarray}
 %
 Use these to construct a skew-symmetric matrix $S$,
@@ -403,7 +399,7 @@ Use these to construct a skew-symmetric matrix $S$,
 %
 and then set $\mhrot=P(S)$. The Cayley transform has the property that $P(-S)=P(S)\inv=P(S)\tr$, which implies that $\mhrotppsl(\mhrot)=\mhrotppsl(\mhrot\tr)$ as required.
 
-There is an alternative using Givens rotations. First sample $i \in [1,\lsd]$, $j \in [1,\lsd]\setminus i$, and $\givrot{} \in [-\pi/2,\pi/2]$ from some zero-mean distribution. Form the Givens matrix $\givmat{i}{j}{\givrot{}}$ such that,
+An alternative is to use Givens rotations. First sample $i \in [1,\lsd]$, $j \in [1,\lsd]\setminus i$, and $\givrot{} \in [-\pi/2,\pi/2]$ from some zero-mean distribution. Form the Givens matrix $\givmat{i}{j}{\givrot{}}$ such that,
 %
 \begin{IEEEeqnarray}{rCl}
  \left[\givmat{i}{j}{\givrot{}} - \idmat\right]_{k,l} & = & \begin{cases}
@@ -420,7 +416,104 @@ and use $\mhrot=\givmat{i}{j}{\givrot{}}$. This also has the property that $\giv
 
 \subsubsection{Transition Matrix Random Walk}
 
+A more conventional Metropolis-Hastings kernel can be used for the transition matrix; for example, using a simple Gaussian random walk as the proposal distribution. If the current value is $\lgtm\mcold$, a new matrix is sampled from a matrix normal distribution,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgtm\mcnew &\sim& \matrixnormaldist{\lgtm\mcold}{\sigma_F^2\idmat}{\idmat}     ,
+\end{IEEEeqnarray}
+%
+and accepted with probability,
+%
+\begin{IEEEeqnarray}{rCl}
+ \mhap(\lgtm\mcold\to\lgtm\mcnew) & = & \min\left\{1, \frac{ \postden(\lgtm\mcnew, \lgtv) }{ \postden(\lgtm\mcold,\lgtv) } \right\} \\
+  & = & \min\left\{1, \frac{\den(\ob{1:\timax}|\lgtm\mcnew,\lgtv)}{\den(\ob{1:\timax}|\lgtm\mcold,\lgtv)} \times \frac{\den(\lgtm\mcnew,\lgtv)}{\den(\lgtm\mcold,\lgtv)} \right\} \nonumber     .
+\end{IEEEeqnarray}
+
+
+
 \subsection{Reversible Jump for Rank Learning}
+
+Since it is unlikely that the rank of $\lgtv$ will be known a priori, a mechanism is needed which will allow the sampler to learn this parameters as well. Changing the rank of $\lgtv$ changes the number of independent elements, and therefore the dimension of the target probability distribution. Thus, we will need to use reversible jump MCMC for this task \cite{Green1995,Green2009}.
+
+A reversible jump sampler is an MCMC algorithm on a family of probability distributions on spaces of different dimensions. Sampling operations are designed in pairs which allow the sampler to move between the different distributions. Each move begins by sampling additional variables (if required) and then applying a reversible transformation. Finally the newly proposed state is accepted or rejected according to a Metropolis-Hastings acceptance probability.
+
+For this problem, there is a distribution for each possible value of the rank. Two moves are required, to increase and decrease the rank. The moves suggested here are by no means unique, but are intuitive, simple to implement, and have proven effective in simulations.
+
+The reversible transformation can be accomplished in terms of eigenvectors and eigenvalues. Suppose the current value of the transition covariance is $\lgtv = \tvvec \tvval \tvvec\tr$, which has rank $\rk$. To increase the rank, first we sample an additional eigenvalue $\eval{\rk+1} \in [0,\eval{\rk}]$ (recall that the elements of $\tvval$ are sorted in decreasing order of magnitude, so $\eval{\rk+1} < \eval{\rk} < \dots < \eval{1}$) and a corresponding eigenvector $\evec{\rk+1} \in \evecset{\rk+1}$, from the set of vectors which could legitimately be appended to $\tvvec$ (i.e. orthonormal to the existing eigenvectors with positive sign of the first element),
+%
+\begin{IEEEeqnarray}{rCl}
+ \evecset{\rk+1} &=& \{\evec{} : |\evec{}|=1,\:\tvvec\tr\evec{}=0,\:\sign(\evec{\rk+1,1}=+1 \}    .
+\end{IEEEeqnarray}
+%
+A new covariance matrix is then generated using the transformation,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgtv\mcnew &=& \lgtv + \eval{\rk+1} \evec{\rk+1}\evec{\rk+1}\tr \\
+ &=& \begin{bmatrix} \tvvec & \evec{\rk+1} \end{bmatrix} \begin{bmatrix} \tvval & \zmat \\ \zmat & \eval{\rk+1} \end{bmatrix} \begin{bmatrix} \tvvec\tr \\ \evec{\rk+1}\tr \end{bmatrix}
+\end{IEEEeqnarray}
+%
+The inverse transformation, from $\lgtv\mcnew$ to $\{\lgtv, \eval{\rk+1}, \evec{\rk+1}\}$ simply requires identifying and removing the smallest eigenvalue and its corresponding eigenvector. This is an effective choice because the component with the smallest eigenvalue has the least effect on the likelihood of the observed data, and will thus have the highest probability of being accepted. 
+
+For the sake of simplicity we suggest sampling the new eigenvalue and eigenvector independently from uniform distributions. For the eigenvalue,
+%
+\begin{IEEEeqnarray}{rCl}
+ \ppslden{\eval{}}(\eval{\rk+1}|\lgtv) = \begin{cases}
+                                          \frac{1}{\eval{\rk}} & 0 < \eval{\rk+1} < \eval{\rk} \\
+                                          0 & \text{ otherwise}    .
+                                         \end{cases}
+\end{IEEEeqnarray}
+%
+For the eigenvector,
+%
+\begin{IEEEeqnarray}{rCl}
+ \ppslden{\evec{}}(\evec{\rk+1}|\lgtv) = \begin{cases}
+                                          \frac{1}{C} & \evec{\rk+1} \in \evecset{\rk+1} \\
+                                          0 & \text{ otherwise}    .
+                                         \end{cases}
+\end{IEEEeqnarray}
+%
+$C$ is the volume of the manifold, which is half of a $(d-r-1)$-sphere (half because of the requirement that the sign of the first element be positive) \cite{Muirhead1982}. Hence,
+%
+\begin{IEEEeqnarray}{rCl}
+ C &=& \frac{\pi^{\half(\lsd-\rk)}}{\gammafun\left(\frac{\lsd-\rk}{2}\right)}
+\end{IEEEeqnarray}
+
+The acceptance probability for this move and its reverse respectively are \cite{Green1995},
+%
+\begin{IEEEeqnarray}{rCl}
+ \mhap(\lgtv,\eval{\rk+1},\evec{\rk+1}\to\lgtv\mcnew) &=& \min\left\{1, \beta \right\} \\
+ \mhap(\lgtv\mcnew\to\lgtv,\eval{\rk+1},\evec{\rk+1}) &=& \min\left\{1, \beta\inv \right\} 
+\end{IEEEeqnarray}
+%
+\begin{IEEEeqnarray}{rCl}
+ \beta &=& \frac{ \postden(\lgtm, \lgtv\mcnew) \jac(\lgtv,\eval{\rk+1},\evec{\rk+1}\to\lgtv\mcnew) }{ \postden(\lgtm,\lgtv) \ppslden{\eval{}}(\eval{\rk+1}|\lgtv) \ppslden{\evec{}}(\evec{\rk+1}|\lgtv) }     ,
+\end{IEEEeqnarray}
+%
+where $\jac(\lgtv,\eval{\rk+1},\evec{\rk+1}\to\lgtv\mcnew)$ is the Jacobian of the transformation.
+
+The Jacobian of the eigendecomposition for a positive semidefinite matrix is \cite{Diaz-Garcia2006},
+%
+\begin{IEEEeqnarray}{rCl}
+ \jac(\tvval,\tvvec\to\lgtv) &=& 2^{-\rk} \times \prod_{i=1}^{\rk}\eval{i}^{\lsd-\rk} \times \prod_{j=1}^{r}\prod_{i=1}^{j-1}(\eval{i}-\eval{j})      .
+\end{IEEEeqnarray}
+%
+Repeating this for $\lgtv\mcnew$ and taking the ratio of the two, we obtain,
+%
+\begin{IEEEeqnarray}{rCl}
+ \jac(\lgtv,\eval{\rk+1},\evec{\rk+1}\to\lgtv\mcnew) &=& 2^{-1} \eval{\rk+1}^{\lsd-\rk-1} \prod_{i=1}^{\rk}\eval{i}^{-1} \prod_{i=1}^{\rk}(\eval{i}-\eval{\rk+1})     .
+\end{IEEEeqnarray}
+
+\meta{I don't have $\rk$ in the distributions here. Sort that out.}
+
+
+
+
+
+
+
+
+
+
 
 \section{Simulations}
 
@@ -433,176 +526,10 @@ and use $\mhrot=\givmat{i}{j}{\givrot{}}$. This also has the property that $\giv
 
 \section{Old Material}
 
-\subsubsection{Transforming the Prior}
-
-In order to exploit the two transformations of $\lgtp$ introduced in the previous section, we will need the prior distributions induced on $\{\tnmo,\tnmd\}$ and $\{\tnmocrossred,\tnmf\}$ by the singular Wishart distribution on $\lgtp$.
-
-For the first, if we constrain the scale matrix to be proportional to the identity matrix, $\Ppscale = \Ppscalescalar \idmat$, then it can be shown (see \cite{Uhlig1994,Srivastava2003} and \cite[chapter 3]{Muirhead1982}) that the eigenvectors and eigenvalues of $\lgtp$ are independent. Furthermore, the distribution for the eigenvector matrix is uniform (i.e. a normalised Haar measure, conditional on the first element being positive), and for the eigenvalues,
-%
-\begin{IEEEeqnarray}{rCl}
- \den(\tnmd|\rk) & = & \frac{ \pi^{\half\rk^2} }{ (2\Ppscalescalar)^{\half\rk\lsd} \gammafun[\rk](\frac{\rk}{2}) \gammafun[\rk](\frac{\lsd}{2}) } \left[ \prod_{i<j}^{\rk} (\tnmev{i}-\tnmev{j}) \right] \nonumber \\
- & & \qquad \times \left[ \prod_{i=1}^{\rk} \tnmev{i}^{\half(\lsd-\rk-1)} \exp\left(-\frac{1}{2\Ppscalescalar} \tnmev{i}\right) \right]      . \nonumber \\ \label{eq:eigenvalue_prior}
-\end{IEEEeqnarray}
-
-
-
-\subsubsection{A Markov Kernel for the Precision Rank}
-
-It is unlikely that the rank of $\lgtp$ will be known a priori. We can learn this within the MCMC scheme by using the transformation of $\lgtp$ to $\{\tnmo,\tnmd\}$ and allowing the sampler to add and remove eigenvalue-eigenvector pairs using reversible jump moves \cite{Green1995,Green2009}. This can be achieved with a matching pair of moves.
-
-\begin{algorithm}
-\begin{algorithmic}
- \REQUIRE{$\rk'$, $\tnmd'$, $\tnmo'$}
- \STATE Set $\rk = \rk' - 1$.
- \STATE Remove largest eigenvalue $\tnmev{1}$. Form $\tnmd$ from the remaining eigenvalues.
- \STATE Remove corresponding eigenvector $\tnmevec{1}$. Form $\tnmo$ from the remaining eigenvectors.
- \RETURN{$\rk$, $\tnmd$, $\tnmo$}
-\end{algorithmic}
-\caption{Reversible Jump Move: Decrease rank}
-\label{alg:rjmcmc-down}
-\end{algorithm}
-
-\begin{algorithm}
-\begin{algorithmic}
- \REQUIRE{$\rk$, $\tnmd$, $\tnmo$}
- \STATE Set $\rk' = \rk + 1$.
- \STATE Sample an eigenvalue $\tnmev{}^* \in (\tnmev{1},\infty)$ from $\ppslden{\tnmev{}}(\tnmev{})$. Form $\tnmd'$ from the new set of eigenvalues.
- \STATE Sample a corresponding eigenvector $\tnmevec{}^*$ from $\ppslden{\tnmevec{}}(\tnmevec{})$. Form $\tnmo'$ from the new set of eigenvectors.
- \RETURN{$\rk'$, $\tnmd'$, $\tnmo'$}
-\end{algorithmic}
-\caption{Reversible Jump Move: Increase rank}
-\label{alg:rjmcmc-up}
-\end{algorithm}
-
-The acceptance probability for the increase move is then,
-%
-\begin{IEEEeqnarray}{rCl}
- \IEEEeqnarraymulticol{3}{l}{ \mhap\left( \rk,\tnmd,\tnmo \to \rk',\tnmd',\tnmo' \right) } \nonumber \\
- \qquad & = & \min\left\{1, \frac{ \postden(\lgtm, \rk',\tnmd',\tnmo') }{ \postden(\lgtm, \rk,\tnmd,\tnmo) } \times \frac{1}{\ppslden{\tnmevec{}}(\tnmevec{}^*)\ppslden{\tnmev{}}(\tnmev{}^*)} \right\} \nonumber \\
- & = & \min\Bigg\{1, \frac{\den(\ob{1:\timax} | \lgtm, \rk',\tnmd',\tnmo') }{ \den(\ob{1:\timax} | \lgtm, \rk,\tnmd,\tnmo) } \nonumber \\
- & & \quad \times \frac{\den(\tnmevec{1},\dots,\tnmevec{\rk},\tnmevec{}^*)\den(\tnmev{1},\dots,\tnmev{\rk},\tnmev{}^*|\rk')\den(\rk')}{\den(\tnmevec{1},\dots,\tnmevec{\rk})\den(\tnmev{1},\dots,\tnmev{\rk}|\rk)\den(\rk) \ppslden{\tnmevec{}}(\tnmevec{}^*)\ppslden{\tnmev{}}(\tnmev{}^*)} \Bigg\} \nonumber      ,
-\end{IEEEeqnarray}
-%
-where $\tnmevec{1},\dots,\tnmevec{\rk}$ are the eigenvectors comprising $\tnmo$ and $\tnmev{1},\dots,\tnmev{\rk}$ the eigenvalues comprising $\tnmd$. The first term is simply a ratio of Kalman filter likelihoods. For the decrease move, the ratio is replaced by its reciprocal.
-
-The conditional prior distribution $\den(\tnmevec{}^*|\tnmevec{1},\dots,\tnmevec{\rk})$ is the normalised Haar measure on the manifold $\tnmo\tr\tnmevec{}^*=0$, conditional on the constraint we imposed to resolve the sign ambiguity \cite{Muirhead1982}. We can simulate according to this prior by sampling a standard Gaussian random vector and then using Gram-Schmidt orthogonalisation. This implies setting $\ppslden{\tnmevec{}}(\tnmevec{}^*)=\den(\tnmevec{}^*|\tnmevec{1},\dots,\tnmevec{\rk})$, which results in a cancellation in the acceptance probability.
-
-For the eigenvalues, inspection of the joint density \eqref{eq:eigenvalue_prior} suggests the following truncated gamma proposal,
-%
-\begin{IEEEeqnarray}{rCl}
- \ppslden{\tnmev{}}(\tnmev{}^*) & \propto & \begin{cases}
-                                               \gammaden{\tnmev{}^*}{\frac{\lsd-\rk}{2}}{2\Ppscalescalar} & \tnmev{}^*>\tnmev{1} \\
-                                               0 & \text{otherwise}
-                                              \end{cases} \nonumber \\
- & = & \begin{cases} 
- \frac{ (\tnmev{}^*)^{\frac{\lsd-\rk}{2}-1} \exp\left( -\frac{\tnmev{}^*}{2\Ppscalescalar} \right) }{(2\Ppscalescalar)^{\frac{\lsd-\rk}{2}} \compnormincgammafun\left(\frac{\lsd-\rk}{2},\frac{\tnmev{1}}{2\Ppscalescalar}\right) }  & \tnmev{}^*>\tnmev{1} \\
- 0 & \text{otherwise}     ,
- \end{cases}
-\end{IEEEeqnarray}
-%
-where $\compnormincgammafun(\cdot,\cdot)$ is the complement of the normalised incomplete gamma function.
-%
-This leads to the following cancellation,
-%
-\begin{IEEEeqnarray}{rCl}
- \frac{\den(\tnmev{1},\dots,\tnmev{\rk},\tnmev{}^*|\rk')}{\den(\tnmev{1},\dots,\tnmev{\rk}|\rk)\ppslden{\tnmev{}}(\tnmev{}^*)} & = & \frac{ \pi^{\half} \compnormincgammafun\left(\frac{\lsd-\rk}{2},\frac{\tnmev{1}}{2\Ppscalescalar}\right) }{ (2\Ppscalescalar)^{\frac{\rk}{2}} \gammafun\left(\frac{\rk+1}{2}\right) } \prod_{i=1}^{\rk} \tnmev{i}^{-\half}(\tnmev{}^*-\tnmev{i}) \nonumber \\
-\end{IEEEeqnarray}
-%
-Thus simplifying the acceptance probability,
-%
-\begin{IEEEeqnarray}{rCl}
- \IEEEeqnarraymulticol{3}{l}{ \mhap\left( \rk,\tnmd,\tnmo \to \rk',\tnmd',\tnmo' \right) } \nonumber \\
- \qquad & = & \min\Bigg\{1, \frac{\den(\ob{1:\timax} | \lgtm, \rk',\tnmd',\tnmo') }{ \den(\ob{1:\timax} | \lgtm, \rk,\tnmd,\tnmo) } \times \frac{\den(\rk')}{\den(\rk)} \nonumber \\
- & & \qquad\qquad \times \frac{ \pi^{\half} \compnormincgammafun\left(\frac{\lsd-\rk}{2},\frac{\tnmev{1}}{2\Ppscalescalar}\right) }{ (2\Ppscalescalar)^{\frac{\rk}{2}} \gammafun\left(\frac{\rk+1}{2}\right) } \prod_{i=1}^{\rk} \tnmev{i}^{-\half}(\tnmev{}^*-\tnmev{i}) \Bigg\} \nonumber      ,
-\end{IEEEeqnarray}
-%
-We will write $\mcmckern{\lgtp,2}(\cdot|\lgtm,\lgtp)$ for the Markov kernel which corresponds to transforming from $\lgtp$ to $\{\tnmo,\tnmd\}$, conducting a reversible jump move as described above, and then transforming back.
-
-
-
-\subsubsection{A Markov Kernel for the Transition Matrix}
-
-Next we turn to $\lgtm$. If we modify the covariance matrix slightly so that it is no longer singular, then we can use the existing sampling procedure from the basic linear model and treat the resulting value of $\lgtm$ as a proposal in a Metropolis-Hastings kernel targeting $\postden(\lgtm, \ls{1:\timax}|\lgtp)$.
-
-Suppose we start with sampled values of $\lgtm$,$\lgtp$ and $\ls{1:\timax}$. A suitably modified precision matrix is,
-%
-\begin{IEEEeqnarray}{rCl}
- \paddedlgtp & = & \left(\lgtp\pinv + \Qpadding \idmat\right)\inv \label{eq:padded_transition_precision}      ,
-\end{IEEEeqnarray}
-%
-where $\Qpadding$ is a small positive constant. We propose a new value of $\lgtm$ by sampling,
-%
-\begin{IEEEeqnarray}{rCl}
-%  \lgtm' & \sim & \ppslden{\lgtm}(\lgtm|\lgtp,\ls{1:\timax}) & = & \postden(\lgtm|\paddedlgtp,\ls{1:\timax})     .
- \lgtm' & \sim & (\lgtm|\paddedlgtp,\ls{1:\timax})     .
-\end{IEEEeqnarray}
-%
-This distribution is simply a Gaussian and we can evaluate the density using \eqref{eq:basic_F_conditional}. Finally, we also sample a new state trajectory using forward filtering backward sampling,
-%
-\begin{IEEEeqnarray}{rCl}
- \ls{1:\timax}' & \sim & \postden(\ls{1:\timax}|\lgtm', \lgtp)      .
-\end{IEEEeqnarray}
-%
-The acceptance probability is simply,
-%
-\begin{IEEEeqnarray}{rCl}
- \IEEEeqnarraymulticol{3}{l}{ \mhap\left(\lgtm,\ls{1:\timax}\to\lgtm',\ls{1:\timax}'\right) } \nonumber \\
- \quad\quad & = & \min\left\{1,\frac{ \postden(\lgtm',\ls{1:\timax}'|\lgtp) \postden(\ls{1:\timax}|\lgtm,\lgtp) \postden(\lgtm|\paddedlgtp,\ls{1:\timax}')   }{ \postden(\lgtm,\ls{1:\timax}|\lgtp) \postden(\ls{1:\timax}'|\lgtm',\lgtp) \postden(\lgtm'|\paddedlgtp,\ls{1:\timax}) }\right\} \nonumber \\
- & = & \min\left\{1,\frac{ \postden(\lgtm'|\lgtp) \postden(\lgtm|\paddedlgtp,\ls{1:\timax}')   }{ \postden(\lgtm|\lgtp)\postden(\lgtm'|\paddedlgtp,\ls{1:\timax}) }\right\} \nonumber \\
- & = & \min\left\{1, \frac{ \den(\ob{1:\timax}|\lgtm',\lgtp) }{ \den(\ob{1:\timax}|\lgtm,\lgtp)} \times \frac{ \den(\lgtm') }{ \den(\lgtm)} \times \frac{ \postden(\lgtm|\paddedlgtp,\ls{1:\timax}')   }{ \postden(\lgtm'|\paddedlgtp,\ls{1:\timax}) }\right\} \nonumber      , \\
-\end{IEEEeqnarray}
-%
-in which the first term is a ratio of Kalman filter likelihoods. We will write $\mcmckern{\lgtm,\ls{}}(\cdot|\lgtm,\lgtp,\ls{1:\timax})$ for this Markov kernel.
-
-
-\subsubsection{The Complete Sampler}
-
-In this section we have described four Markov kernels which can be composed in order to learn a degenerate linear state space model. Each one by construction targets some conditional of the full posterior distribution and together they allow us to fully explore the parameter space. One iteration of the final algorithm consists of the following cycle. Starting with $\{\lgtm,\lgtp,\ls{1:\timax}\}$,
-%
-\begin{IEEEeqnarray}{rCl}
- \lgtm',\ls{1:\timax} & \sim & \mcmckern{\lgtm,\ls{}}(\cdot|\lgtm,\lgtp,\ls{1:\timax}) \nonumber \\
- \lgtp' & \sim & \mcmckern{\lgtp,1}(\cdot|\lgtm',\lgtp) \nonumber \\
- \ls{1:\timax}'' & \sim & \postden(\cdot|\lgtm',\lgtp') \nonumber \\
- \lgtp'' & \sim & \mcmckern{\lgtp,2}(\cdot|\lgtm',\lgtp') \nonumber \\
- \ls{1:\timax}''' & \sim & \postden(\ls{1:\timax}|\lgtm',\lgtp'') \nonumber \\
- \lgtm'',\lgtp''' & \sim & \mcmckern{\lgtp,\lgtm}(\cdot|\lgtm',\lgtp'',\ls{1:\timax}''') \nonumber     .
-\end{IEEEeqnarray}
-
 The only tuning required is to select the Metropolis-Hastings proposal distributions for $\mcmckern{\lgtp,1}$ and $\mcmckern{\lgtm,\ls{}}$. In both cases these can be reduced to a single scale parameter; $\Qpadding$ in \eqref{eq:padded_transition_precision} for $\mcmckern{\lgtm,\ls{}}$ and $\sigma_s$ in \eqref{eq:skewsymmetric_proposal} for $\mcmckern{\lgtp,1}$. An adaptive MCMC scheme, such as those discussed in \cite{Roberts2009}, can be used to modify these values as the chain runs for maximum efficiency.
 
 
 
-\subsection{Example}
-
-The algorithm was tested using the transition matrix specified in section~\ref{sec:example_basic}, but with the transition covariance changed to,
-%
-\begin{IEEEeqnarray}{rCl}
- \lgdm\lgdm\tr & = & \begin{bmatrix}
-              0.26 &  0.33 &  0.26 & -0.42 \\
-              0.33 &  1.14 &  0.46 & -0.85 \\ 
-              0.26 &  0.46 &  0.29 & -0.48 \\
-             -0.42 & -0.85 & -0.48 &  0.81
-             \end{bmatrix} \nonumber      ,
-\end{IEEEeqnarray}
-%
-(showing $2$ decimal places) which has a rank of $2$.
-
-The MCMC algorithm was run using an adaptation scheme from \cite{Roberts2009}, adjusting the two proposal parameters based on the acceptance rate of the associated Metropolis-Hastings moves. Posterior histograms for $\lgtm$, $\lgtv$, and for the rank of $\lgtv$, are shown in figure~\ref{fig:degenerate_FQ_histograms} and~\ref{fig:degenerate_rank_histograms} for one MCMC run.
-
-\begin{figure}
- \centering
- \subfloat[]{\includegraphics[width=0.7\columnwidth]{../code/degenerate_F_with_rank.pdf} \label{subf:degenerate_FQ_histograms:F}} \\
- \subfloat[]{\includegraphics[width=0.7\columnwidth]{../code/degenerate_Q_with_rank.pdf} \label{subf:degenerate_FQ_histograms:Q}}
- \caption{MCMC Posterior histograms for \protect\subref{subf:degenerate_FQ_histograms:F} $\lgtm$ and \protect\subref{subf:degenerate_FQ_histograms:Q} $\lgtv$. Degenerate transition model. Unknown rank.}
- \label{fig:degenerate_FQ_histograms}
-\end{figure}
-
-\begin{figure}
- \centering
- \includegraphics[width=0.7\columnwidth]{../code/degenerate_rank_with_rank.pdf} 
- \caption{MCMC Posterior histogram for $\rk$. Degenerate transition model.}
- \label{fig:degenerate_rank_histograms}
-\end{figure}
 
 
 
@@ -650,6 +577,39 @@ A data set with $\timax=100$ time instants simulated from the model is shown in 
  \caption{MCMC Posterior histograms for \protect\subref{subf:basic_FQ_histograms:F} $\lgtm$ and \protect\subref{subf:basic_FQ_histograms:Q} $\lgtv$. Basic linear transition model. Vertical lines indicate true values}
  \label{fig:basic_FQ_histograms}
 \end{figure}
+
+\subsection{Example}
+
+The algorithm was tested using the transition matrix specified in section~\ref{sec:example_basic}, but with the transition covariance changed to,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgdm\lgdm\tr & = & \begin{bmatrix}
+              0.26 &  0.33 &  0.26 & -0.42 \\
+              0.33 &  1.14 &  0.46 & -0.85 \\ 
+              0.26 &  0.46 &  0.29 & -0.48 \\
+             -0.42 & -0.85 & -0.48 &  0.81
+             \end{bmatrix} \nonumber      ,
+\end{IEEEeqnarray}
+%
+(showing $2$ decimal places) which has a rank of $2$.
+
+The MCMC algorithm was run using an adaptation scheme from \cite{Roberts2009}, adjusting the two proposal parameters based on the acceptance rate of the associated Metropolis-Hastings moves. Posterior histograms for $\lgtm$, $\lgtv$, and for the rank of $\lgtv$, are shown in figure~\ref{fig:degenerate_FQ_histograms} and~\ref{fig:degenerate_rank_histograms} for one MCMC run.
+
+\begin{figure}
+ \centering
+ \subfloat[]{\includegraphics[width=0.7\columnwidth]{../code/degenerate_F_with_rank.pdf} \label{subf:degenerate_FQ_histograms:F}} \\
+ \subfloat[]{\includegraphics[width=0.7\columnwidth]{../code/degenerate_Q_with_rank.pdf} \label{subf:degenerate_FQ_histograms:Q}}
+ \caption{MCMC Posterior histograms for \protect\subref{subf:degenerate_FQ_histograms:F} $\lgtm$ and \protect\subref{subf:degenerate_FQ_histograms:Q} $\lgtv$. Degenerate transition model. Unknown rank.}
+ \label{fig:degenerate_FQ_histograms}
+\end{figure}
+
+\begin{figure}
+ \centering
+ \includegraphics[width=0.7\columnwidth]{../code/degenerate_rank_with_rank.pdf} 
+ \caption{MCMC Posterior histogram for $\rk$. Degenerate transition model.}
+ \label{fig:degenerate_rank_histograms}
+\end{figure}
+
 
 
 \subsection{Rigid-Body Modelling with Motion Capture} \label{sec:mocap}
