@@ -60,9 +60,11 @@ def mocap_rmse(truth, original, estimate):
     err = truth-estimate
     return la.norm(err[np.isnan(original)])
 
+figure_path = './notes/figures/'
+
 # Load the test data
 data_path = './mocap-data/'
-test_path = './results/'#'./results/N20000/'#'./results/N2000/'#
+test_path = './results/mocap-final/'
 markers_truth = np.genfromtxt(data_path+'downsampled_head_markers_truth.csv', delimiter=',')
 test_data_file = 'mocap-test-data.p'
 fh = open(test_path+test_data_file, 'rb')
@@ -72,7 +74,6 @@ markers = pickle.load(fh)
 naive_learner = load_learner(test_path+'mocap-mcmc-naive.p')
 basic_learner = load_learner(test_path+'mocap-mcmc-basic.p')
 degenerate_learner = load_learner(test_path+'mocap-mcmc-degenerate.p')
-#degenerate_learner = load_learner('longresults/intermediate-results-60000.p')
 
 # Get state estimates from each algorithm
 num_burn = 10000
@@ -98,6 +99,14 @@ print("NCVM           | {}".format(naive_rmse))
 print("Basic          | {}".format(basic_rmse))
 print("Degenerate     | {}".format(degenerate_rmse))
 print("MSVD           | {}".format(msvd_rmse))
+
+# Draw it
+fig, axs = plt.subplots(nrows=3,ncols=1)
+color_list = 'brgc'
+for mm in range(4):
+    for dd in range(3):
+        axs[dd].plot(markers[:,3*mm+dd], color=color_list[mm])
+fig.savefig(figure_path+'mocap-data.pdf', bbox_inches='tight')
 
 # Trace plots
 naive_learner.plot_chain_trace('R', dims=([0],[0]))

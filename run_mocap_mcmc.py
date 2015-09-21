@@ -38,7 +38,7 @@ np.random.seed(0)
 data_path = './mocap-data/'
 test_data_file = './results/mocap-test-data.p'
 
-model_type = 'degenerate'#'degenerate_augmented'#'degenerate'#'naive'#'basic'#
+model_type = 'naive'#'degenerate_augmented'#'degenerate'#'naive'#'basic'#
 num_iter = 20000
 
 num_burn = 10000#int(num_iter-10000)
@@ -86,7 +86,7 @@ Zmat = np.zeros((d,d))
 
 est_params['F'] = np.vstack((np.hstack((Imat,Imat)), np.hstack((Zmat,Imat))))
 
-est_params['Q'] = 0.001*np.vstack((np.hstack((Imat,Imat)), np.hstack((Imat,Imat))))
+est_params['Q'] = 0.001*np.vstack((np.hstack((Imat/3.0,Imat/2.0)), np.hstack((Imat/2.0,Imat/1.0))))
 est_params['val'], est_params['vec'] = la.eigh(est_params['Q'])
 est_params['rank'] = np.array([ds])
 #val,vec = la.eigh(est_params['Q'])
@@ -109,7 +109,7 @@ hyperparams['rPsi0'] = 0.001*np.identity(ds)
 hyperparams['Psi0'] = ds*hyperparams['rPsi0']
 hyperparams['M0'] = np.zeros((ds,ds))
 hyperparams['V0'] = 1E2*np.identity(ds)
-hyperparams['alpha'] = 0.001
+hyperparams['alpha'] = 0.01
 hyperparams['a0'] = 1
 hyperparams['b0'] = 0.001
 

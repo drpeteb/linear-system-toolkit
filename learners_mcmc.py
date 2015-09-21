@@ -259,6 +259,8 @@ class BaseMCMCLearner():
                 axs[idx].plot([0,len(samples)-1],[trueValue[coords[idx]]]*2,
                                                              'r', linewidth=2)
 
+        return fig, axs
+
 
     def plot_chain_histogram(self, paramName, numBurnIn=0, dims=None,
                                                trueModel=None, derived=False):
@@ -310,6 +312,8 @@ class BaseMCMCLearner():
                                                                   linewidth=2)
                 axs[idx].set_ylim(ylims)
 
+        return fig, axs
+
 
     def plot_chain_acf(self, paramName, numBurnIn=0, dims=None, nlags=30,
                                                                derived=False):
@@ -352,6 +356,8 @@ class BaseMCMCLearner():
             axs[idx].plot(acf, 'k')
             axs[idx].plot([0,nlags], [0,0], 'k:')
             axs[idx].set_xlim([0,nlags])
+
+        return fig, axs
 
 
 class MCMCLearnerObservationDiagonalCovarianceWithIGPrior():

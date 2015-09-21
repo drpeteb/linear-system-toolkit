@@ -61,7 +61,7 @@ num_burn = int(num_iter/5)
 
 for ii in range(num_iter):
     print("Running iteration {} of {}.".format(ii+1,num_iter))
-    
+
     learner.sample_transition()
     learner.sample_observation_diagonal_covariance()
     learner.sample_state_trajectory()

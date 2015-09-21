@@ -39,6 +39,7 @@
 \newcommand{\gammaden}[3]{\mathcal{G}\left(#1\middle|#2,#3\right)}
 \newcommand{\igammaden}[3]{\mathcal{IG}\left(#1\middle|#2,#3\right)}
 \newcommand{\bernoulliden}[2]{\mathcal{BER}\left(#1\middle|#2\right)}
+\newcommand{\diracden}[2]{\delta_{#2}\left(#1\right)}
 
 % Time indexes
 \newcommand{\ti}{t}
@@ -94,9 +95,13 @@
 % Hyperparameters
 \newcommand{\priordof}{\nu_0}
 \newcommand{\priorscalematrix}{\Psi_0}
+\newcommand{\priorscalematrixrank}[1]{\Psi_{0}^{[#1]}}
+\newcommand{\priorscalematrixbase}{\Psi_0^{[1]}}
 \newcommand{\priorcolumnvariance}{\Omega_0}
 \newcommand{\priormeanmatrix}{M_0}
 \newcommand{\priorextratpval}{\Lambda_{\perp}}
+\newcommand{\priortypval}{\alpha}
+\newcommand{\priorrankweight}[1]{w_{#1}}
 \newcommand{\postdof}{\nu}
 \newcommand{\postscalematrix}{\Psi}
 \newcommand{\postcolumnvariance}{\Omega}
