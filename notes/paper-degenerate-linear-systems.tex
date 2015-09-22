@@ -507,7 +507,7 @@ The acceptance probability for this move and its reverse respectively are \cite{
 %
 where $\jac(\lgtv,\eval{\rk+1},\evec{\rk+1}\to\lgtv\mcnew)$ is the Jacobian of the transformation and $P(\rk+1\to\rk)$ is the probability of performing a move which changes the rank from $\rk$ to $\rk+1$.
 
-The Jacobian of the eigendecomposition for a positive semidefinite matrix is \cite{Diaz-Garcia2006},
+The Jacobian of the eigendecomposition for a positive semi-definite matrix is \cite{Diaz-Garcia2006},
 %
 \begin{IEEEeqnarray}{rCl}
  \jac(\tvval,\tvvec\to\lgtv) &=& 2^{-\rk} \times \prod_{i=1}^{\rk}\eval{i}^{\lsd-\rk} \times \prod_{j=1}^{r}\prod_{i=1}^{j-1}(\eval{i}-\eval{j})      .
@@ -622,7 +622,7 @@ The simulation results demonstrate several important features of the degenerate 
 
 
 
-\subsection{Motion Capture Interpolation}
+\subsection{Motion Capture Interpolation} \label{sec:mocap}
 
 In a more realistic example, the MCMC algorithms are applied to the problem of marker interpolation in a motion capture application. The data used is from \cite{Aristidou2013}. A motion capture system was used to measure the $3$-dimensional coordinates of a number of markers attached to a subject's body. Here we consider the four markers attached to the head. Since these are all attached to the same rigid body, we expect there to be substantial correlation in their motion. Sometimes markers are occluded meaning that position measurements are missing. If a system model for the motion of the markers can be learned, then the missing marker locations can be inferred by sampling or Kalman smoothing.
 
@@ -701,24 +701,11 @@ For each model, an estimate of the position of the missing markers is made by ta
 
 \section{Discussion and Conclusions}
 
-Markov chain Monte Carlo algorithms are an effective method for Bayesian learning of linear state space systems. In this paper, we have introduced a number of new MCMC kernels for the linear system toolkit.
+Markov chain Monte Carlo algorithms are an effective method for Bayesian learning of linear state space systems. In this paper, we have introduced new MCMC kernels for learning linear state space models which may have a singular transition covariance matrix of unknown rank. Such degenerate models may provide a better mathematical description of some systems, when the number of independent components in the state transitions is lower than the number of state dimensions. When a degenerate model is appropriate, the state estimates it produces can be more accurate than those obtained from an equivalent full rank model, as we have shown in simulations. Furthermore, with the rank of the transition covariance matrix included in the model, the sampler provides an explicit estimate of the posterior distribution over this parameter.
 
+The price for using a degenerate transition model is an increased computational cost of the MCMC simulation. The computational complexity is the same as the full rank algorithm, dominated by the Kalman filtering and backward sampling operations which are $\bigo{\lsd^3 \timax}$. However, the need for additional Metropolis-Hastings steps increases the cost per iteration. More significantly, the Markov chain mixes more slowly and thus requires a longer chain to be simulated to achieve the same effective sample size. An important avenue for future research will be designing more sophisticated Metropolis-Hastings moves to explore the parameters space more efficiently than the simple random walks used here.
 
-
-
-
-Although the Markov chain takes substantially longer to converge with the degenerate covariance, it should be noted that the estimated model is better than that obtained in the full rank case after just a few hundred iterations, in the sense that the RMSE for the inferred missing positions is lower. Furthermore, using the degenerate model, we obtain an explicit estimate of the covariance rank. 
-
-
-
-\meta{ 
-\begin{itemize}
- \item Slow but better model.
- \item Generalises the basic case.
- \item Hyperparameters
- \item Future work: better MH moves.
-\end{itemize}
-}
+The standard linear Gaussian state space models, with $\rank(\lgtv)=\lsd$, discussed in section~\ref{sec:linear_gaussian_models} are a special case of the more general class used thereafter, for which $\rank(\lgtv)$ was treated as unknown. Correspondingly, the MCMC algorithm for the general case reduces to the standard Gibbs sampler of section~\ref{sec:linear_gaussian_models} if we re-impose the constraint that $\rank(\lgtv)=\lsd$. In this case $\tvfull=\lgtv$, $\tvrot=\idmat$, the ``constrained'' Gibbs moves are no longer constrained, and the Metropolis-Hastings moves become redundant.
 
 
 
@@ -726,44 +713,11 @@ Although the Markov chain takes substantially longer to converge with the degene
 The authors are supported by the EPSRC BTaRoT grant. Our thanks to Michael Burke for advice and assistance with the motion capture application, and to Rich Wareham for his geometric insights.
 
 
-
-
-
-%%% REWRITING %%%
-
-
-\section{Old Material}
-
-
-
-\section{Conclusions}
-
- New parameterisations have enabled us to formulate algorithms for learning transition models when it is known a priori that the model is (i) sparse or (ii) degenerate. The new algorithms are efficient and require minimal tuning, and have been verified with simulations.
-
-
-
-
-
-
-
 \appendices
 
-\section{A~Matrix~Factorisation for Positive~Semidefinite~Matrices} \label{app:givens-factorisation}
+\section{A~Matrix~Factorisation for Positive~Semi-Definite~Matrices} \label{app:givens-factorisation}
 
-\meta{Re-do this!}
-
-For a $\lsd\times\lsd$, rank-$\rk$ positive semi-definite precision matrix $\lgtp$, we write the full eigendecomposition as,
-%
-\begin{IEEEeqnarray}{rCl}
- \lgtp & = & \tnmofull \begin{bmatrix}
-                        \tnmd & \zmat \\
-                        \zmat & \zmat
-                       \end{bmatrix} \tnmofull\tr \nonumber      .
-\end{IEEEeqnarray}
-%
-where $\tnmofull$ is a square orthogonal matrix and $\tnmd$ is a diagonal matrix of $\rk$ eigenvalues.% This is not a unique factorisation, since $\lsd-\rk$ of the columns of $\tnmofull$ do not contribute to $\lgtp$ at all.
-
-Next we consider factorising $\tnmofull$ using Givens rotations. A Givens rotation matrix has the following structure,
+A Givens rotation matrix has the following structure,
 %
 \begin{IEEEeqnarray}{rCl}
  \left[\givmat{i}{j}{\givrot{}} - \idmat\right]_{k,l} & = & \begin{cases}
@@ -774,71 +728,67 @@ Next we consider factorising $\tnmofull$ using Givens rotations. A Givens rotati
                                                  \end{cases}
 \end{IEEEeqnarray}
 %
-where $\givrot{} \in [-\pi/2,\pi/2]$ is a rotation in the plane of the $i$ and $j$ coordinate directions. Any orthogonal matrix may be written as a product of $\half d(d-1)$ such rotations in the following way \cite{Anderson1987},
+where $\givrot{} \in [-\pi/2,\pi/2]$ is a rotation in the plane of the $i$ and $j$ coordinate directions. Any orthogonal $d\times d$ matrix may be written as a product of $\half d(d-1)$ such rotations in the following way \cite{Anderson1987},
 %
 \begin{IEEEeqnarray}{rCl}
-\tnmosign &\times& \left[ \givmat{1}{2}{\givrot{1,2}}\right] \times \dotsm \nonumber\\
+\tvvec = \tvsign &\times& \left[ \givmat{1}{2}{\givrot{1,2}}\right] \times \dotsm \nonumber\\
 &\times& \left[\givmat{1}{d-1}{\givrot{1,d-1}} \dotsm \givmat{d-2}{d-1}{\givrot{d-2,d-1}} \right] \nonumber\\
 &\times& \left[\givmat{1}{d}{\givrot{1,d}} \dotsm \givmat{d-1}{d}{\givrot{d-1,d}} \right] \label{eq:standard_givens}     ,
 \end{IEEEeqnarray}
 %
-where $\tnmosign$ is a diagonal matrix in which the diagonal elements are $\pm1$. This factorisation may be derived (and also calculated) by iteratively multiplying the original matrix by a Givens rotation matrix such that one element is set to $0$. The matrix remaining once all the elements below the diagonal have been eliminated is $\tnmosign$, and the factorisation above results from a straightforward rearrangement. See \cite{Anderson1987} for details.
+where $\tvsign$ is a diagonal matrix in which the diagonal elements are $\pm1$. This factorisation may be derived (and also calculated) by iteratively left multiplying the original matrix by a Givens rotation matrix such that one element is set to $0$. The matrix remaining once all the elements below the diagonal have been eliminated is $\tvsign$, and the factorisation above results from a straightforward rearrangement. See \cite{Anderson1987} for details. This factorisation is not unique. Any order of Givens matrices may be used provided each operation does not interfere with the elements zeroed by the preceding operations. Furthermore, we can also zero an element of the matrix by right multiplication by a Givens matrix, so the rotations may be split into two blocks, one each side of the sign matrix.
 
-The order of the rotation matrices in the Givens factorisation is not unique. By successively eliminating elements using both left and right multiplication with Givens matrices, it is possible in the same way to show that there is a unique factorisation,
+Now consider instead a $d \times r$ matrix of orthogonal columns. This can be factorised using the same mechanism. First right multiply by Givens matrices to zero the elements on the first $r$ rows below the main diagonal. Then left multiply by Givens matrices to zero all the elements on rows $r+1$ to $d$. The resulting factorisation is,
 %
+
 \begin{IEEEeqnarray}{rCl}
- \tnmofull & = & \tnmocross \tnmosign \tnmorow \tnmonull      ,
+ \tvvec & = & \tvcross \tvsign \tvrow      ,
 \end{IEEEeqnarray}
 %
 where
 %
 \begin{IEEEeqnarray}{rCl}
- \tnmonull & = & \left[\givmat{r+1}{r+2}{\givrot{r+1,r+2}}\right] \times \dotsm \nonumber \\
- & & \qquad\qquad \times \left[\givmat{r+1}{d}{\givrot{r+1,d}} \dots \givmat{d-1}{d}{\givrot{d-1,d}}\right] \nonumber \\
- \tnmorow  & = & \left[\givmat{1}{2}{\givrot{1,2}}\right] \times \dotsm \nonumber \\
- & & \qquad\qquad \times \left[\givmat{1}{r}{\givrot{1,r}} \dots \givmat{r-1}{r}{\givrot{r-1,r}}\right] \nonumber \\
- \tnmocross & = & \left[\givmat{1}{r+1}{\givrot{1,r+1}}\dots\givmat{1}{d}{\givrot{1,d}}\right] \times \dotsm \nonumber \\
- & & \qquad\qquad \times \left[\givmat{r}{r+1}{\givrot{r,r+1}} \dots \givmat{r}{d}{\givrot{r,d}}\right] \nonumber      ,
+ \tvrow  & = & \left[\givmat{1}{2}{\givrot{1,2}}\right] \times \dotsm \nonumber \\
+ & & \qquad\qquad \times \left[\givmat{1}{r}{\givrot{1,r}} \dots \givmat{r-1}{r}{\givrot{r-1,r}}\right] \\
+ \tvcross & = & \left[\givmat{1}{r+1}{\givrot{1,r+1}}\dots\givmat{1}{d}{\givrot{1,d}}\right] \times \dotsm \nonumber \\
+ & & \qquad\qquad \times \left[\givmat{r}{r+1}{\givrot{r,r+1}} \dots \givmat{r}{d}{\givrot{r,d}}\right]      ,
 \end{IEEEeqnarray}
 %
-and $\tnmosign$ is as before. The terms $\tnmonull$ and $\tnmorow$ have the following particular form,
+and $\tvsign$ is as before, with the following structure,
 %
 \begin{IEEEeqnarray}{rCl}
- \tnmonull & = & \begin{bmatrix}
-                  \idmat[r\times r] & \zmat[r\times(d-r)] \\
-                  \zmat[(d-r)\times r] & \tnmonullred
-                 \end{bmatrix} \nonumber \\
- \tnmorow & = & \begin{bmatrix}
-                  \tnmorowred & \zmat[r\times(d-r)] \\
-                  \zmat[(d-r)\times r] & \idmat[(d-r)\times(d-r)]
+ \tvsign & = & \begin{bmatrix}
+                  \tvsigndiag \\
+                  \zmat[(d-r)\times r]
                  \end{bmatrix} \nonumber      .
 \end{IEEEeqnarray}
-%
-Substituting into the eigendecomposition,
-%
-\begin{IEEEeqnarray}{rCl}
- \lgtp & = & \tnmofull \begin{bmatrix}
-                        \tnmd & \zmat \\
-                        \zmat & \zmat
-                       \end{bmatrix} \tnmofull\tr \nonumber \\
- & = & \tnmocross \tnmosign \tnmorow \tnmonull \begin{bmatrix}
-                        \tnmd & \zmat \\
-                        \zmat & \zmat
-                       \end{bmatrix} \tnmonull\tr \tnmorow\tr \tnmosign\tr \tnmocross\tr \nonumber \\
- & = & \tnmocross \begin{bmatrix}
-                        \tnmosignred\tnmorowred\tnmd\tnmorowred\tr\tnmosignred\tr & \zmat \\
-                        \zmat & \zmat
-                       \end{bmatrix} \tnmocross\tr \nonumber      ,
-\end{IEEEeqnarray}
-%
-where $\tnmosignred$ is the top-left $r\times r$ block of $\tnmosign$. Comparing with \eqref{eq:standard_givens}, $\tnmosignred\tnmorowred$ can represent any $r\times r$ orthogonal matrix and hence $\tnmosignred\tnmorowred\tnmd\tnmorowred\tr\tnmosignred\tr$ is a unique positive definite matrix, which we write $\tnmf$. Finally, define $\tnmocrossred$ as the first $r$ columns of $\tnmocross$, and we reach,
-%
-\begin{IEEEeqnarray}{rCl}
- \lgtp & = & \tnmocrossred \tnmf \tnmocrossred\tr      .
-\end{IEEEeqnarray}
-%
-Note that the space of possible values for $\tnmocrossred$ is restricted by the Givens factorisation. In particular, note that it is defined by $r(d-r)$ independent parameters. However, since we keep $\tnmocrossred$ fixed when using this factorisation, this restriction does not matter.
 
+Now consider a rank-$r$ positive semi-definite matrix $\psd$ for which the non-singular part of the eigendecomposition is,
+%
+\begin{IEEEeqnarray}{rCl}
+ \psd &=& \tvvec \tvval \tvvec\tr     . 
+\end{IEEEeqnarray}
+%
+Factorising the matrix of eigenvectors using the Givens method, we find,
+
+
+
+\begin{IEEEeqnarray}{rCl}
+ \psd & = & \tvcross \tvsign \tvrow \tvval \tvrow\tr \tvsign\tr \tvcross\tr  \nonumber \\
+ & = & \tvcross \begin{bmatrix}
+                  \tvsigndiag \tvrow \tvval \tvrow\tr \tvsigndiag\tr & \zmat \\
+                  \zmat & \zmat
+                \end{bmatrix} \tvcross\tr \nonumber \\
+ & = & \tvrot \tvfull \tvrot\tr \nonumber      ,
+\end{IEEEeqnarray}
+%
+in which $\tvrot$ consists of the first $r$ columns of $\tvcross$, and,
+%
+\begin{IEEEeqnarray}{rCl}
+ \tvfull &=& \tvsigndiag \tvrow \tvval \tvrow\tr \tvsigndiag\tr    .
+\end{IEEEeqnarray}
+%
+Comparing with \eqref{eq:standard_givens}, we see that $\tvsigndiag \tvrow$ is an unconstrained $r\times r$ orthogonal matrix and hence $\tvfull$ is a unique positive definite matrix.
 
 
 \bibliographystyle{IEEEtran}

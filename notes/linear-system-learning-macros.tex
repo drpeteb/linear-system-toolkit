@@ -4,6 +4,7 @@
 \newcommand{\idmat}[1][]{I_{#1}}
 \newcommand{\reals}{\mathbb{R}}
 \newcommand{\naturals}{\mathbb{N}^{+}}
+\newcommand{\bigo}{\mathcal{O}}
 
 % Functions
 \newcommand{\gammafun}[1][]{\Gamma_{#1}}
@@ -76,13 +77,13 @@
 \newcommand{\tvfull}{D}
 \newcommand{\tvrot}{U}
 \newcommand{\tvrotorth}{U_{\perp}}
-\newcommand{\tvrow}{U_R}
-\newcommand{\tvnull}{U_N}
-\newcommand{\tvsign}{E}
-\newcommand{\tvsignorth}{E_{\perp}}
 \newcommand{\eval}[1]{\lambda_{#1}}
 \newcommand{\evec}[1]{v_{#1}}
 \newcommand{\evecset}[1]{\mathcal{V}_{#1}}
+\newcommand{\tvrow}{U_R}
+\newcommand{\tvcross}{U_C}
+\newcommand{\tvsign}{E}
+\newcommand{\tvsigndiag}{\tilde{E}}
 
 % Givens rotations
 \newcommand{\givrot}[1]{\gamma_{#1}}
@@ -123,6 +124,8 @@
 \newcommand{\mhar}{\beta}
 \newcommand{\jacob}{J}
 
+% Generic variables
+\newcommand{\psd}{\Upsilon}
 
 
 
@@ -131,42 +134,8 @@
 
 %%%%%%% OLD ONES - DELETE THES!! %%%%%%%%%
 
-\newcommand{\compnormincgammafun}[1][]{\overline{\gamma}_{#1}}
-
-% MCMC things
-\newcommand{\ci}{n}
-\newcommand{\mcmckern}[1]{K_{#1}}
-\newcommand{\mc}[1]{^{[#1]}}
-\newcommand{\mcoldtwo}{^{\prime\prime}}
-
-
-% Distributions
-\newcommand{\augpostden}{\tilde{\pi}}
-\newcommand{\artden}{\varpi}
-
-% Time indexes
-
-% Dimensions
-\newcommand{\tnd}{r}
-
-% State space model variables
-\newcommand{\param}[1]{\theta_{#1}}
-
 % State space model parameters
 \newcommand{\lgtp}[1][]{\Upsilon_{#1}}
-
-% Sparse state space model parameters
-\newcommand{\lgdtm}{A}
-\newcommand{\lgstm}{B}
-\newcommand{\lgdtmel}[1]{A_{#1}}
-\newcommand{\lgstmel}[1]{B_{#1}}
-\newcommand{\lgdtmrv}[1]{\widetilde{a}_{#1}}
-\newcommand{\lgstmrv}[1]{\widetilde{b}_{#1}}
-\newcommand{\lgdtmv}{a}
-\newcommand{\lgstmv}{b}
-\newcommand{\lgtmmost}[1]{\widetilde{F}_{#1}}
-\newcommand{\lgtmrem}[1]{\widehat{F}_{#1}}
-\newcommand{\permone}[1]{Z_{#1}}
 
 % Degenerate state space model parameters
 \newcommand{\lgtnm}{G}
@@ -186,82 +155,3 @@
 \newcommand{\tnmosign}{E}
 \newcommand{\tnmosignred}{\widetilde{E}}
 
-% Changepoint models
-\newcommand{\mi}{m}
-\newcommand{\mie}[1]{\kappa_{#1}}
-\newcommand{\nummod}{M}
-\newcommand{\nummodmax}{\tilde{M}}
-\newcommand{\cpseq}{\Xi}
-\newcommand{\cp}[1]{\tau_{#1}}
-\newcommand{\paramkern}[1][]{L_{#1}}
-
-% State space model parameters priors
-\newcommand{\Ppdof}{\nu}
-\newcommand{\Ppscale}{\Phi}
-\newcommand{\Ppscalescalar}{\phi}
-\newcommand{\Apmn}{m}
-\newcommand{\Apvr}{P}
-\newcommand{\Apvrscalar}{v}
-\newcommand{\Bpprob}{\phi}
-\newcommand{\Qpadding}{\delta}
-\newcommand{\paddedlgtp}{\widetilde{\lgtp}}
-
-% Annealed Kalman filter
-\newcommand{\ankfprd}[1]{\hat{\eta}_{#1}}
-\newcommand{\ankfupd}[1]{\eta_{#1}}
-\newcommand{\ncprd}[1]{\hat{Z}_{#1}}
-\newcommand{\ncupd}[1]{Z_{#1}}
-\newcommand{\lsprdmn}[1]{\hat{m}_{#1}}
-\newcommand{\lsprdvr}[1]{\hat{P}_{#1}}
-\newcommand{\lsupdmn}[1]{m_{#1}}
-\newcommand{\lsupdvr}[1]{P_{#1}}
-\newcommand{\ankfcross}[1]{C_{#1}}
-\newcommand{\ankfprec}[1]{\Omega_{#1}}
-\newcommand{\lsbsmn}[1]{\tilde{m}_{#1}}
-\newcommand{\lsbsvr}[1]{\tilde{P}_{#1}}
-\newcommand{\anset}[1]{\mathcal{A}_{#1}}
-
-% Specific Intermediate
-\newcommand{\lsmat}[1]{X_{#1}}
-\newcommand{\lsmata}[1]{X_{a,#1}}
-\newcommand{\lsmatb}[1]{X_{b,#1}}
-\newcommand{\Blhoodprc}{\Omega}
-\newcommand{\Blhoodinf}{\lambda}
-\newcommand{\lgtmchange}{\Delta}
-
-
-
-\newcommand{\parprimean}{M}
-\newcommand{\parprirow}{V}
-\newcommand{\parpriscale}{\Psi}
-\newcommand{\parpridof}{\nu}
-\newcommand{\parpostmean}[1]{\tilde{M}_{#1}}
-\newcommand{\parpostrow}[1]{\tilde{V}_{#1}}
-\newcommand{\parpostscale}[1]{\tilde{\Psi}_{#1}}
-\newcommand{\parpostdof}[1]{\tilde{\nu}_{#1}}
-
-
-% For removal after editing
-\newcommand{\Qpdof}{\nu}
-\newcommand{\Qpscale}{\Phi}
-\newcommand{\Qpscalescalar}{\phi}
-\newcommand{\lgtnmmod}{\tilde{G}}
-\newcommand{\tnme}[1]{U_{#1}}
-\newcommand{\tnmecross}{U_{C}}
-\newcommand{\tnmerow}{U_{R}}
-\newcommand{\tnmesign}{E}
-\newcommand{\lstrans}[1]{z_{#1}}
-\newcommand{\cpparam}[1]{\theta^{(#1)}}
-\newcommand{\cplgtm}[1]{F^{(#1)}}
-\newcommand{\cplgtv}[1]{Q^{(#1)}}
-\newcommand{\cplgtp}[1]{\Upsilon^{(#1)}}
-
-
-
-
-\newcommand{\setto}{\leftarrow}
-\newcommand{\impden}[1]{q_{#1}}
-
-
-
-\newcommand{\lscut}[1]{\check{x}_{#1}}
