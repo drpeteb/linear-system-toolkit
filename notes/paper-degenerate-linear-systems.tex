@@ -9,7 +9,7 @@
 \usepackage{algorithmic}
 % \usepackage{graphicx}
 \usepackage{hyperref}
-\usepackage{subfig}
+\usepackage[caption=false]{subfig}
 \usepackage{cite}
 
 \usepackage{tikz}
@@ -55,7 +55,7 @@ The Gibbs sampler approach developed in \cite{Wills2012} is effective on the bas
 
 %and parameterising the attainable subspace using a set of Givens rotations \cite{Anderson1987,Shalit2014,Yang1994,Cao2011,Cron2014}.
 
-The paper is structured as follows. In section~\ref{sec:linear_gaussian_models} we review the Gibbs sampler for basic linear Gaussian state space systems, focusing on the transition model. In section~\ref{sec:degenerate_transition_models} we describe modifications for degenerate transitions. Simulations on a toy model, and a motion capture application are presented in section~\ref{sec:applications}.
+The paper is structured as follows. In section~\ref{sec:linear_gaussian_models} we review the Gibbs sampler for basic linear Gaussian state space systems, focusing on the transition model. In section~\ref{sec:degenerate_transition_models} we describe modifications for degenerate transitions, and in section~\ref{sec:rank_learning} we show how the rank of the transition covariance may be learned. Simulations on a toy model, and a motion capture application are presented in section~\ref{sec:simulations}.
 
 
 % Citations which might be useful
@@ -111,10 +111,12 @@ with the following density function,
  \den(\lgtm, \lgtv) =  \den(\lgtm | \lgtv) \den(\lgtv)
 \end{equation}
 %
-\begin{align}
-\den(\lgtv) &= \frac{ \determ{\priorscalematrix}^{\frac{\priordof}{2}} }{ 2^{\frac{\priordof}{2}} \gammafun\left(\frac{\priordof}{2}\right) } \determ{\lgtv}^{-\frac{\priordof+\lsd+1}{2}} \exp\left( -\half \trace\left[\lgtv\inv\priorscalematrix\right] \right) \\
-\den(\lgtm | \lgtv) &= \determ{2 \pi \lgtv}^{-\half} \determ{2 \pi \priorcolumnvariance}^{-\half} \exp\left(-\half \trace\left[ \lgtv\inv (\lgtm-\priormeanmatrix) \priorcolumnvariance\inv (\lgtm-\priormeanmatrix)\tr \right] \right) 
-\end{align}
+\begin{IEEEeqnarray}{rCl}
+\den(\lgtv) &=& \frac{ \determ{\priorscalematrix}^{\frac{\priordof}{2}} }{ 2^{\frac{\priordof}{2}} \gammafun\left(\frac{\priordof}{2}\right) } \determ{\lgtv}^{-\frac{\priordof+\lsd+1}{2}} \exp\left( -\half \trace\left[\lgtv\inv\priorscalematrix\right] \right) \nonumber \\
+\\
+\den(\lgtm | \lgtv) &=& \determ{2 \pi \lgtv}^{-\half} \determ{2 \pi \priorcolumnvariance}^{-\half} \nonumber \\
+& & \times \exp\left(-\half \trace\left[ \lgtv\inv (\lgtm-\priormeanmatrix) \priorcolumnvariance\inv (\lgtm-\priormeanmatrix)\tr \right] \right) \nonumber \\
+\end{IEEEeqnarray}
 %
 $\priordof\in\reals, \priordof>\lsd-1$. $\priorscalematrix$ and $\priorcolumnvariance$ are $\lsd\times\lsd$ positive definite matrices. $\priormeanmatrix \in \reals^{\lsd\times\lsd}$.
 
@@ -140,7 +142,7 @@ The distribution of the sampled values will then converge to the target posterio
 %
 \begin{IEEEeqnarray}{rCl}
  \IEEEeqnarraymulticol{3}{l}{ \den(\ls{1:\timax}|\lgtm,\lgtv) \propto \prod_{\ti=2}^{\timax} \den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgtv) } \\
- \quad\quad & \propto & \determ{\lgtv}^{-\frac{\timax-1}{2}} \exp\left( -\half \sum_{\ti=2}^{\timax} (\ls{\ti}-\lgtm\ls{\ti-1})\tr \lgtv\inv (\ls{\ti}-\lgtm\ls{\ti-1}) \right)      .
+ & \propto & \determ{\lgtv}^{-\frac{\timax-1}{2}} \exp\left( -\half \sum_{\ti=2}^{\timax} (\ls{\ti}-\lgtm\ls{\ti-1})\tr \lgtv\inv (\ls{\ti}-\lgtm\ls{\ti-1}) \right) \nonumber      .
 \end{IEEEeqnarray} 
 
 It is straightforward to show that the required conditional distribution is also a matrix normal--inverse Wishart distribution \cite{Wills2012},
@@ -153,20 +155,18 @@ It is straightforward to show that the required conditional distribution is also
 with the following updated hyperparameters,
 %
 \begin{align}
- \postcolumnvariance\inv                 &= \priorcolumnvariance\inv + \suffstats{1} \\
- \postmeanmatrix \postcolumnvariance\inv &= \priormeanmatrix \priorcolumnvariance\inv + \suffstats{2}\\
- \postdof                                &= \priordof + \suffstats{0} \\
+ \postcolumnvariance\inv                 &= \priorcolumnvariance\inv + \suffstats{1} \nonumber \\
+ \postmeanmatrix \postcolumnvariance\inv &= \priormeanmatrix \priorcolumnvariance\inv + \suffstats{2} \nonumber \\
+ \postdof                                &= \priordof + \suffstats{0} \nonumber \\
  \postscalematrix                        &= \priorscalematrix + \suffstats{3} + \priormeanmatrix \priorcolumnvariance\inv \priormeanmatrix\tr - \postmeanmatrix \postcolumnvariance\inv \postmeanmatrix\tr    ,
 \end{align}
 %
 in which the following sufficient statistics are used,
 %
-\begin{align}
- \suffstats{0} &= \timax - 1 \\
- \suffstats{1} &= \sum_{t=2}^{\timax} \ls{\ti-1}\ls{\ti-1}\tr \\
- \suffstats{2} &= \sum_{t=2}^{\timax} \ls{\ti}\ls{\ti-1}\tr \\
- \suffstats{3} &= \sum_{t=2}^{\timax} \ls{\ti}\ls{\ti}\tr      .
-\end{align}
+\begin{IEEEeqnarray}{rClCrCl}
+ \suffstats{0} &=& \timax - 1 & \qquad & \suffstats{1} &=& \sum_{t=2}^{\timax} \ls{\ti-1}\ls{\ti-1}\tr \nonumber \\
+ \suffstats{2} &=& \sum_{t=2}^{\timax} \ls{\ti}\ls{\ti-1}\tr & \qquad & \suffstats{3} &=& \sum_{t=2}^{\timax} \ls{\ti}\ls{\ti}\tr      .
+\end{IEEEeqnarray}
 
 Both matrix normal and inverse Wishart distributions may be sampled using standard methods. Hence we have all the components necessary to implement a Gibbs sampler for this model.
 
@@ -207,8 +207,8 @@ Note that $\tvvecorth$ is not unique.
 
 A further factorisation will also be useful, which we will refer to as the Givens decomposition (on account of its method of computation). For the rank-$\rk$ positive semi-definite covariance matrix $\lgtp$,
 %
-\begin{IEEEeqnarray}{rClCl}
- \lgtv &=& \tvrot \tvfull \tvrot\tr &=& \begin{bmatrix}\tvrot & \tvrotorth\end{bmatrix} \begin{bmatrix}\tvfull & \zmat \\ \zmat & \zmat\end{bmatrix} \begin{bmatrix}\tvrot\tr \\ \tvrotorth\tr\end{bmatrix} \label{eq:givens_decomposition}
+\begin{IEEEeqnarray}{rCl}
+ \lgtv &=& \tvrot \tvfull \tvrot\tr %&=& \begin{bmatrix}\tvrot & \tvrotorth\end{bmatrix} \begin{bmatrix}\tvfull & \zmat \\ \zmat & \zmat\end{bmatrix} \begin{bmatrix}\tvrot\tr \\ \tvrotorth\tr\end{bmatrix} \label{eq:givens_decomposition}
 \end{IEEEeqnarray}
 %
 where,
@@ -229,7 +229,8 @@ An appropriate prior distribution for the degenerate transition covariance matri
 The density (with respect to the Lesbegue measure on the distinct elements) is,
 %
 \begin{IEEEeqnarray}{rCl}
- \den(\lgtv|\rk) &=& \frac{ \determ{\priorscalematrixrank{\rk}}^{\frac{\rk}{2}} }{ 2^{\half\rk\lsd} \pi^{\half\rk(\lsd-\rk)} \gammafun[r]\left(\frac{\rk}{2}\right) } \determ{\tvval}^{-\half(3\lsd-\rk+1)} \exp\left( -\half \lgtv\pinv \priorscalematrixrank{\rk} \right)    ,
+ \den(\lgtv|\rk) &=& \frac{ \determ{\priorscalematrixrank{\rk}}^{\frac{\rk}{2}} }{ 2^{\half\rk\lsd} \pi^{\half\rk(\lsd-\rk)} \gammafun[r]\left(\frac{\rk}{2}\right) } \nonumber \\
+ & & \qquad \times \determ{\tvval}^{-\half(3\lsd-\rk+1)} \exp\left( -\half \lgtv\pinv \priorscalematrixrank{\rk} \right)    ,
 \end{IEEEeqnarray}
 %
 in which $\lgtv\pinv$ denotes the Moore-Penrose pseudoinverse of $\lgtv$. A prior estimate of $\lgtv$ is $\frac{1}{\rk}\priorscalematrixrank{\rk}$. Thus, in order to maintain consistency between the different ranks, we should set $\priorscalematrixrank{\rk} = \rk \priorscalematrixbase$, where $\priorscalematrixbase$ is an estimate of $\lgtv$.
@@ -261,8 +262,9 @@ There is no transition density over $\reals^{\lsd}$ for the degenerate model. Ho
  \begin{IEEEeqnarray}{rCl}
  \Rightarrow \tvrot\tr(\ls{\ti}-\lgtm\ls{\ti-1}) &\sim& \normaldist{\zmat}{\tvfull} \nonumber
 \end{IEEEeqnarray}
-\begin{IEEEeqnarray}{rCl}
- \den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgtv) &\propto& \determ{\tvfull}^{-\half} \exp\left(-\half (\ls{\ti}-\lgtm\ls{\ti-1})\tr \tvrot \tvfull\inv \tvrot\tr (\ls{\ti}-\lgtm\ls{\ti-1}) \right)     .
+\begin{IEEEeqnarray}{l}
+ \den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgtv) \propto \determ{\tvfull}^{-\half}  \\
+ \times \exp\left(-\half (\ls{\ti}-\lgtm\ls{\ti-1})\tr \tvrot \tvfull\inv \tvrot\tr (\ls{\ti}-\lgtm\ls{\ti-1}) \right) \nonumber     .
 \end{IEEEeqnarray}
 %
 The subspace over which this is defined is,
@@ -273,13 +275,15 @@ The subspace over which this is defined is,
 
 The likelihood function for the entire state trajectory is thus,
 %
-\begin{align}
- \den(\ls{1:\timax}|\lgtm, \lgtv) &= \den(\ls{0}) \prod_{t=2}^{\timax} \den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgtv) \nonumber \\
- &\propto \determ{\tvfull}^{-\half(\timax-1)} \exp\left( -\half \sum_{t=2}^{\timax} (\ls{\ti}-\lgtm\ls{\ti-1})\tr \tvrot \tvfull\inv \tvrot\tr (\ls{\ti}-\lgtm\ls{\ti-1}) \right) \nonumber \\
- &= \determ{\tvfull}^{-\half(\timax-1)} \exp\left(-\half\trace\left[ \tvfull\inv \tvrot\tr \sum_{t=2}^{\timax} (\ls{\ti}-\lgtm\ls{\ti-1})(\ls{\ti}-\lgtm\ls{\ti-1})\tr \tvrot \right]\right) \nonumber \\
- &= \determ{\tvfull}^{-\half\suffstats{0}} \exp\left(-\half\trace\left[ \tvfull\inv \left( \tvrot\tr \lgtm \suffstats{1} \lgtm\tr \tvrot - \tvrot\tr \lgtm \suffstats{2}\tr \tvrot - \tvrot\tr \suffstats{2} \lgtm\tr \tvrot + \tvrot\tr \suffstats{3} \tvrot \right) \right]\right) \\
- &= \determ{\tvfull}^{-\half\suffstats{0}} \exp\left(-\half\trace\left[ \tvfull\inv \left( \lgtmrot \suffstats{1} \lgtmrot\tr - \lgtmrot \suffstats{2}\tr \tvrot - \tvrot\tr \suffstats{2} \lgtmrot\tr + \tvrot\tr \suffstats{3} \tvrot \right) \right]\right)
-\end{align}
+\begin{IEEEeqnarray}{rCl}
+ \IEEEeqnarraymulticol{3}{l}{ \den(\ls{1:\timax}|\lgtm, \lgtv) = \den(\ls{0}) \prod_{t=2}^{\timax} \den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgtv) } \nonumber \\
+ &\propto& \determ{\tvfull}^{-\half(\timax-1)} \exp\Bigg( -\half \sum_{t=2}^{\timax} (\ls{\ti}-\lgtm\ls{\ti-1})\tr \tvrot \nonumber \\
+ && \qquad\qquad\qquad\qquad\qquad\qquad\qquad \tvfull\inv \tvrot\tr (\ls{\ti}-\lgtm\ls{\ti-1}) \Bigg) \nonumber \\
+ %&=& \determ{\tvfull}^{-\half(\timax-1)} \exp\left(-\half\trace\left[ \tvfull\inv \tvrot\tr \sum_{t=2}^{\timax} (\ls{\ti}-\lgtm\ls{\ti-1})(\ls{\ti}-\lgtm\ls{\ti-1})\tr \tvrot \right]\right) \nonumber \\
+ %&=& \determ{\tvfull}^{-\half\suffstats{0}} \exp\left(-\half\trace\left[ \tvfull\inv \left( \tvrot\tr \lgtm \suffstats{1} \lgtm\tr \tvrot - \tvrot\tr \lgtm \suffstats{2}\tr \tvrot - \tvrot\tr \suffstats{2} \lgtm\tr \tvrot + \tvrot\tr \suffstats{3} \tvrot \right) \right]\right) \\
+ &=& \determ{\tvfull}^{-\half\suffstats{0}} \exp\bigg(-\half\trace \big[ \tvfull\inv ( \lgtmrot \suffstats{1} \lgtmrot\tr - \lgtmrot \suffstats{2}\tr \tvrot \nonumber \\
+ & & \qquad\qquad\qquad\qquad\qquad -\: \tvrot\tr \suffstats{2} \lgtmrot\tr + \tvrot\tr \suffstats{3} \tvrot ) \big] \bigg)
+\end{IEEEeqnarray}
 %
 in which the sufficient statistics are as before and,
 %
@@ -346,12 +350,13 @@ Using the constrained likelihood function and the transformed prior, we now obta
 %
 with the following updated hyperparameters,
 %
-\begin{align}
- \postcolumnvariance\inv                 &= \priorcolumnvariance\inv + \suffstats{1} \\
- \postmeanmatrix \postcolumnvariance\inv &= \tvrot\tr\left( \priormeanmatrix \priorcolumnvariance\inv + \suffstats{2} \right) \\
- \postdof                                &= \rk + \suffstats{0} \\
- \postscalematrix                        &= (\tvrot\tr\priorscalematrix\inv\tvrot)\inv + \tvrot\tr\left( \suffstats{3} + \priormeanmatrix \priorcolumnvariance\inv \priormeanmatrix\tr \right)\tvrot - \postmeanmatrix \postcolumnvariance\inv \postmeanmatrix\tr
-\end{align}
+\begin{IEEEeqnarray}{rCl}
+ \postcolumnvariance\inv                 &=& \priorcolumnvariance\inv + \suffstats{1} \\
+ \postmeanmatrix \postcolumnvariance\inv &=& \tvrot\tr\left( \priormeanmatrix \priorcolumnvariance\inv + \suffstats{2} \right) \\
+ \postdof                                &=& \rk + \suffstats{0} \\
+ \postscalematrix                        &=& (\tvrot\tr\priorscalematrix\inv\tvrot)\inv + \tvrot\tr\left( \suffstats{3} + \priormeanmatrix \priorcolumnvariance\inv \priormeanmatrix\tr \right)\tvrot \nonumber \\
+ & & \qquad\qquad\qquad\qquad\qquad -\: \postmeanmatrix \postcolumnvariance\inv \postmeanmatrix\tr
+\end{IEEEeqnarray}
 
 Once new values of $\lgtmrot$ and $\tvfull$ have been sampled, the corresponding values of $\lgtm$ and $\lgtv$ may be calculated using the existing $\lgtmorth$ and $\tvrot$.
 
@@ -433,7 +438,7 @@ and accepted with probability,
 
 
 
-\section{Reversible Jump for Rank Learning}
+\section{Reversible Jump for Rank Learning} \label{sec:rank_learning}
 
 Since it is unlikely that the rank of $\lgtv$ will be known a priori, a mechanism is needed which will allow the sampler to learn this parameters as well. Changing the rank of $\lgtv$ changes the number of independent elements, and therefore the dimension of the target probability distribution. Thus, we will need to use reversible jump MCMC for this task \cite{Green1995,Green2009}.
 
@@ -502,7 +507,8 @@ The acceptance probability for this move and its reverse respectively are \cite{
 \end{IEEEeqnarray}
 %
 \begin{IEEEeqnarray}{rCl}
- \beta &=& \frac{ \postden(\lgtm, \lgtv\mcnew, \rk+1) \jac(\lgtv,\eval{\rk+1},\evec{\rk+1}\to\lgtv\mcnew) }{ \postden(\lgtm,\lgtv,\rk) \ppslden{\eval{}}(\eval{\rk+1}|\lgtv) \ppslden{\evec{}}(\evec{\rk+1}|\lgtv) } \times \frac{P(\rk+1\to\rk)}{P(\rk\to\rk+1)}     ,
+ \beta &=& \frac{ \postden(\lgtm, \lgtv\mcnew, \rk+1) \jac(\lgtv,\eval{\rk+1},\evec{\rk+1}\to\lgtv\mcnew) }{ \postden(\lgtm,\lgtv,\rk) \ppslden{\eval{}}(\eval{\rk+1}|\lgtv) \ppslden{\evec{}}(\evec{\rk+1}|\lgtv) } \nonumber \\
+ & & \qquad\qquad\qquad\qquad\qquad \times \frac{P(\rk+1\to\rk)}{P(\rk\to\rk+1)}     ,
 \end{IEEEeqnarray}
 %
 where $\jac(\lgtv,\eval{\rk+1},\evec{\rk+1}\to\lgtv\mcnew)$ is the Jacobian of the transformation and $P(\rk+1\to\rk)$ is the probability of performing a move which changes the rank from $\rk$ to $\rk+1$.
@@ -515,13 +521,14 @@ The Jacobian of the eigendecomposition for a positive semi-definite matrix is \c
 %
 Repeating this for $\lgtv\mcnew$ and taking the ratio of the two, we obtain,
 %
-\begin{IEEEeqnarray}{rCl}
- \jac(\lgtv,\eval{\rk+1},\evec{\rk+1}\to\lgtv\mcnew) &=& 2^{-1} \eval{\rk+1}^{\lsd-\rk-1} \prod_{i=1}^{\rk}\eval{i}^{-1} \prod_{i=1}^{\rk}(\eval{i}-\eval{\rk+1})     .
+\begin{IEEEeqnarray}{l}
+ \jac(\lgtv,\eval{\rk+1},\evec{\rk+1}\to\lgtv\mcnew) \nonumber \\
+ \qquad\qquad = 2^{-1} \eval{\rk+1}^{\lsd-\rk-1} \prod_{i=1}^{\rk}\eval{i}^{-1} \prod_{i=1}^{\rk}(\eval{i}-\eval{\rk+1})     .
 \end{IEEEeqnarray}
 
 
 
-\section{Simulations}
+\section{Simulations} \label{sec:simulations}
 
 
 In the previous sections, we have assumed that $\lgom$ and $\lgov$ are fixed and known a prior. In practice, $\lgov$ will often be unknown. In both the following examples we use models which have,
@@ -564,20 +571,17 @@ MCMC was used to learn models with both full rank and singular covariance matric
 
 The hyperparameters were set to generally uninformative values. For the full rank model,
 %
-\begin{IEEEeqnarray}{rCl}
- \priordof &=& \lsd - 1 \\
- \priorscalematrix &=& \priordof \idmat \\
- \priormeanmatrix &=& \zmat \\
- \priorcolumnvariance &=& 100 \idmat      .
+\begin{IEEEeqnarray}{rClCrCl}
+ \priordof &=& \lsd - 1 & \qquad & \priorscalematrix &=& \priordof \idmat \nonumber \\
+ \priormeanmatrix &=& \zmat & \qquad & \priorcolumnvariance &=& 100 \idmat      .
 \end{IEEEeqnarray}
 %
 Similarly, for the degenerate model,
 %
-\begin{IEEEeqnarray}{rCl}
- \priorscalematrixbase &=& \idmat \\
- \priormeanmatrix &=& \zmat \\
- \priorcolumnvariance &=& 100 \idmat \\
- \priortypval &=& 1     .
+\begin{IEEEeqnarray}{rClCrCl}
+ \priorscalematrixbase &=& \idmat & \qquad & \priormeanmatrix &=& \zmat \nonumber \\
+ \priorcolumnvariance &=& 100 \idmat & \qquad & \priortypval &=& 1 \nonumber \\
+ \priorrankweight{i} &=& \frac{1}{\lsd}     .
 \end{IEEEeqnarray}
 
 The simulation results demonstrate several important features of the degenerate model and the associated MCMC algorithm.
@@ -606,8 +610,8 @@ The simulation results demonstrate several important features of the degenerate 
 
 \begin{figure}
  \centering
- \subfloat[]{\includegraphics[width=0.9\columnwidth]{figures/toy-basic-R-acf.pdf} \label{subf:toy-R-acf:basic}} \\
- \subfloat[]{\includegraphics[width=0.9\columnwidth]{figures/toy-degenerate-R-acf.pdf} \label{subf:toy-R-acf:degenerate}}
+ \subfloat[]{\includegraphics[width=0.45\columnwidth]{figures/toy-basic-R-acf.pdf} \label{subf:toy-R-acf:basic}}
+ \subfloat[]{\includegraphics[width=0.45\columnwidth]{figures/toy-degenerate-R-acf.pdf} \label{subf:toy-R-acf:degenerate}}
  \caption{MCMC autocorrelation plots for $\xi_{\ob{}}$ for the full rank transition model \protect\subref{subf:toy-R-acf:basic} and the degenerate transition model \protect\subref{subf:toy-R-acf:degenerate}.}
  \label{fig:toy-R-acf}
 \end{figure}
@@ -674,8 +678,8 @@ $\xi_{\ls{}}$ is an unknown which may be learned within the MCMC scheme using Gi
 The hyperparameters are set to the same uninformative values as for the toy model, with the following exception,
 %
 \begin{IEEEeqnarray}{rCl}
- \priorscalematrix &=& 0.001 \priordof \idmat \\
- \priorscalematrixbase &=& 0.001 \idmat \\
+ \priorscalematrix &=& 0.001 \priordof \idmat \nonumber \\
+ \priorscalematrixbase &=& 0.001 \idmat \nonumber \\
  \priortypval &=& 0.01     .
 \end{IEEEeqnarray}
 
@@ -792,8 +796,8 @@ Comparing with \eqref{eq:standard_givens}, we see that $\tvsigndiag \tvrow$ is a
 
 
 \bibliographystyle{IEEEtran}
-% \bibliography{/home/pete/Dropbox/PhD/bibliographies/Cleanbib}
-\bibliography{/home/pete/Dropbox/PhD/bibliographies/OTbib}
+\bibliography{/home/pete/Dropbox/PhD/bibliographies/Cleanbib}
+% \bibliography{/home/pete/Dropbox/PhD/bibliographies/OTbib}
 \end{document}
 
 

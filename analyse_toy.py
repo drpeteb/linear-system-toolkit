@@ -71,8 +71,10 @@ degenerate_learner.plot_chain_trace('R', dims=([0],[0]), trueModel=model)
 plt.gcf().axes[0].set_ylim([0.05,0.15])
 plt.gcf().savefig(figure_path+'toy-degenerate-R-trace.pdf', bbox_inches='tight')
 basic_learner.plot_chain_acf('R', dims=([0],[0]), nlags=8)
+plt.gcf().set_size_inches(4,3, forward=True)
 plt.gcf().savefig(figure_path+'toy-basic-R-acf.pdf', bbox_inches='tight')
 degenerate_learner.plot_chain_acf('R', dims=([0],[0]), nlags=8)
+plt.gcf().set_size_inches(4,3, forward=True)
 plt.gcf().savefig(figure_path+'toy-degenerate-R-acf.pdf', bbox_inches='tight')
 
 # Histograms
