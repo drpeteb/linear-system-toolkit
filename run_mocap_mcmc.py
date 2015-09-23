@@ -38,7 +38,7 @@ np.random.seed(0)
 data_path = './mocap-data/'
 test_data_file = './results/mocap-test-data.p'
 
-model_type = 'naive'#'degenerate_augmented'#'degenerate'#'naive'#'basic'#
+model_type = 'degenerate'#'degenerate_augmented'#'degenerate'#'naive'#'basic'#
 num_iter = 20000
 
 num_burn = 10000#int(num_iter-10000)

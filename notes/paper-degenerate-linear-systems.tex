@@ -38,7 +38,7 @@
 
 
 \begin{abstract}
-Linear Gaussian state space models are ubiquitous in signal processing, and an important procedure is that of estimating system parameters from observed data. Rather than making a single point estimate, it is often desirable to conduct Bayesian learning, in which the entire posterior distribution of the unknown parameters is sought. This can be achieved using Markov chain Monte Carlo. On some occasions it is possible deduce the form of the unknown system matrices in terms of a small number of scalar parameters, by considering the underlying physical processes involved. Here we study the case where this is not possible, and the entire matrices must be treated as unknowns. An efficient Gibbs sampling algorithm exists for the basic formulation of linear model. We extend this to the more challenging situation where the transition model is degenerate. Appropriate Markov kernels are devised and demonstrated with simulations.
+Linear Gaussian state space models are ubiquitous in signal processing, and an important procedure is that of estimating system parameters from observed data. Rather than making a single point estimate, it is often desirable to conduct Bayesian learning, in which the entire posterior distribution of the unknown parameters is sought. This can be achieved using Markov chain Monte Carlo. On some occasions it is possible deduce the form of the unknown system matrices in terms of a small number of scalar parameters, by considering the underlying physical processes involved. Here we study the case where this is not possible, and the entire matrices must be treated as unknowns. An efficient Gibbs sampling algorithm exists for the basic formulation of linear model. We extend this to the more challenging situation where the transition model is possibly degenerate. Appropriate Markov kernels are devised and demonstrated with simulations.
 \end{abstract}
 
 
@@ -47,15 +47,15 @@ Linear Gaussian state space models are ubiquitous in signal processing, and an i
 
 State space models are frequently used to describe time-varying systems, and Linear Gaussian models in particular are ubiquitous throughout signal processing. The physical phenomena modelled within this framework include the kinematics of moving targets \cite{Bar-Shalom2002}, audio signals \cite{Godsill1998}, genetic networks \cite{Beal2005}, and many others. The popularity of linear Gaussian state space models stems in part from their analytic tractability. Inference tasks can be performed in closed form using algorithms such as the Kalman filter \cite{Kalman1960} and Rauch-Tung-Striebel (RTS) smoother \cite{Rauch1965}.
 
-A linear Gaussian state space model is specified by a number of system matrices which govern the latent state and observation processes. An important consideration is how to learn these fixed matrices from observed data. The parametric approach to this problem is to deduce the form of the system matrices in terms of a small number of scalar parameters by considering the physical mechanisms underlying the system, and then attempt to learn these. (See e.g. \cite{Kantas2009,Andrieu2010}.) However, in many systems there may not be an obvious parametric form, and it may be better to treat each system matrix in its entirety as an unknown variable to be learned. This type of non-parametric learning for linear Gaussian state space models is the focus of this paper. There is a large body of research on this topic, which has generally concentrated on point estimate methods. These include subspace identification approaches \cite{VanOverschee1991,Viberg1995}, and maximum likelihood estimates using either gradient-based algorithms (see e.g. \cite{Cappe2005,Sarkka2013}) or Expectation-Maximisation (EM) \cite{Shumway1982,Digalakis1993,Ghahramani1996,Gibson2005,Li2009}.
+A linear Gaussian state space model is specified by a number of system matrices which govern the latent state and observation processes. An important consideration is how to learn these fixed matrices from observed data. Sometimes it is possible to deduce the form of the system matrices in terms of a small number of scalar parameters by considering the physical mechanisms underlying the system, and then attempt to learn these. (See e.g. \cite{Kantas2009,Andrieu2010}.) However, in many systems there may not be an obvious parametric form, and it may be better to treat each system matrix in its entirety as an unknown variable to be learned; this is the case studied in this paper. There is a large body of research on this topic, which has generally concentrated on point estimate methods. These include subspace identification approaches \cite{VanOverschee1991,Viberg1995}, and maximum likelihood estimates using either gradient-based algorithms (see e.g. \cite{Cappe2005,Sarkka2013}) or Expectation-Maximisation (EM) \cite{Shumway1982,Digalakis1993,Ghahramani1996,Gibson2005,Li2009}.
 
 More recently, Bayesian approaches have been developed for non-parametric learning of linear Gaussian state space models, in which full posterior distributions for the system parameters are calculated. Since this is not possible analytically (see discussion in \cite{Beal2003}), approximations must be employed. One possibility is to take a variational approach, approximating the full joint posterior distribution as a product of independent marginals \cite{Ghahramani2001,Beal2003,Barber2007}. Alternatively, the true joint posterior can be targeted using Markov chain Monte Carlo (MCMC). This has the advantage of providing consistent estimates not only of the system matrices but also of any function of these quantities (e.g. phase margins, system poles). The price we pay is in computation; it is necessary to allow the Markov chains to run until convergence in order to form good estimates. Generic Metropolis-Hastings strategies such as those adopted in \cite{Ninness2010} are liable to mix very slowly and exact too great a computational demand. However, if conjugate priors are assumed for the various system matrices, then a Gibbs sampler may be implemented which attains substantially improved efficiency and requires almost no algorithm tuning \cite{Wills2012}.
 
-The Gibbs sampler approach developed in \cite{Wills2012} is effective on the basic flavour of linear Gaussian state space models. However, it is not able to handle the case in which the transition model is degenerate, i.e. when the transition covariance matrix is not full rank. In this paper we extend the MCMC learning framework to encompass this scenario. This is achieved by appropriate factorisations of the covariance matrix which allow us still to exploit the fast-mixing Gibbs kernel. Furthermore, reversible jump construction \cite{Green1995,Green2009} is introduced which enables the sampler to learn the rank of the transition covariance matrix.
+The Gibbs sampler approach developed in \cite{Wills2012} is effective on the basic flavour of linear Gaussian state space models. However, it is not able to handle the case in which the transition model is degenerate, i.e. when the transition covariance matrix is not full rank. In this paper we extend the MCMC learning framework to encompass this scenario. This is achieved by appropriate factorisations of the covariance matrix which allow us still to exploit the fast-mixing Gibbs kernel. In addition, reversible jump moves \cite{Green1995,Green2009} are introduced which enable the sampler to learn explicitly the rank of the transition covariance matrix.
 
 %and parameterising the attainable subspace using a set of Givens rotations \cite{Anderson1987,Shalit2014,Yang1994,Cao2011,Cron2014}.
 
-The paper is structured as follows. In section~\ref{sec:linear_gaussian_models} we review the Gibbs sampler for basic linear Gaussian state space systems, focusing on the transition model. In section~\ref{sec:degenerate_transition_models} we describe modifications for degenerate transitions, and in section~\ref{sec:rank_learning} we show how the rank of the transition covariance may be learned. Simulations on a toy model, and a motion capture application are presented in section~\ref{sec:simulations}.
+The paper is structured as follows. In section~\ref{sec:linear_gaussian_models} we review the Gibbs sampler for basic linear Gaussian state space systems, focusing on the transition model. In section~\ref{sec:degenerate_transition_models} we describe modifications for degenerate transitions, and in section~\ref{sec:rank_learning} we show how the rank of the transition covariance may be learned. Simulations on a toy model, and a motion capture application are presented in section~\ref{sec:simulations} with discussion and conclusions in section~\ref{sec:conclusions}.
 
 
 % Citations which might be useful
@@ -90,9 +90,9 @@ where $\lgtv$ and $\lgov$ are positive definite covariance matrices. This model 
 %
 The initial state $\ls{1}$ may be known or may be assigned a Gaussian prior.
 
-The system is parameterised by the four matrices $\left\{\lgtm, \lgom, \lgtv, \lgov\right\}$. In this paper we focus on learning the transition model, i.e. $\lgtm$ and $\lgtv$, and treat $\lgom$ and $\lgov$ as fixed and known throughout. Conditional on these matrices, state inference may be carried out analytically. Posterior filtering and smoothing densities may be calculated using the Kalman filter \cite{Kalman1960} and Rauch-Tung-Striebel (RTS) smoother \cite{Rauch1965}. Furthermore, the Kalman filter may also be used to evaluate the marginal likelihood $\den(\ob{1:\timax}|\lgtm, \lgtv)$, and it is possible to draw posterior samples from the state posterior $\den(\ls{1:\timax}|\ob{1:\timax}, \lgtm, \lgtv)$ using the forward-filtering-backward-sampling method \cite{Chib1996}. The purpose of a learning algorithm is estimate unknown values of $\left\{\lgtm, \lgtv\right\}$ from a sequence of observations. Within the Bayesian framework this means calculating or approximating the posterior distribution $\den(\lgtm, \lgtv|\ob{1:\timax})$, which we can achieve using MCMC. 
+The system is parameterised by the four matrices $\left\{\lgtm, \lgom, \lgtv, \lgov\right\}$. In this paper we focus on learning the transition model, i.e. $\lgtm$ and $\lgtv$, and for the most part treat $\lgom$ and $\lgov$ as fixed and known. Conditional on these matrices, state inference may be carried out analytically. Posterior filtering and smoothing densities may be calculated using the Kalman filter \cite{Kalman1960} and Rauch-Tung-Striebel (RTS) smoother \cite{Rauch1965}. Furthermore, the Kalman filter may also be used to evaluate the marginal likelihood $\den(\ob{1:\timax}|\lgtm, \lgtv)$, and it is possible to draw posterior samples from the state posterior $\den(\ls{1:\timax}|\ob{1:\timax}, \lgtm, \lgtv)$ using the forward-filtering-backward-sampling method \cite{Chib1996}. The purpose of a learning algorithm is to estimate unknown values of $\left\{\lgtm, \lgtv\right\}$ from a sequence of observations. Within the Bayesian framework this means calculating or approximating the posterior distribution $\den(\lgtm, \lgtv|\ob{1:\timax})$, which we can achieve using MCMC. 
 
-In order to conduct Bayesian learning, we first need to define prior distributions for the unknown system matrices $\lgtm$ and $\lgtv$. Although these should be selected to reflect prior belief about the system in question, there is substantial benefit in using conjugate priors, as these enable us to use Gibbs sampling moves. Typically, we will not have strong prior beliefs about the parameters, so it is reasonable to use an uninformative conjugate prior. However, if we do have prior knowledge to take into account which means that a conjugate prior is not appropriate, then we can treat each Gibbs move as a proposal in a Metropolis-Hastings scheme and use an accept/reject stage to account for the difference between the true prior and the conjugate prior used for the sampling \cite{Wills2012}.
+For Bayesian learning, we need to define prior distributions for the unknown system matrices $\lgtm$ and $\lgtv$. Although these should be selected to reflect prior belief about the system in question, there is substantial benefit in using conjugate priors, as these enable us to use Gibbs sampling moves. Typically, we will not have strong prior beliefs about the parameters, so it is reasonable to use an uninformative conjugate prior. However, if we do have prior knowledge to take into account which means that a conjugate prior is not appropriate, then we can treat each Gibbs move as a proposal in a Metropolis-Hastings scheme and use an accept/reject stage to account for the difference between the true prior and the conjugate prior used for the sampling \cite{Wills2012}.
 
 
 
@@ -181,13 +181,19 @@ A commonly encountered variation on the basic linear Gaussian state space model 
  \tn{\ti} & \sim & \normalden{\tn{\ti}}{0}{\idmat}      ,
 \end{IEEEeqnarray}
 %
-in which $\tn{\ti}$ as dimension $\rk$, and $\lgdm$ is $\lsd\times\rk$. This is almost equivalent to the previous, with $\lgtv=\lgdm\lgdm\tr$. However, whereas before $\lgtv$ was required to be positive definite, this is no longer the case. When this occurs, the conventional transition density $\den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgdm)$ is not defined, and the sampling operations underlying our Gibbs sampler are no longer valid. Degenerate models such as these arise in tracking applications (see \cite{Maskell2004} for a discussion of this phenomenon); when non-Markovian models, such as autoregressive process, are converted to state space form; and when it is natural to parameterise a system with more latent states than there are degrees of freedom (see section~\ref{sec:mocap}). In this section, we introduce a parameterisation for such degenerate transition models which can uniquely represent any such system, and show how MCMC moves may be implemented for learning. Here we treat $\rk$ as fixed and known; in the following section mechanisms will be introduced to learn this too.
+in which $\tn{\ti}$ as dimension $\rk$, and $\lgdm$ is $\lsd\times\rk$. This is almost equivalent to the previous case, with $\lgtv=\lgdm\lgdm\tr$. However, whereas before $\lgtv$ was required to be positive definite, this is no longer the case. When this occurs, the conventional transition density $\den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgdm)$ is not defined, and the sampling operations underlying our Gibbs sampler are no longer valid. Degenerate models such as these arise in tracking applications (see \cite{Maskell2004} for a discussion of this phenomenon); when non-Markovian models, such as autoregressive process, are converted to state space form; and when it is natural to parameterise a system with more latent states than there are degrees of freedom (see section~\ref{sec:mocap}). In this section, we introduce suitable parameterisations for such degenerate transition models, and show how MCMC moves may be implemented for learning. Here we treat $\rk$ as fixed and known; in the following section mechanisms will be introduced to learn this too.
 
-The matrix $\lgdm$ is not uniquely identifiable from the state sequence, because the distribution of $\lgdm\tn{\ti}$ is identical to that of $\lgdm \Xi \tn{\ti}$ where $\Xi$ is an arbitrary orthogonal matrix. To avoid this ambiguity, it is better to focus on learning $\lgtv$ as before, and to define $\lgdm$ as some matrix square root of $\lgtv$ (e.g. the Cholesky factor or the principal matrix square root). In this new setting, $\lgtv$ is a positive semi-definite matrix with rank $\rk$.
+The matrix $\lgdm$ is not uniquely identifiable from the state sequence, because the distribution of $\lgdm\tn{\ti}$ is identical to that of $\lgdm \Xi \tn{\ti}$ where $\Xi$ is an arbitrary orthogonal matrix. This ambiguity does not affect $\lgtv$, since,
+%
+\begin{IEEEeqnarray}{rClCl}
+ (\lgdm \Xi)(\lgdm \Xi)\tr &=& \lgdm\lgdm\tr &=& \lgtv     .
+\end{IEEEeqnarray}
+%
+For this reason, we treat $\lgtv$ as fundamental, as before. $\lgdm$ may be defined to be any matrix square root of $\lgtv$ (e.g. the Cholesky factor or the principal matrix square root). In this new setting, $\lgtv$ is a positive semi-definite matrix with rank $\rk$.
 
 There are two difficulties with extending the methodology from the basic model to the degenerate case. First, the conjugate matrix normal--inverse Wishart distribution becomes singular. This places an undesirable constraint on the transition matrix which needs to be removed. Second, each transition, $(\ls{\ti}-\lgtm\ls{\ti-1})$, is now constrained to lie in a particular $\rk$-dimensional subspace within the state space; specifically, within the column space of $\lgdm$. This subspace is fixed conditional on any sampled state trajectory $\ls{1:\timax}$ (provided that $\timax>\rk$). This makes standard Gibbs sampling from $\postden(\lgtm, \lgtv|\ls{1:\timax})$ insufficient, since there are values of $\lgtm$ and $\lgtv$ which can never be reached.
 
-There is an obvious way to avoid being constrained to a particular subspace by the sampled state trajectory; simply return to targeting the marginal posterior $\postden(\lgtm, \lgtv|\ob{1:\timax})$ and fall back to using a generic Metropolis-Hastings approach. However, with a complex and high dimensional parameter space, designing efficient proposal distributions for Metropolis-Hastings is difficult. We would prefer to attain the automated, fast-mixing properties displayed by the Gibbs sampler on the full rank model. In this section we show how a Gibbs kernel may still be applied to sample a component of the parameters, with the remainder handled using Metropolis-Hastings.
+There is an obvious way to avoid being constrained to a particular subspace by the sampled state trajectory; simply return to targeting the marginal posterior $\postden(\lgtm, \lgtv|\ob{1:\timax})$ and fall back to using a generic Metropolis-Hastings approach. However, with a complex and high dimensional parameter space, designing efficient proposal distributions for Metropolis-Hastings is difficult. We would prefer to attain the automated, fast-mixing properties displayed by the Gibbs sampler on the full rank model. We will show how a Gibbs kernel may still be applied to sample a component of the parameters, with the remainder handled using Metropolis-Hastings.
 
 In formulating an MCMC algorithm for degenerate transition models, we will make use of two factorisations of the transition covariance matrix. First, an eigendecomposition,
 %
@@ -197,45 +203,37 @@ In formulating an MCMC algorithm for degenerate transition models, we will make 
 %
 in which $\tvval$ is a diagonal $\rk\times\rk$ matrix with $\rk = \rank(\lgtv)$, and $\tvvec$ is a $\lsd\times\rk$ matrix of orthonormal columns from the appropriate Stiefel manifold. This is the ``non-singular'' part of the factorisation. In order to resolve ambiguities in this representation, we follow \cite{Muirhead1982} and require that the first element in each column of $\tvvec$ should be positive, and that eigenvalues in $\tvval$ be arranged in decreasing order of magnitude. The transformation from $\lgtv$ to $\{\tvval, \tvvec\}$ is then bijective.
 
-We can also write the ``full'' factorisation by finding a set of $\lsd-\rk$ additional orthonormal vectors and appending them to $\tvvec$, along with matching zeros to $\tvval$, as follows,
-%
-\begin{IEEEeqnarray}{rCl}
- \lgtv &=& \begin{bmatrix}\tvvec & \tvvecorth \end{bmatrix} \begin{bmatrix}\tvval & \zmat \\ \zmat & \zmat \end{bmatrix} \begin{bmatrix}\tvvec\tr \\ \tvvecorth\tr \end{bmatrix}
-\end{IEEEeqnarray}
-%
-Note that $\tvvecorth$ is not unique. 
+Note that we can find a set of $\lsd-\rk$ additional vectors orthonormal to $\tvvec$ using the Gram-Schmidt procedure. We denote the matrix of these vectors $\tvvecorth$. This matrix is not unique in general.
 
-A further factorisation will also be useful, which we will refer to as the Givens decomposition (on account of its method of computation). For the rank-$\rk$ positive semi-definite covariance matrix $\lgtp$,
+A further factorisation will also be useful, which we will refer to as the Givens decomposition (on account of its method of computation),
 %
 \begin{IEEEeqnarray}{rCl}
- \lgtv &=& \tvrot \tvfull \tvrot\tr \label{eq:givens_decomposition} %&=& \begin{bmatrix}\tvrot & \tvrotorth\end{bmatrix} \begin{bmatrix}\tvfull & \zmat \\ \zmat & \zmat\end{bmatrix} \begin{bmatrix}\tvrot\tr \\ \tvrotorth\tr\end{bmatrix}
+ \lgtv &=& \tvrot \tvfull \tvrot\tr     , \label{eq:givens_decomposition} %&=& \begin{bmatrix}\tvrot & \tvrotorth\end{bmatrix} \begin{bmatrix}\tvfull & \zmat \\ \zmat & \zmat\end{bmatrix} \begin{bmatrix}\tvrot\tr \\ \tvrotorth\tr\end{bmatrix}
 \end{IEEEeqnarray}
 %
-where,
-%
-$\tvfull$ is a $\rk\times\rk$ positive definite matrix and $\tvrot$ is a $\lsd\times\rk$ matrix of orthonormal vectors subject to certain constraints. The transformation from $\lgtv$ to $\{\tvfull, \tvrot\}$ is also bijective. See appendix~\ref{app:givens-factorisation} for details.
+where $\tvfull$ is an $\rk\times\rk$ positive definite matrix and $\tvrot$ is a $\lsd\times\rk$ matrix of orthonormal vectors subject to certain constraints. The transformation from $\lgtv$ to $\{\tvfull, \tvrot\}$ is also bijective. See appendix~\ref{app:givens-factorisation} for details.
 
 
 \subsection{Degenerate Transition Priors}
 
 The matrix normal--inverse Wishart conjugate prior will need some modifications in order to apply it to degenerate models.
 
-An appropriate prior distribution for the degenerate transition covariance matrix may be defined by setting the degrees of freedom of an inverse Wishart distribution to the desired rank, $\priordof=\rk$. This results in a singular inverse Wishart distribution over the rank-$\rk$ positive semi-definite matrices \cite{Diaz-Garcia2006},
+An appropriate prior distribution for the singular transition covariance matrix may be defined by setting the degrees of freedom of an inverse Wishart distribution equal to the desired rank, $\priordof=\rk$. This results in a singular inverse Wishart distribution over the rank-$\rk$ positive semi-definite matrices \cite{Diaz-Garcia2006},
 %
 \begin{IEEEeqnarray}{rCl}
- \lgtv|\rk &\sim& \iwishartdist{\rk}{\priorscalematrixrank{\rk}}     .
+ \lgtv|\rk &\sim& \iwishartdist{\rk}{\priorscalematrix}     .
 \end{IEEEeqnarray}
 %
 The density (with respect to the Lesbegue measure on the distinct elements) is,
 %
 \begin{IEEEeqnarray}{rCl}
- \den(\lgtv|\rk) &=& \frac{ \determ{\priorscalematrixrank{\rk}}^{\frac{\rk}{2}} }{ 2^{\half\rk\lsd} \pi^{\half\rk(\lsd-\rk)} \gammafun[r]\left(\frac{\rk}{2}\right) } \nonumber \\
- & & \qquad \times \determ{\tvval}^{-\half(3\lsd-\rk+1)} \exp\left( -\half \lgtv\pinv \priorscalematrixrank{\rk} \right)    ,
+ \den(\lgtv|\rk) &=& \frac{ \determ{\priorscalematrix}^{\frac{\rk}{2}} }{ 2^{\half\rk\lsd} \pi^{\half\rk(\lsd-\rk)} \gammafun[r]\left(\frac{\rk}{2}\right) } \nonumber \\
+ & & \quad \times \determ{\tvval}^{-\half(3\lsd-\rk+1)} \exp\left( -\half \lgtv\pinv \priorscalematrix \right)    ,
 \end{IEEEeqnarray}
 %
-in which $\lgtv\pinv$ denotes the Moore-Penrose pseudoinverse of $\lgtv$. A prior estimate of $\lgtv$ is $\frac{1}{\rk}\priorscalematrixrank{\rk}$. Thus, in order to maintain consistency between the different ranks, we should set $\priorscalematrixrank{\rk} = \rk \priorscalematrixbase$, where $\priorscalematrixbase$ is an estimate of $\lgtv$.
+in which $\lgtv\pinv$ denotes the Moore-Penrose pseudoinverse of $\lgtv$.
 
-The matrix normal component of the prior is more problematic. Although the distribution it is still well-defined, the fact that $\lgtv$ is singular means that the space of possible values is restricted to a subspace of $\reals^{\lsd\times\lsd}$, placing an unwanted constraint on our model. (See \cite{Diaz-Garcia2006} for a discussion of the singular matrix normal distribution.)
+The matrix normal component of the prior is more problematic. Although the distribution is still well-defined, the fact that $\lgtv$ is singular means that the space of possible values is restricted to a subspace of $\reals^{\lsd\times\lsd}$, placing an unwanted constraint on our model. (See \cite{Diaz-Garcia2006} for a discussion of the singular matrix normal distribution.)
 
 In order to relax this unwanted constraint, the following non-singular prior distribution may be used,
 %
@@ -245,13 +243,13 @@ In order to relax this unwanted constraint, the following non-singular prior dis
 %
 in which $\priorextratpval$ is a diagonal matrix of positive eigenvalues. The matrix $\lgtv+\tvvecorth\priorextratpval\tvvecorth\tr$ is then guaranteed to be positive definite.
 
-Using this prior, we need a mechanism for choosing $\priorextratpval$. These extra eigenvalues control the rate at which probability decays as the matrix moves away from the subspace defined by $\lgtv$. A simple choice is to set $\priorextratpval=\priortypval\idmat$ where $\priortypval$ is a prior estimate of a ``typical'' eigenvalue. Alternatively, $\priortypval$ could be made dependent on $\tvval$; for example it could be set to the average (arithmetic or geometric) of the current eigenvalues. In practice, uninformative priors will often be used. If $\priorcolumnvariance\to\infty$, then the effect of $\priortypval$ becomes negligible.
+Using this prior, we need a mechanism for choosing $\priorextratpval$. These extra eigenvalues control the rate at which probability decays as the matrix moves away from the subspace defined by $\lgtv$. Since $\tvvecorth$ can be arbitrarily rotated, it will generally be most suitable to use $\priorextratpval=\priortypval\idmat$ where $\priortypval$ is a prior estimate of a ``typical'' eigenvalue. Alternatively, $\priortypval$ could be made dependent on $\tvval$; for example it could be set to the average (arithmetic or geometric) of the current eigenvalues. In practice, uninformative priors will often be used. If $\priorcolumnvariance\to\infty$, then the effect of $\priortypval$ becomes negligible.
 
 
 
 \subsection{Constrained Gibbs Sampling for Degenerate Transitions}
 
-As discussed, standard Gibbs sampling using $\postden(\lgtm, \lgtv|\ls{1:\timax})$ does not allow the Markov chain to fully explore the parameter space because of the constraint that each transition $(\ls{\ti}-\lgtm\ls{\ti-1})$ must lie in the $\rk$-dimensional column space of $\lgdm$. Nevertheless, we can sample from these distributions exactly, and doing so allows the chain to efficiently explore values of the transition matrix and transition covariance within the permitted regions. These constrained Gibbs sampling steps rely on the Givens decomposition \eqref{eq:givens_decomposition}.
+As discussed, standard Gibbs sampling using $\postden(\lgtm, \lgtv|\ls{1:\timax})$ does not allow the Markov chain to fully explore the parameter space because of the constraint that each transition $(\ls{\ti}-\lgtm\ls{\ti-1})$ must lie in the $\rk$-dimensional column space of $\lgdm$. Nevertheless, we can sample from this distribution exactly, and doing so allows the chain to efficiently explore values of the transition matrix and transition covariance within the permitted regions. These constrained Gibbs sampling steps rely on the Givens decomposition \eqref{eq:givens_decomposition}.
 
 \subsubsection{Likelihood and Subspace Constraints}
 There is no transition density over $\reals^{\lsd}$ for the degenerate model. However, a density does exist with respect to an appropriate measure on the reachable subspace, which provides us with a likelihood function \cite{Diaz-Garcia2006}. We can derive this from the underlying state transition equation,
@@ -276,7 +274,7 @@ The subspace over which this is defined is,
 The likelihood function for the entire state trajectory is thus,
 %
 \begin{IEEEeqnarray}{rCl}
- \IEEEeqnarraymulticol{3}{l}{ \den(\ls{1:\timax}|\lgtm, \lgtv) = \den(\ls{0}) \prod_{t=2}^{\timax} \den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgtv) } \nonumber \\
+ \IEEEeqnarraymulticol{3}{l}{ \den(\ls{1:\timax}|\lgtm, \lgtv) \propto \prod_{t=2}^{\timax} \den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgtv) } \nonumber \\
  &\propto& \determ{\tvfull}^{-\half(\timax-1)} \exp\Bigg( -\half \sum_{t=2}^{\timax} (\ls{\ti}-\lgtm\ls{\ti-1})\tr \tvrot \nonumber \\
  && \qquad\qquad\qquad\qquad\qquad\qquad\qquad \tvfull\inv \tvrot\tr (\ls{\ti}-\lgtm\ls{\ti-1}) \Bigg) \nonumber \\
  %&=& \determ{\tvfull}^{-\half(\timax-1)} \exp\left(-\half\trace\left[ \tvfull\inv \tvrot\tr \sum_{t=2}^{\timax} (\ls{\ti}-\lgtm\ls{\ti-1})(\ls{\ti}-\lgtm\ls{\ti-1})\tr \tvrot \right]\right) \nonumber \\
@@ -297,7 +295,7 @@ Writing all the subspace constraints concisely in a single equation,
  \LS{2:\timax} &=& \lgtm \LS{1:\timax-1} + \tvrot Z
 \end{IEEEeqnarray}
 %
-where $Z \in \reals^{\rk\times\lsd}$ and 
+where $Z \in \reals^{\rk\times(\timax-1)}$ and 
 %
 \begin{IEEEeqnarray}{rCl}
  \LS{2:\timax} &=& \begin{bmatrix} \ls{2} & \ls{3} & \hdots & \ls{\timax} \end{bmatrix}    .
@@ -438,11 +436,15 @@ and accepted with probability,
 
 
 
-\section{Reversible Jump for Rank Learning} \label{sec:rank_learning}
+\section{Unknown Covariance Matrix Rank} \label{sec:rank_learning}
 
 Since it is unlikely that the rank of $\lgtv$ will be known a priori, a mechanism is needed which will allow the sampler to learn this parameters as well. Changing the rank of $\lgtv$ changes the number of independent elements, and therefore the dimension of the target probability distribution. Thus, we will need to use reversible jump MCMC for this task \cite{Green1995,Green2009}.
 
-First we introduce a prior distribution for the rank of $\lgtv$,
+\subsection{Priors with Unknown Rank}
+
+We must take care in setting $\priorscalematrix$ in $\den(\lgtv)$. In general, the scale of an inverse Wishart random variable depends on both the scale matrix and the degrees of freedom. If the same $\priorscalematrix$ were used for all $\rk$ then the prior would favour different scales with different possible values of the rank. In order to make the prior scale invariant across $\rk$, we replace $\priorscalematrix$ with $\priorscalematrixrank{\rk} = \rk \priorscalematrixbase$. $\priorscalematrixbase$ sets the scale of $\lgtv$ globally.
+
+We also introduce a prior distribution for the rank of $\lgtv$,
 %
 \begin{IEEEeqnarray}{rCl}
  \den(\rk) &=& \sum_{i=1}^{\lsd} \priorrankweight{i} \diracden{\rk}{i}     ,
@@ -453,6 +455,8 @@ where $\diracden{j}{i}$ is a probability point mass at $j=i$, and $\sum_i \prior
 \begin{IEEEeqnarray}{rCl}
  \postden(\lgtm, \lgtv, \rk) &\propto& \den(\ob{1:\timax}|\lgtm, \lgtv) \den(\lgtm, \lgtv|\rk) \den(\rk)    .
 \end{IEEEeqnarray}
+
+\subsection{Reversible Jump for Rank Learning}
 
 A reversible jump sampler is an MCMC algorithm on a family of probability distributions on spaces of different dimensions. Sampling operations are designed in pairs which allow the sampler to move between the different distributions. Each move begins by sampling additional variables (if required) and then applying a reversible transformation. Finally the newly proposed state is accepted or rejected according to a Metropolis-Hastings acceptance probability.
 
@@ -486,18 +490,18 @@ For the eigenvector,
 %
 \begin{IEEEeqnarray}{rCl}
  \ppslden{\evec{}}(\evec{\rk+1}|\lgtv) = \begin{cases}
-                                          \frac{1}{C} & \evec{\rk+1} \in \evecset{\rk+1} \\
+                                          \frac{1}{C_{\rk+1}} & \evec{\rk+1} \in \evecset{\rk+1} \\
                                           0 & \text{ otherwise}    .
                                          \end{cases}
 \end{IEEEeqnarray}
 %
-$C$ is the volume of the manifold, which is half of a $(d-r-1)$-sphere (half because of the requirement that the sign of the first element be positive) \cite{Muirhead1982}. Hence,
+$C_{\rk+1}$ is the volume of $\evecset{\rk+1}$, which is half of a $(d-r-1)$-sphere (half because of the requirement that the sign of the first element be positive) \cite{Muirhead1982}. Hence,
 %
 \begin{IEEEeqnarray}{rCl}
- C &=& \frac{\pi^{\half(\lsd-\rk)}}{\gammafun\left(\frac{\lsd-\rk}{2}\right)}     .
+ C_{\rk+1} &=& \frac{\pi^{\half(\lsd-\rk)}}{\gammafun\left(\frac{\lsd-\rk}{2}\right)}     .
 \end{IEEEeqnarray}
 %
-In order to generate such a vector, first draw a $(\lsd-\rk)$-dimensional sample from $\normaldist{\zmat}{\idmat}$, normalise it, and then multiply by $\tvvecorth$, which is an arbitrary matrix of orthonormal columns such that $\tvvec\tr\tvvecorth=\zmat$.
+In order to generate such a vector, first draw a $(\lsd-\rk)$-dimensional sample from $\normaldist{\zmat}{\idmat}$, normalise it, and then multiply by $\tvvecorth$.
 
 The acceptance probability for this move and its reverse respectively are \cite{Green1995},
 %
@@ -511,7 +515,7 @@ The acceptance probability for this move and its reverse respectively are \cite{
  & & \qquad\qquad\qquad\qquad\qquad \times \frac{P(\rk+1\to\rk)}{P(\rk\to\rk+1)}     ,
 \end{IEEEeqnarray}
 %
-where $\jac(\lgtv,\eval{\rk+1},\evec{\rk+1}\to\lgtv\mcnew)$ is the Jacobian of the transformation and $P(\rk+1\to\rk)$ is the probability of performing a move which changes the rank from $\rk$ to $\rk+1$.
+where $\jac(\lgtv,\eval{\rk+1},\evec{\rk+1}\to\lgtv\mcnew)$ is the Jacobian of the transformation and $P(\rk\to\rk+1)$ is the probability of performing a move which changes the rank from $\rk$ to $\rk+1$.
 
 The Jacobian of the eigendecomposition for a positive semi-definite matrix is \cite{Diaz-Garcia2006},
 %
@@ -538,7 +542,7 @@ In the previous sections, we have assumed that $\lgom$ and $\lgov$ are fixed and
 %
 in which $\xi_{\ob{}}$ is unknown. This additional parameter may be learned in combination with the transition model by the MCMC sampler. This entails changing the target distribution to $\postden(\lgtm, \lgtv, \xi_{\ob{}}, \ls{1:\timax})$. An additional Gibbs move is introduced to draw from $\postden(\xi_{\ob{}} | \lgtm, \lgtv, \ls{1:\timax})$. This may be done exactly if we use a conjugate inverse gamma prior.
 
-Both simulations use the random walk Metropolis-Hastings kernels to alter $\lgtm$ and $\lgtv$, using the Cayley transformation method to propose changes to $\lgtv$. Each kernel has a single scalar algorithm parameter which determines the size of the proposed moves, $\sigma_Q^2$ in \eqref{eq:skewsymmetric_proposal} and $\sigma_F^2$ in \eqref{eq:transition_matrix_proposal}. In order to accelerate mixing, these are adjusted adaptively based on the acceptance rate using the method introduced by \cite{Roberts2009}.
+Both simulations use the random walk Metropolis-Hastings kernels to alter $\lgtm$ and $\lgtv$, using the Cayley transformation method to propose changes to $\lgtv$. Each kernel has a single scalar algorithm parameter which determines the size of the proposed moves, $\sigma_Q^2$ in \eqref{eq:skewsymmetric_proposal} and $\sigma_F^2$ in \eqref{eq:transition_matrix_proposal}. In order to accelerate mixing, and reduce the need for algorithm tuning, these are adjusted adaptively based on the acceptance rate using the method introduced by \cite{Roberts2009}.
 
 When learning a degenerate transition model, the Metropolis-Hastings moves are less efficient at exploring the parameter space than the Gibbs moves. In order to reduce the length of the required burn in, we initialise the sampler by running a small number of iterations ($100$ in both simulations) with a full rank model. This puts the parameters in broadly the right region of the parameter space before the rank is allowed to reduce and the less efficient Metropolis-Hastings steps are required.
 
@@ -589,7 +593,7 @@ The simulation results demonstrate several important features of the degenerate 
  \item The sampler identifies the true rank of the covariance matrix within a few tens of iterations, and remains at this value thereafter.
  \item Trace plots suggest that the sampler converges within a few thousand iterations. See figure~\ref{fig:toy-R-trace}.
  \item Autocorrelation plots show that the sampler mixes more slowly than that learning a full rank covariance model. See figure~\ref{fig:toy-R-acf}.
- \item The parameter posterior histograms appear consistent with the true values. See figure~\ref{fig:toy-FQ-hist}.
+ \item The parameter posterior histograms are consistent with the true values. See figure~\ref{fig:toy-FQ-hist}.
  \item The state trajectory is estimated more accurately with a degenerate covariance, with an RMSE of $5.51$, compared to $6.01$ for the full rank model.
 \end{itemize}
 
@@ -604,7 +608,7 @@ The simulation results demonstrate several important features of the degenerate 
  \centering
  \subfloat[]{\includegraphics[width=0.9\columnwidth]{figures/toy-basic-R-trace.pdf} \label{subf:toy-R-trace:basic}} \\
  \subfloat[]{\includegraphics[width=0.9\columnwidth]{figures/toy-degenerate-R-trace.pdf} \label{subf:toy-R-trace:degenerate}}
- \caption{MCMC trace plots for $\xi_{\ob{}}$ for the full rank transition model \protect\subref{subf:toy-R-trace:basic} and the degenerate transition model \protect\subref{subf:toy-R-trace:degenerate}.}
+ \caption{MCMC trace plots for $\xi_{\ob{}}$ for \protect\subref{subf:toy-R-trace:basic} the full rank transition model and \protect\subref{subf:toy-R-trace:degenerate} the degenerate transition model.}
  \label{fig:toy-R-trace}
 \end{figure}
 
@@ -612,7 +616,7 @@ The simulation results demonstrate several important features of the degenerate 
  \centering
  \subfloat[]{\includegraphics[width=0.45\columnwidth]{figures/toy-basic-R-acf.pdf} \label{subf:toy-R-acf:basic}}
  \subfloat[]{\includegraphics[width=0.45\columnwidth]{figures/toy-degenerate-R-acf.pdf} \label{subf:toy-R-acf:degenerate}}
- \caption{MCMC autocorrelation plots for $\xi_{\ob{}}$ for the full rank transition model \protect\subref{subf:toy-R-acf:basic} and the degenerate transition model \protect\subref{subf:toy-R-acf:degenerate}.}
+ \caption{MCMC autocorrelation plots for $\xi_{\ob{}}$ for \protect\subref{subf:toy-R-acf:basic} the full rank transition model and \protect\subref{subf:toy-R-acf:degenerate} the degenerate transition model.}
  \label{fig:toy-R-acf}
 \end{figure}
 
@@ -675,7 +679,7 @@ The near constant velocity model has the following system matrices,
 %
 $\xi_{\ls{}}$ is an unknown which may be learned within the MCMC scheme using Gibbs moves.
 
-The hyperparameters are set to the same uninformative values as for the toy model, with the following exception,
+The hyperparameters are set to the same uninformative values as for the toy model, with the following exceptions,
 %
 \begin{IEEEeqnarray}{rCl}
  \priorscalematrix &=& 0.001 \priordof \idmat \nonumber \\
@@ -703,13 +707,13 @@ For each model, an estimate of the position of the missing markers is made by ta
 
 
 
-\section{Discussion and Conclusions}
+\section{Discussion and Conclusions} \label{sec:conclusions}
 
 Markov chain Monte Carlo algorithms are an effective method for Bayesian learning of linear state space systems. In this paper, we have introduced new MCMC kernels for learning linear state space models which may have a singular transition covariance matrix of unknown rank. Such degenerate models may provide a better mathematical description of some systems, when the number of independent components in the state transitions is lower than the number of state dimensions. When a degenerate model is appropriate, the state estimates it produces can be more accurate than those obtained from an equivalent full rank model, as we have shown in simulations. Furthermore, with the rank of the transition covariance matrix included in the model, the sampler provides an explicit estimate of the posterior distribution over this parameter.
 
 The price for using a degenerate transition model is an increased computational cost of the MCMC simulation. The computational complexity is the same as the full rank algorithm, dominated by the Kalman filtering and backward sampling operations which are $\bigo{\lsd^3 \timax}$. However, the need for additional Metropolis-Hastings steps increases the cost per iteration. More significantly, the Markov chain mixes more slowly and thus requires a longer chain to be simulated to achieve the same effective sample size. An important avenue for future research will be designing more sophisticated Metropolis-Hastings moves to explore the parameters space more efficiently than the simple random walks used here.
 
-The standard linear Gaussian state space models, with $\rank(\lgtv)=\lsd$, discussed in section~\ref{sec:linear_gaussian_models} are a special case of the more general class used thereafter, for which $\rank(\lgtv)$ was treated as unknown. Correspondingly, the MCMC algorithm for the general case reduces to the standard Gibbs sampler of section~\ref{sec:linear_gaussian_models} if we re-impose the constraint that $\rank(\lgtv)=\lsd$. In this case $\tvfull=\lgtv$, $\tvrot=\idmat$, the ``constrained'' Gibbs moves are no longer constrained, and the Metropolis-Hastings moves become redundant.
+The standard linear Gaussian state space model, with $\rank(\lgtv)=\lsd$, discussed in section~\ref{sec:linear_gaussian_models} is a special case of the more general class with $\rank(\lgtv)$ unknown. Correspondingly, the MCMC algorithm for the general case reduces to the standard Gibbs sampler of section~\ref{sec:linear_gaussian_models} if we re-impose the constraint that $\rank(\lgtv)=\lsd$. In this case $\tvfull=\lgtv$, $\tvrot=\idmat$, the ``constrained'' Gibbs moves are no longer constrained, and the Metropolis-Hastings moves become redundant.
 
 
 
@@ -740,9 +744,9 @@ where $\givrot{} \in [-\pi/2,\pi/2]$ is a rotation in the plane of the $i$ and $
 &\times& \left[\givmat{1}{d}{\givrot{1,d}} \dotsm \givmat{d-1}{d}{\givrot{d-1,d}} \right] \label{eq:standard_givens}     ,
 \end{IEEEeqnarray}
 %
-where $\tvsign$ is a diagonal matrix in which the diagonal elements are $\pm1$. This factorisation may be derived (and also calculated) by iteratively left multiplying the original matrix by a Givens rotation matrix such that one element is set to $0$. The matrix remaining once all the elements below the diagonal have been eliminated is $\tvsign$, and the factorisation above results from a straightforward rearrangement. See \cite{Anderson1987} for details. This factorisation is not unique. Any order of Givens matrices may be used provided each operation does not interfere with the elements zeroed by the preceding operations. Furthermore, we can also zero an element of the matrix by right multiplication by a Givens matrix, so the rotations may be split into two blocks, one each side of the sign matrix.
+where $\tvsign$ is a diagonal matrix in which the diagonal elements are $\pm1$. This factorisation may be derived (and also calculated) by iteratively left multiplying the original matrix by a (transposed) Givens rotation matrix such that one element is set to $0$. The matrix remaining once all the elements below the diagonal have been eliminated is $\tvsign$, and the factorisation above results from a straightforward rearrangement. See \cite{Anderson1987} for details. This factorisation is not unique. Any order of Givens matrices may be used provided each operation does not interfere with the elements zeroed by the preceding operations. Furthermore, we can also zero an element of the matrix by right multiplication by a Givens matrix, so the rotations may be split into two blocks, one each side of the sign matrix.
 
-Now consider instead a $d \times r$ matrix of orthogonal columns. This can be factorised using the same mechanism. First right multiply by Givens matrices to zero the elements on the first $r$ rows below the main diagonal. Then left multiply by Givens matrices to zero all the elements on rows $r+1$ to $d$. The resulting factorisation is,
+Now consider instead a $d \times r$ matrix of orthogonal columns. This can be factorised using the same mechanism. First right multiply by Givens matrices to zero the elements on the first $r$ rows below the main diagonal. Then left multiply by Givens matrices to zero all the elements on rows $r+1$ to $d$. After rearranging, the resulting factorisation is,
 %
 
 \begin{IEEEeqnarray}{rCl}
@@ -774,9 +778,7 @@ Now consider a rank-$r$ positive semi-definite matrix $\psd$ for which the non-s
 \end{IEEEeqnarray}
 %
 Factorising the matrix of eigenvectors using the Givens method, we find,
-
-
-
+%
 \begin{IEEEeqnarray}{rCl}
  \psd & = & \tvcross \tvsign \tvrow \tvval \tvrow\tr \tvsign\tr \tvcross\tr  \nonumber \\
  & = & \tvcross \begin{bmatrix}
