@@ -114,7 +114,7 @@ with the following density function,
 \begin{IEEEeqnarray}{rCl}
 \den(\lgtv) &=& \frac{ \determ{\priorscalematrix}^{\frac{\priordof}{2}} }{ 2^{\frac{\priordof}{2}} \gammafun\left(\frac{\priordof}{2}\right) } \determ{\lgtv}^{-\frac{\priordof+\lsd+1}{2}} \exp\left( -\half \trace\left[\lgtv\inv\priorscalematrix\right] \right) \nonumber \\
 \\
-\den(\lgtm | \lgtv) &=& \determ{2 \pi \lgtv}^{-\half} \determ{2 \pi \priorcolumnvariance}^{-\half} \nonumber \\
+\den(\lgtm | \lgtv) &=& (2\pi)^{-\frac{\lsd^2}{2}} \determ{\lgtv}^{-\frac{\lsd}{2}} \determ{\priorcolumnvariance}^{-\frac{\lsd}{2}} \nonumber \\
 & & \times \exp\left(-\half \trace\left[ \lgtv\inv (\lgtm-\priormeanmatrix) \priorcolumnvariance\inv (\lgtm-\priormeanmatrix)\tr \right] \right) \nonumber \\
 \end{IEEEeqnarray}
 %
