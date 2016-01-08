@@ -38,7 +38,7 @@
 
 
 \begin{abstract}
-Linear Gaussian state space models are ubiquitous in signal processing, and an important procedure is that of estimating system parameters from observed data. Rather than making a single point estimate, it is often desirable to conduct Bayesian learning, in which the entire posterior distribution of the unknown parameters is sought. This can be achieved using Markov chain Monte Carlo. On some occasions it is possible deduce the form of the unknown system matrices in terms of a small number of scalar parameters, by considering the underlying physical processes involved. Here we study the case where this is not possible, and the entire matrices must be treated as unknowns. An efficient Gibbs sampling algorithm exists for the basic formulation of linear model. We extend this to the more challenging situation where the transition model is possibly degenerate, i.e. the transition covariance matrix is singular. Appropriate Markov kernels are devised and demonstrated with simulations.
+Linear Gaussian state space models are ubiquitous in signal processing, and an important procedure is that of estimating system parameters from observed data. Rather than making a single point estimate, it is often desirable to conduct Bayesian learning, in which the entire posterior distribution of the unknown parameters is sought. This can be achieved using Markov chain Monte Carlo. On some occasions it is possible to deduce the form of the unknown system matrices in terms of a small number of scalar parameters, by considering the underlying physical processes involved. Here we study the case where this is not possible, and the entire matrices must be treated as unknowns. An efficient Gibbs sampling algorithm exists for the basic formulation of linear model. We extend this to the more challenging situation where the transition model is possibly degenerate, i.e. the transition covariance matrix is singular. Appropriate Markov kernels are devised and demonstrated with simulations.
 \end{abstract}
 
 
@@ -47,11 +47,11 @@ Linear Gaussian state space models are ubiquitous in signal processing, and an i
 
 State space models are frequently used to describe time-varying systems, and Linear Gaussian models in particular are ubiquitous throughout signal processing. The physical phenomena modelled within this framework include the kinematics of moving targets \cite{Bar-Shalom2002}, audio signals \cite{Godsill1998}, genetic networks \cite{Beal2005}, and many others. The popularity of linear Gaussian state space models stems in part from their analytic tractability. Inference tasks can be performed in closed form using algorithms such as the Kalman filter \cite{Kalman1960} and Rauch-Tung-Striebel (RTS) smoother \cite{Rauch1965}.
 
-A linear Gaussian state space model is specified by a number of system matrices which govern the latent state and observation processes. An important consideration is how to learn these fixed matrices from observed data. Sometimes it is possible to deduce the form of the system matrices in terms of a small number of scalar parameters by considering the physical mechanisms underlying the system, and then attempt to learn these. (See e.g. \cite{Kantas2009,Andrieu2010}.) However, in many systems there may not be an obvious parametric form, and it may be better to treat each system matrix in its entirety as an unknown variable to be learned; this is the case studied in this paper. There is a large body of research on this topic, which has generally concentrated on point estimate methods. These include subspace identification approaches \cite{VanOverschee1991,Viberg1995}, and maximum likelihood estimates using either gradient-based algorithms (see e.g. \cite{Cappe2005,Sarkka2013}) or Expectation-Maximisation (EM) \cite{Shumway1982,Digalakis1993,Ghahramani1996,Gibson2005,Li2009}.
+A linear Gaussian state space model is specified by a number of system matrices which govern the latent state and observation processes. An important consideration is how to learn these fixed matrices from observed data. Sometimes it is possible to deduce the form of the system matrices in terms of a small number of scalar parameters by considering the physical mechanisms underlying the system, and then attempt to learn these. (See e.g. \cite{Kantas2009,Andrieu2010}.) However, in many systems there may not be such an obvious parameterisation, and it may be better to treat each system matrix in its entirety as an unknown variable to be learned; this is the case studied in this paper. There is a large body of research on this topic, which has generally concentrated on point estimate methods. These include subspace identification approaches \cite{VanOverschee1991,Viberg1995}, and maximum likelihood estimates using either gradient-based algorithms (see e.g. \cite{Cappe2005,Sarkka2013}) or Expectation-Maximisation (EM) \cite{Shumway1982,Digalakis1993,Ghahramani1996,Gibson2005,Li2009}.
 
 More recently, Bayesian approaches have been developed for non-parametric learning of linear Gaussian state space models, in which full posterior distributions for the system parameters are calculated. Since this is not possible analytically (see discussion in \cite{Beal2003}), approximations must be employed. One possibility is to take a variational approach, approximating the full joint posterior distribution as a product of independent marginals \cite{Ghahramani2001,Beal2003,Barber2007}. Alternatively, the true joint posterior can be targeted using Markov chain Monte Carlo (MCMC). This has the advantage of providing consistent estimates not only of the system matrices but also of any function of these quantities (e.g. phase margins, system poles). The price we pay is in computation; it is necessary to allow the Markov chains to run until convergence in order to form good estimates. Generic Metropolis-Hastings strategies such as those adopted in \cite{Ninness2010} are liable to mix very slowly and exact too great a computational demand. However, if conjugate priors are assumed for the various system matrices, then a Gibbs sampler may be implemented which attains substantially improved efficiency and requires almost no algorithm tuning \cite{Wills2012}.
 
-In some systems, the components of the latent state are not free to vary independently of each other. Such systems are best modelled by a degenerate transition model, in which the transition covariance matrix is singular. The Gibbs sampler of \cite{Wills2012} is not able to handle degenerate models. In this paper we extend the MCMC learning framework to encompass this scenario. This is achieved by appropriate factorisations of the covariance matrix which allow us still to exploit the fast-mixing Gibbs kernel. In addition, reversible jump moves \cite{Green1995,Green2009} are introduced which enable the sampler to learn explicitly the rank of the transition covariance matrix. The new algorithm is important because it allows us to perform Bayesian learning with a broader class of linear state space models, leading to better descriptions of real systems and improved estimation performance.
+In some systems, the components of the latent state may not be free to vary independently of each other. Such systems are best modelled by a degenerate transition model, in which the transition covariance matrix is singular. This is the case, for example, when the latent state comprises the positions and velocities of multiple points on the same rigid body, meaning that their motion is deterministically coupled. The Gibbs sampler of \cite{Wills2012} is not able to handle degenerate models. In this paper we extend the MCMC learning framework to encompass this scenario. This is achieved by appropriate factorisations of the covariance matrix which allow us still to exploit the fast-mixing Gibbs kernel. In addition, reversible jump moves \cite{Green1995,Green2009} are introduced which enable the sampler to learn explicitly the rank of the transition covariance matrix. The new algorithm is important because it allows us to perform Bayesian learning with a broader class of linear state space models, leading to better descriptions of real systems and improved estimation performance.
 
 %and parameterising the attainable subspace using a set of Givens rotations \cite{Anderson1987,Shalit2014,Yang1994,Cao2011,Cron2014}.
 
@@ -65,6 +65,8 @@ The paper is structured as follows. In section~\ref{sec:linear_gaussian_models} 
 
 
 \section{Basic Linear Gaussian Models} \label{sec:linear_gaussian_models}
+
+\subsection{Definition}
 State space models are used to represent time-varying systems, and consist of a latent state process $\{\ls{\ti}\}_{\ti=1:\timax}$ and a related observation process $\{\ob{\ti}\}_{\ti=1:\timax}$. The challenge is to infer the sequence of unknown latent states, and learn parameters of the model, from the sequence of known observations. It is usually assumed that the state process is Markovian (i.e. $\ls{\ti}|\ls{\ti-1}$ is independent of $\ls{1:\ti-2}$) and that each observation depends only on the current state (i.e. $\ob{\ti}|\ls{\ti}$ is independent of $\ls{1:\ti-1}$ and $\ls{\ti+1:\timax}$).
 
 A basic linear state space model therefore obeys the following recursive system equations,
@@ -74,7 +76,7 @@ A basic linear state space model therefore obeys the following recursive system 
  \ob{\ti} & = & \lgom \ls{\ti}   + \on{\ti}       ,
 \end{IEEEeqnarray}
 %
-where $\ls{\ti} \in \reals^{\lsd}$ and $\ob{\ti} \in \reals^{\obd}$. In addition, we assume the state disturbance and observation noise variables have a Gaussian distribution,
+where $\ls{\ti} \in \reals^{\lsd}$, $\ob{\ti} \in \reals^{\obd}$. $\lgtm \in \reals^{\lsd\times\lsd}$,$\lgom \in \reals^{\obd\times\lsd}$ are the transition and observation matrices. $\tn{\ti} \in \reals^{\lsd}$ and $\on{\ti} \in \reals^{\obd}$ are the state disturbance and observation noise variables and we additionally assume that these are drawn from a Gaussian distribution,
 %
 \begin{IEEEeqnarray}{rCl}
  \tn{\ti} & \sim & \normalden{\tn{\ti}}{0}{\lgtv} \\
@@ -90,7 +92,11 @@ where $\lgtv$ and $\lgov$ are positive definite covariance matrices. This model 
 %
 The initial state $\ls{1}$ may be known or may be assigned a Gaussian prior.
 
-The system is parameterised by the four matrices $\left\{\lgtm, \lgom, \lgtv, \lgov\right\}$. In this paper we focus on learning the transition model, i.e. $\lgtm$ and $\lgtv$, and for the most part treat $\lgom$ and $\lgov$ as fixed and known. Conditional on these matrices, state inference may be carried out analytically. Posterior filtering and smoothing densities may be calculated using the Kalman filter \cite{Kalman1960} and Rauch-Tung-Striebel (RTS) smoother \cite{Rauch1965}. Furthermore, the Kalman filter may also be used to evaluate the marginal likelihood $\den(\ob{1:\timax}|\lgtm, \lgtv)$, and it is possible to draw posterior samples from the state posterior $\den(\ls{1:\timax}|\ob{1:\timax}, \lgtm, \lgtv)$ using the forward-filtering-backward-sampling method \cite{Chib1996}. The purpose of a learning algorithm is to estimate unknown values of $\left\{\lgtm, \lgtv\right\}$ from a sequence of observations. Within the Bayesian framework this means calculating or approximating the posterior distribution $\den(\lgtm, \lgtv|\ob{1:\timax})$, which we can achieve using MCMC. 
+\subsection{Identifiability}
+The system is parameterised by the four matrices $\left\{\lgtm, \lgom, \lgtv, \lgov\right\}$. In this paper we focus on learning the transition model, i.e. $\lgtm$ and $\lgtv$, and for the most part treat $\lgom$ and $\lgov$ as fixed and known. Conditional on these matrices, state inference may be carried out analytically.
+
+\subsection{Inference}
+Posterior filtering and smoothing densities may be calculated using the Kalman filter \cite{Kalman1960} and Rauch-Tung-Striebel (RTS) smoother \cite{Rauch1965}. Furthermore, the Kalman filter may also be used to evaluate the marginal likelihood $\den(\ob{1:\timax}|\lgtm, \lgtv)$, and it is possible to draw posterior samples from the state posterior $\den(\ls{1:\timax}|\ob{1:\timax}, \lgtm, \lgtv)$ using the forward-filtering-backward-sampling method \cite{Chib1996}. The purpose of a learning algorithm is to estimate unknown values of $\left\{\lgtm, \lgtv\right\}$ from a sequence of observations. Within the Bayesian framework this means calculating or approximating the posterior distribution $\den(\lgtm, \lgtv|\ob{1:\timax})$, which we can achieve using MCMC. 
 
 For Bayesian learning, we need to define prior distributions for the unknown system matrices $\lgtm$ and $\lgtv$. Although these should be selected to reflect prior belief about the system in question, there is substantial benefit in using conjugate priors, as these enable us to use Gibbs sampling moves. Typically, we will not have strong prior beliefs about the parameters, so it is reasonable to use an uninformative conjugate prior. However, if we do have prior knowledge to take into account which means that a conjugate prior is not appropriate, then we can treat each Gibbs move as a proposal in a Metropolis-Hastings scheme and use an accept/reject stage to account for the difference between the true prior and the conjugate prior used for the sampling \cite{Wills2012}.
 
@@ -124,7 +130,7 @@ $\priordof\in\reals, \priordof>\lsd-1$. $\priorscalematrix$ and $\priorcolumnvar
 
 \subsection{Gibbs Sampling for Basic Linear Gaussian Models}
 
-Our principal interest is to learn the system matrices $\lgtm$ and $\lgtv$ from a sequence of observations $\ob{1:\timax}$. The appropriate posterior distribution is not amenable to efficient MCMC sampling, so instead we introduce the latent state sequence $\ls{1:\timax}$ as a nuisance variable and target the joint posterior,
+Our principal interest is to learn the system matrices $\lgtm$ and $\lgtv$ from a sequence of observations $\ob{1:\timax}$. The posterior distribution over these variables $\den(\lgtm, \lgtv | \ob{1:\timax})$ is not amenable to MCMC sampling because there is no analytic expression for the density. Instead we introduce the latent state sequence $\ls{1:\timax}$ as a nuisance variable and target the joint posterior,
 %
 \begin{IEEEeqnarray}{rCl}
  \postden(\lgtm, \lgtv, \ls{1:\timax}) & = & \den(\lgtm, \lgtv, \ls{1:\timax} | \ob{1:\timax}) \\
@@ -386,7 +392,7 @@ There are numerous ways to sample the rotation matrix $\mhrot$ from a suitable p
  P(S) & = & (\idmat - S)\inv(I+S)     .
 \end{IEEEeqnarray}
 %
-To sample from $\mhrotppsl$, we draw $\half\lsd(\lsd-1)$ independent scalar random variables $\{s_{i,j}\}_{0<i<j<\lsd}$ from any zero-mean distribution; a nice choice is,
+To sample from $\mhrotppsl$, we draw $\half\lsd(\lsd-1)$ independent scalar random variables $\{s_{i,j}\}_{0<i<j<\lsd}$ from any zero-mean distribution; a suitable choice is,
 %
 \begin{IEEEeqnarray}{rCl}
  s_{k,l} & \sim & \normaldist{0}{\sigma_Q^2} \label{eq:skewsymmetric_proposal}     .
@@ -529,6 +535,14 @@ Repeating this for $\lgtv\mcnew$ and taking the ratio of the two, we obtain,
  \jac(\lgtv,\eval{\rk+1},\evec{\rk+1}\to\lgtv\mcnew) \nonumber \\
  \qquad\qquad = 2^{-1} \eval{\rk+1}^{\lsd-\rk-1} \prod_{i=1}^{\rk}\eval{i}^{-1} \prod_{i=1}^{\rk}(\eval{i}-\eval{\rk+1})     .
 \end{IEEEeqnarray}
+
+
+
+\section{The Complete Algorithm}
+
+\meta{Pseudo-code here}
+
+The computational complexity of the algorithm is $\bigo{\lsd^3 \timax}$, the same as the standard Gibbs sampler for the full rank model. For moderate to large $\timax$, the limiting factor is the forward-filtering-backward-sampling steps used to draw from $\postden(\ls{1:\timax}|\lgtm, \lgtv)$.
 
 
 

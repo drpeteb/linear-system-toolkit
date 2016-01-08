@@ -1,6 +1,7 @@
 \documentclass{article}
 
 % Formatting
+\usepackage[parfill]{parskip}
 \usepackage{geometry}\setlength\textwidth{6in}\setlength\textheight{8.5in}
 \usepackage[usenames,dvipsnames]{color}
 \usepackage{amsmath}
@@ -38,7 +39,7 @@ Thank you for taking the time to review our paper. Here is our responses to the 
  \item Reviewer 1
  \item Reviewer 2
  \item Reviewer 3
- \item Proof read
+ \item Proof read, aiming to (i) clarify (2) correct typos (c) define everything when first used
 \end{itemize}
 
 }
@@ -50,19 +51,11 @@ The paper presents a Bayesian learning method based on Markov Chain Monte Carlo 
 
 The reviewer has the following comments:
 
-A main concern is that the paper is not easy to follow. Many statements are mentioned without sufficient or clear justifications.
+A main concern is that the paper is not easy to follow. Many statements are mentioned without sufficient or clear justifications. Such as: in Section II.B: ``The appropriate posterior distribution is not amenable to efficient MCMC sampling,...''.
 \end{review}
 
 \begin{response}
- \meta{Contradicts other reivewer.}
-\end{response}
-
-\begin{review}
-Such as: in Section II.B: ``The appropriate posterior distribution is not amenable to efficient MCMC sampling,...''.
-\end{review}
-
-\begin{response}
- \meta{Fix this}
+ We apologise for this. We have looked through and tried to clarify some of what might be the more abstruse portions. In particular, we have re-written that sentence.
 \end{response}
 
 \begin{review}
@@ -78,16 +71,15 @@ It will be helpful to provide some relevant applications in Section I, explainin
 \end{review}
 
 \begin{response}
- \meta{Add this discussion and examples}
+We have modified the introduction to mention the example of tracking multiple points on a rigid body.
 \end{response}
-
 
 \begin{review}
 There is no complexity analysis.
 \end{review}
 
 \begin{response}
- \meta{Add this}
+We have added a brief discussion of the complexity (which is the same as standard Gibbs sampler for the full rank model).
 \end{response}
 
 \begin{review}
@@ -104,20 +96,18 @@ The presentation needs to be improved:
 \end{review}
 
 \begin{response}
- \meta{fix this}
+ We have corrected that typo and a few others which we found.
 \end{response}
 
 \begin{review}
-(ii) Defining notations before/when using them, such as F and H in equations (1) and (2)
+(ii) Defining notations before/when using them, such as $F$ and $H$ in equations (1) and (2)
 \end{review}
 
 \begin{response}
- \meta{and this}
+ We have added or moved a number of definitions, including those for $F$ and $H$.
 \end{response}
 
-\begin{review}
-Overall, the above concerns need to be addressed before a decision can be made.
-\end{review}
+
 
 \section*{Response to Reviewer 2}
 
