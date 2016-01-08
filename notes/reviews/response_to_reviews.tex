@@ -1,0 +1,268 @@
+\documentclass{article}
+
+% Formatting
+\usepackage{geometry}\setlength\textwidth{6in}\setlength\textheight{8.5in}
+\usepackage[usenames,dvipsnames]{color}
+\usepackage{amsmath}
+\usepackage{amsfonts}
+\usepackage{bbm}
+
+\usepackage[scaled]{helvet}
+\renewcommand*\familydefault{\sfdefault} %% Only if the base font of the document is to be sans serif
+\usepackage[T1]{fontenc}
+
+% Environments
+\usepackage{IEEEtrantools}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+% References
+\usepackage{natbib}%\def\bibfont{\footnotesize}
+
+\newenvironment{review}[0]{\begin{itshape}\color{Gray}\noindent}{\end{itshape}\vspace{0.4cm}}
+\newenvironment{response}[0]{\noindent}{\vspace{0.4cm}}
+\newcommand{\meta}[1]{{\color{red}\em #1}}
+
+%opening
+\title{Bayesian Learning of Degenerate Linear~Gaussian~State~Space~Models using~Markov~Chain~Monte~Carlo \\ Response to Reviews}
+\date{January 2016}
+
+\begin{document}
+
+\maketitle
+
+Thank you for taking the time to review our paper. Here is our responses to the points raised.
+
+\meta{
+\begin{itemize}
+ \item Reviewer 1
+ \item Reviewer 2
+ \item Reviewer 3
+ \item Proof read
+\end{itemize}
+
+}
+
+\section*{Response to Reviewer 1}
+
+\begin{review}
+The paper presents a Bayesian learning method based on Markov Chain Monte Carlo for linear Gaussian state space models. The model may have singular transition covariance matrix. The objective is to infer the unknown states and learn the model parameters given the sequence of observations. Gibbs sampling as well as Metropolis-Hastings methods are utilized.
+
+The reviewer has the following comments:
+
+A main concern is that the paper is not easy to follow. Many statements are mentioned without sufficient or clear justifications.
+\end{review}
+
+\begin{response}
+ \meta{Contradicts other reivewer.}
+\end{response}
+
+\begin{review}
+Such as: in Section II.B: ``The appropriate posterior distribution is not amenable to efficient MCMC sampling,...''.
+\end{review}
+
+\begin{response}
+ \meta{Fix this}
+\end{response}
+
+\begin{review}
+Can the model be extended to the case where the model parameters $H$ and $R$ in (6) are not fixed? Please add discussions.
+\end{review}
+
+\begin{response}
+ \meta{Add discussion of identifiability.}
+\end{response}
+
+\begin{review}
+It will be helpful to provide some relevant applications in Section I, explaining why a degenerate model will be more appropriate.
+\end{review}
+
+\begin{response}
+ \meta{Add this discussion and examples}
+\end{response}
+
+
+\begin{review}
+There is no complexity analysis.
+\end{review}
+
+\begin{response}
+ \meta{Add this}
+\end{response}
+
+\begin{review}
+The advantages over existing methods, such as those methods that use product of marginal distributions or other more recent approaches, have not been adequately demonstrated.
+\end{review}
+
+\begin{response}
+ \meta{Is there such a thing? Easily conceived. Too much work to derive and implement.}
+\end{response}
+
+\begin{review}
+The presentation needs to be improved:
+(i) This includes correcting typos, such as: in abstract ``it is possible deduce''
+\end{review}
+
+\begin{response}
+ \meta{fix this}
+\end{response}
+
+\begin{review}
+(ii) Defining notations before/when using them, such as F and H in equations (1) and (2)
+\end{review}
+
+\begin{response}
+ \meta{and this}
+\end{response}
+
+\begin{review}
+Overall, the above concerns need to be addressed before a decision can be made.
+\end{review}
+
+\section*{Response to Reviewer 2}
+
+\begin{review}
+This manuscript studies the problem of Gibbs sampling in the estimation of degenerate linear Gaussian state space model, where the covariance matrix Q of noise in state transition function is singular. This manuscript proposes to decompose matrix Q and convert the problem to a general case conditioned on the known rank $r$ of $Q$. In order to estimate rank $r$, reversible jump MCMC is employed. There are several concerns as follows:
+
+1.  In the manuscript, the authors assume a linear model in which the observation is only determined by the current state. However, in practice, sophisticated models where the observation is also related to the previous states and inputs are more commonly used. So this may limit the applicability of the proposed method.
+\end{review}
+
+\begin{response}
+ \meta{Bullshit}
+\end{response}
+
+\begin{review}
+2.  It is suggested to introduce some other related works on degenerate linear Gaussian state space model if any.
+\end{review}
+
+\begin{response}
+ \meta{There are none.}
+\end{response}
+
+\begin{review}
+3.  The $H$ and $R$ matrices are assumed to be known in the manuscript, which may not be the case in practice. It is suggested to consider the estimation of $H$ and $R$ in the degenerate model.
+\end{review}
+
+\begin{response}
+ \meta{identifiability problems.}
+\end{response}
+
+\begin{review}
+4.  This manuscript uses Givens decomposition to factorize matrix $Q$, and in section III B, it states that matrix $U$ in Givens decomposition is uniquely determined. It should be explained that how to determine matrix $U$ and the necessity of Givens decomposition.
+\end{review}
+
+\begin{response}
+ \meta{Add more discussion of the Givens decomposition and add algorithm for generating it.}
+\end{response}
+
+\begin{review}
+5.   The first step of Gibbs sampling in linear state space model is the estimation of states $x$ from observation $y$. It should be clarified that whether the singularity of matrix $Q$ will have any effect on this estimation. 
+\end{review}
+
+\begin{response}
+ \meta{Detail Kalman smoothing with degenerate $Q$.}
+\end{response}
+
+\begin{review}
+6.  It should be explained that how the probabilities of $P(r \to r+1)$ and $P(r+1 \to r)$ in Eq.(59) are determined in simulations.
+\end{review}
+
+\begin{response}
+ \meta{Trivial}
+\end{response}
+
+\begin{review}
+7.  In simulations, the Metropolis-Hastings step should also be applied to the full rank linear model if not. 
+\end{review}
+
+\begin{response}
+ \meta{What? Could try the unknown rank algorithm on a full rank case to show it works.}
+\end{response}
+
+\begin{review}
+8.  In eq. (24), function $exp()$ should be replaced by $exp(tr())$. In line 38 page 10, the first 'is' should be deleted.
+\end{review}
+
+\begin{response}
+ \meta{Fix these.}
+\end{response}
+
+\begin{review}
+I suggest the authors to address these problems and to submit it to IEEE Signal Processing Letters or do a resubmission.
+\end{review}
+
+\begin{response}
+ \meta{Not appropriate for letters.}
+\end{response}
+
+
+\section*{Response to Reviewer 3}
+
+\begin{review}
+In this paper, the authors address the Bayesian learning of degenerate linear and Gaussian state space models. In this specific context, classical Gibbs sampler can not be used and therefore the authors propose an interesting and complete framework based on Markov Chain Monte Carlo (MCMC) to deal with this challenging problem. The paper is well written and organized. I have the following remarks:
+
+Even if I found the paper well organized, I think that the authors should summarize the complete framework (RJ-MCMC) in an algorithm - in my opinion it will help the reader to understand it by summarizing all the steps of the proposed scheme in one place.
+\end{review}
+
+\begin{response}
+ \meta{Do this. At least, list the steps of each kernel.}
+\end{response}
+
+\begin{review}
+In Section III-C, the authors propose to use a collapsed Gibbs move to more efficiently exploit the target on the space of $F$ and $Q$, alternatively. I think the authors should discuss in more details why such collapsed Gibbs is important in the text. Moreover, the importance of such steps could be easily illustrated in the results section so the reader can appreciate the benefit of using such a strategy.
+\end{review}
+
+\begin{response}
+ \meta{Good idea. Do this. Or perhaps just reference the paper more.}
+\end{response}
+
+\begin{review}
+My main concern is regarding the simulation section.
+
+Firstly, the comments are just a brief summary of results from the figures without any comments or discussions on why such results are obtained.
+\end{review}
+
+\begin{response}
+ \meta{Add more discussion and analysis}
+\end{response}
+
+\begin{review}
+There are no figures that show the evolution of the Markov chain OR the posterior approximation of the unknown rank $r$
+The authors wrote that ``the sampler identifies the true rank.... and remains at this value thereafter'' but this can be worrying - this statement could also mean that the sampler is not mixing properly for this variable $r$. The author should be more precised by saying ``Trace plots suggest that the sampler converges within a few thousand iterations. See figure 2'' - The convergence showed in this figure is only related to the variable $\xi_y$.
+\end{review}
+
+\begin{response}
+ \meta{Explain this and improve in the paper. Add simple example of changing rank to show that it is not stuck.}
+\end{response}
+
+\begin{review}
+The authors could illustrate in the first toy example the benefit of the collapsed Gibbs
+moves by showing the performance of the sampler with vs without this strategy.
+\end{review}
+
+\begin{response}
+ \meta{Maybe...}
+\end{response}
+
+\begin{review}
+I personally think that the proposed algorithm should be illustrated with at least a different set of parameters for the toy example (e.g. different values for $\xi_y$ thus allowing to have a curve of RMSE vs $\xi_y$ )
+\end{review}
+
+\begin{response}
+ \meta{Ok... if it will make you happy. Obviously it will work for some parameters and not others.}
+\end{response}
+
+\begin{review}
+List of minor remarks/typos:
+\begin{itemize}
+ \item Just after Eq. (16), the authors should be more precise on the following sentence to avoid any confusion: ``However, whereas before $Q$ was required to be positive definite, this is no longer the case'' (I would add) for unknown $G$.
+ \item Please correct in Section V first sentence ... known a prior. by ... known a priori.
+\end{itemize}
+\end{review}
+
+\begin{response}
+ \meta{Fix all these.}
+\end{response}
+
+
+\end{document}

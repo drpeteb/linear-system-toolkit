@@ -1,0 +1,158 @@
+Reviewer Comments:
+
+Reviewer: 1
+
+Recommendation: RQ - Review Again After Major Changes
+
+Comments:
+Please see the attached pdf file
+
+Additional Questions:
+1. Is the topic appropriate for publication in these transactions?: Yes
+
+2. Is the topic important to colleagues working in the field?: Moderately So
+
+Explain:  
+
+1. Is the paper technically sound?: Yes
+
+why not?: 
+
+2. Is the coverage of the topic sufficiently comprehensive and balanced?: Yes
+
+3. How would you describe technical depth of paper?: Appropriate for the Generally Knowledgeable Individual Working in the Field or a Related Field
+
+4. How would you rate the technical novelty of the paper?: Somewhat Novel
+
+1. How would you rate the overall organization of the paper?: Satisfactory
+
+2. Are the title and abstract satisfactory?: Yes
+
+Explain: 
+
+3. Is the length of the paper appropriate? If not, recommend how the length of the paper should be amended, including a possible target length for the final manuscript.: Yes
+
+4. Are symbols, terms, and concepts adequately defined?: Yes
+
+5. How do you rate the English usage? : Satisfactory
+
+6. Rate the Bibliography: Satisfactory
+
+null: 
+
+1. How would you rate the technical contents of the paper?: Good
+
+2. How would you rate the novelty of the paper?: Slightly Novel
+
+3. How would you rate the "literary" presentation of the paper?: Mostly Accessible
+
+4. How would you rate the appropriateness of this paper for publication in this IEEE Transactions?: Good Match
+
+
+Reviewer: 2
+
+Recommendation: R - Reject (A Major Rewrite Is Required; Encourage Resubmission)
+
+Comments:
+This manuscript studies the problem of Gibbs sampling in the estimation of degenerate linear Gaussian state space model, where the covariance matrix Q of noise in state transition function is singular. This manuscript proposes to decompose matrix Q and convert the problem to a general case conditioned on the known rank r of Q. In order to estimate rank r, reversible jump MCMC is employed. There are several concerns as follows:
+
+1.  In the manuscript, the authors assume a linear model in which the observation is only determined by the current state. However, in practice, sophisticated models where the observation is also related to the previous states and inputs are more commonly used. So this may limit the applicability of the proposed method.
+2.  It is suggested to introduce some other related works on degenerate linear Gaussian state space model if any.
+3.  The H and R matrices are assumed to be known in the manuscript, which may not be the case in practice. It is suggested to consider the estimation of H and R in the degenerate model.
+4.  This manuscript uses Givens decomposition to factorize matrix Q, and in section III B, it states that matrix U in Givens decomposition is uniquely determined. It should be explained that how to determine matrix U and the necessity of Givens decomposition.
+5.   The first step of Gibbs sampling in linear state space model is the estimation of states x from observation y. It should be clarified that whether the singularity of matrix Q will have any effect on this estimation. 
+6.  It should be explained that how the probabilities of P(r->r+1) and P(r+1->r) in Eq.(59) are determined in simulations.
+7.  In simulations, the Metropolis-Hastings step should also be applied to the full rank linear model if not. 
+8.  In eq. (24), function exp() should be replaced by exp(tr()). In line 38 page 10, the first 'is' should be deleted.
+
+I suggest the authors to address these problems and to submit it to IEEE Signal Processing Letters or do a resubmission.
+
+Additional Questions:
+1. Is the topic appropriate for publication in these transactions?: Yes
+
+2. Is the topic important to colleagues working in the field?: Moderately So
+
+Explain:  
+
+1. Is the paper technically sound?: Yes
+
+why not?: 
+
+2. Is the coverage of the topic sufficiently comprehensive and balanced?: Important Information is missing or superficially treated.
+
+3. How would you describe technical depth of paper?: Appropriate for the Generally Knowledgeable Individual Working in the Field or a Related Field
+
+4. How would you rate the technical novelty of the paper?: Somewhat Novel
+
+1. How would you rate the overall organization of the paper?: Could be improved
+
+2. Are the title and abstract satisfactory?: Yes
+
+Explain: 
+
+3. Is the length of the paper appropriate? If not, recommend how the length of the paper should be amended, including a possible target length for the final manuscript.: Yes
+
+4. Are symbols, terms, and concepts adequately defined?: Not always
+
+5. How do you rate the English usage? : Satisfactory
+
+6. Rate the Bibliography: Satisfactory
+
+null: 
+
+1. How would you rate the technical contents of the paper?: Fair
+
+2. How would you rate the novelty of the paper?: Slightly Novel
+
+3. How would you rate the "literary" presentation of the paper?: Mostly Accessible
+
+4. How would you rate the appropriateness of this paper for publication in this IEEE Transactions?: Good Match
+
+
+Reviewer: 3
+
+Recommendation: RQ - Review Again After Major Changes
+
+Comments:
+(There are no comments. Please check to see if comments were included as a file attachment with this e-mail or as an attachment in your Author Center.)
+
+Additional Questions:
+1. Is the topic appropriate for publication in these transactions?: Perhaps
+
+2. Is the topic important to colleagues working in the field?: Moderately So
+
+Explain:  
+
+1. Is the paper technically sound?: Yes
+
+why not?: 
+
+2. Is the coverage of the topic sufficiently comprehensive and balanced?: Treatment somewhat unbalanced, but not seriously so.
+
+3. How would you describe technical depth of paper?: Appropriate for the Generally Knowledgeable Individual Working in the Field or a Related Field
+
+4. How would you rate the technical novelty of the paper?: Somewhat Novel
+
+1. How would you rate the overall organization of the paper?: Could be improved
+
+2. Are the title and abstract satisfactory?: Yes
+
+Explain: 
+
+3. Is the length of the paper appropriate? If not, recommend how the length of the paper should be amended, including a possible target length for the final manuscript.: Yes
+
+4. Are symbols, terms, and concepts adequately defined?: Not always
+
+5. How do you rate the English usage? : Needs improvement
+
+6. Rate the Bibliography: Satisfactory
+
+null: 
+
+1. How would you rate the technical contents of the paper?: Fair
+
+2. How would you rate the novelty of the paper?: Slightly Novel
+
+3. How would you rate the "literary" presentation of the paper?: Mostly Accessible
+
+4. How would you rate the appropriateness of this paper for publication in this IEEE Transactions?: Weak Match
