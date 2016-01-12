@@ -36,7 +36,6 @@ Thank you for taking the time to review our paper. Here is our responses to the 
 
 \meta{
 \begin{itemize}
- \item Reviewer 1
  \item Reviewer 2
  \item Reviewer 3
  \item Proof read, aiming to (i) clarify (2) correct typos (c) define everything when first used
@@ -63,7 +62,7 @@ Can the model be extended to the case where the model parameters $H$ and $R$ in 
 \end{review}
 
 \begin{response}
- \meta{Add discussion of identifiability.}
+ It is straightforward to learn $R$ within the MCMC scheme, and indeed the existing simulations already do precisely this. We have left it out of the algorithm sections to avoid cluttering the presentation. If $H$ were also unknown then there would be problems with identifiability. Most learning algorithms tend to struggle in this case. Fixing $H$ is a design choice, with the appealing property that the components of the latent state can have a meaningful physical interpretation. We have added a discussion of these issues in section II.
 \end{response}
 
 \begin{review}
@@ -87,7 +86,7 @@ The advantages over existing methods, such as those methods that use product of 
 \end{review}
 
 \begin{response}
- \meta{Is there such a thing? Easily conceived. Too much work to derive and implement.}
+ As far as we are aware, there are not yet any published algorithms for learning degenerate linear state space models. It would certainly be an interesting project to extend the variational approaches (such as that of Barber \& Chiappa, 2007) to the degenerate case. However, the modifications would be more than trivial, and we feel this would be better suited to some later publication.
 \end{response}
 
 \begin{review}
@@ -126,7 +125,7 @@ This manuscript studies the problem of Gibbs sampling in the estimation of degen
 \end{review}
 
 \begin{response}
- \meta{There are none.}
+ We have added a few references in the introduction to papers which use degenerate linear Gaussian transition models. As far as we are aware, there are not yet any published algorithms for learning degenerate linear state space models.
 \end{response}
 
 \begin{review}
@@ -134,7 +133,7 @@ This manuscript studies the problem of Gibbs sampling in the estimation of degen
 \end{review}
 
 \begin{response}
- \meta{identifiability problems.}
+ See response to the similar comment by reviewer 1.
 \end{response}
 
 \begin{review}
@@ -150,7 +149,7 @@ This manuscript studies the problem of Gibbs sampling in the estimation of degen
 \end{review}
 
 \begin{response}
- \meta{Detail Kalman smoothing with degenerate $Q$.}
+ \meta{No effect provided $P_1$ and $F$ not singular. Add this to paper.}
 \end{response}
 
 \begin{review}
@@ -158,7 +157,7 @@ This manuscript studies the problem of Gibbs sampling in the estimation of degen
 \end{review}
 
 \begin{response}
- \meta{Trivial}
+ These two probabilities are design parameters. We have clarified this and added their values to the simulations section.
 \end{response}
 
 \begin{review}
@@ -166,7 +165,7 @@ This manuscript studies the problem of Gibbs sampling in the estimation of degen
 \end{review}
 
 \begin{response}
- \meta{What? Could try the unknown rank algorithm on a full rank case to show it works.}
+ \meta{What? Does this mean include the random walk steps? Is that useful?}
 \end{response}
 
 \begin{review}
@@ -174,7 +173,7 @@ This manuscript studies the problem of Gibbs sampling in the estimation of degen
 \end{review}
 
 \begin{response}
- \meta{Fix these.}
+ We have corrected these two typos.
 \end{response}
 
 \begin{review}
