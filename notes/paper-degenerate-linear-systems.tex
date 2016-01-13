@@ -146,7 +146,7 @@ An appropriate Gibbs sampler can be constructed by sampling alternately from the
  \postden(\lgtm, \lgtv| \ls{1:\timax}) \nonumber      .
 \end{IEEEeqnarray}
 %
-The distribution of the sampled values will then converge to the target posterior distribution \cite{Roberts1994}. The state conditional $\postden(\ls{1:\timax}|\lgtm, \lgtv)$ can be sampled using the forward-filtering-backward-sampling algorithm \cite{Chib1996,Wills2012}, which works by first running a Kalman filter forwards through the data, then running backwards in time sampling each state conditional on those in the future. The parameter conditional may also be sampled directly. This depends on the state sequence probability,
+The distribution of the sampled values will then converge to the target posterior distribution \cite{Roberts1994}. The state conditional $\postden(\ls{1:\timax}|\lgtm, \lgtv)$ can be sampled using the forward-filtering-backward-sampling algorithm \cite{Chib1996,Wills2012}, which works by first running a Kalman filter forwards through the data, then running backwards in time sampling each state conditional on those in the future. See appendix~\ref{app:state-sampling}. The parameter conditional may also be sampled directly. This depends on the state sequence probability,
 %
 \begin{IEEEeqnarray}{rCl}
  \IEEEeqnarraymulticol{3}{l}{ \den(\ls{1:\timax}|\lgtm,\lgtv) \propto \prod_{\ti=2}^{\timax} \den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgtv) } \\
@@ -257,7 +257,9 @@ Using this prior, we need a mechanism for choosing $\priorextratpval$. These ext
 
 \subsection{Constrained Gibbs Sampling for Degenerate Transitions}
 
-As discussed, standard Gibbs sampling using $\postden(\lgtm, \lgtv|\ls{1:\timax})$ does not allow the Markov chain to fully explore the parameter space because of the constraint that each transition $(\ls{\ti}-\lgtm\ls{\ti-1})$ must lie in the $\rk$-dimensional column space of $\lgdm$. Nevertheless, we can sample from this distribution exactly, and doing so allows the chain to efficiently explore values of the transition matrix and transition covariance within the permitted regions. These constrained Gibbs sampling steps rely on the Givens decomposition \eqref{eq:givens_decomposition}.
+As discussed, standard Gibbs sampling where we alternately sample from the state and parameter conditionals does not allow the Markov chain to fully explore the parameter space because of the constraint that each transition $(\ls{\ti}-\lgtm\ls{\ti-1})$ must lie in the $\rk$-dimensional column space of $\lgdm$. Nevertheless, we can sample from these distributions exactly, and doing so allows the chain to efficiently explore values of the transition matrix and transition covariance within the permitted regions. These constrained Gibbs sampling steps rely on the Givens decomposition \eqref{eq:givens_decomposition}.
+
+Note that the forward-filtering-backward-sampling procedure can be used as before to draw from the state conditional. See appendix~\ref{app:state-sampling}. The parameter conditional, on the other hand, will require some modifications.
 
 \subsubsection{Likelihood and Subspace Constraints}
 There is no transition density over $\reals^{\lsd}$ for the degenerate model. However, a density does exist with respect to an appropriate measure on the reachable subspace, which provides us with a likelihood function \cite{Diaz-Garcia2006}. We can derive this from the underlying state transition equation,
@@ -365,6 +367,18 @@ with the following updated hyperparameters,
 \end{IEEEeqnarray}
 
 Once new values of $\lgtmrot$ and $\tvfull$ have been sampled, the corresponding values of $\lgtm$ and $\lgtv$ may be calculated using the existing $\lgtmorth$ and $\tvrot$.
+
+
+
+
+
+%TODO: move this
+\subsubsection{Forward Filtering Backward Sampling}
+
+The forward-filtering-backward-sampling procedure for drawing from $\postden(\ls{1:\timax}|\lgtm, \lgtv)$ can be applied to a degenerate model without modification. The Kalman filter stage is 
+
+
+
 
 
 \subsection{Metropolis-Hastings on the Posterior Marginal}
@@ -544,7 +558,6 @@ Repeating this for $\lgtv\mcnew$ and taking the ratio of the two, we obtain,
 
 \meta{Pseudo-code here}
 
-The computational complexity of the algorithm is $\bigo{\lsd^3 \timax}$, the same as the standard Gibbs sampler for the full rank model. For moderate to large $\timax$, the limiting factor is the forward-filtering-backward-sampling steps used to draw from $\postden(\ls{1:\timax}|\lgtm, \lgtv)$.
 
 
 
@@ -745,6 +758,31 @@ The authors are supported by the EPSRC BTaRoT grant. Our thanks to Michael Burke
 
 
 \appendices
+
+\section{Sampling the State Trajectory} \label{app:state-sampling}
+
+The Kalman filter recursively calculates the state predictive and filtering distributions,
+%
+\begin{IEEEeqnarray}{rCl}
+ \den(\ls{\ti}|\ob{1:\ti-1}, \lgtm, \lgtv) &=& \normalden{\ls{\ti}}{\lspmn{\ti}}{\lspvr{\ti}} \\
+ \den(\ls{\ti}|\ob{1:\ti}, \lgtm, \lgtv) &=& \normalden{\ls{\ti}}{\lsfmn{\ti}}{\lsfvr{\ti} \vphantom{\lspvr{\ti}} }     .
+\end{IEEEeqnarray}
+%
+The recursion equations for the means and variances are well known. See e.g. \cite{Sarkka2013}.
+
+The forward-filtering-backward-sampling procedure draws a sample from $\den(\ls{1:\timax}|\ob{1:\timax}, \lgtm, \lgtv)$. This is achieved by first sampling from the final filtering distribution $\den(\ls{\timax}|\ob{1:\timax})$ and then for $\ti=\timax-1 , \dots , 1$ sampling from $\den(\ls{\ti}|\ls{\ti+1}, \ob{1:\ti}, \lgtm, \lgtv)$. Each of these factors is also a Gaussian,
+%
+\begin{IEEEeqnarray}{l}
+ \den(\ls{\ti}|\ls{\ti+1}, \ob{1:\ti}, \lgtm, \lgtv) \nonumber \\
+ \quad = \normalden{\ls{\ti}}{ \lsfmn{\ti} + K_t (\ls{\ti+1}-\lgtm\lsfmn{\ti}) }{ \lspvr{\ti} - K_t \lgtm \lsfvr{\ti} }      ,
+\end{IEEEeqnarray}
+%
+where $K_t = \lsfvr{\ti} \lgtm\tr (\lgtm \lsfvr{\ti} \lgtm\tr + \lgtv)\inv$. The proof is straightforward using standard identities for the Gaussian distribution \cite{Sarkka2013}.
+
+This procedure is still valid when $\lgtv$ is singular, provided the matrix $(\lgtm \lsfvr{\ti} \lgtm\tr + \lgtv)$ is invertible. A sufficient condition for this is that both the initial covariance $\lsfvr{1}$ and the transition matrix $\lgtm$ are both non-singular. With a matrix normal prior on $\lgtm$, the probability of it being singular is almost surely $0$.
+
+To derive the expression for $\den(\ls{\ti}|\ls{\ti+1}, \ob{1:\ti}, \lgtm, \lgtv)$ in the case where the transition covariance is singular, replace $\lgtv$ with $\lgtv + h I$ where $I$ is the identity matrix and $h$ a non-negative real scalar such that a transition density can be written down. Then the same algebraic steps can be followed as in the non-singular case. At the end, set $h=0$ and obtain the same formula.
+
 
 \section{A~Matrix~Factorisation for Positive~Semi-Definite~Matrices} \label{app:givens-factorisation}
 

@@ -36,6 +36,12 @@ Thank you for taking the time to review our paper. Here is our responses to the 
 
 \meta{
 \begin{itemize}
+ \item different parameter settings for toy model
+ \item change the rank after burn in to show not stuck
+ \item plots
+ \item collapsed Gibbs
+ \item pseudo-code algorithm
+ \item Givens
  \item Reviewer 2
  \item Reviewer 3
  \item Proof read, aiming to (i) clarify (2) correct typos (c) define everything when first used
@@ -78,7 +84,7 @@ There is no complexity analysis.
 \end{review}
 
 \begin{response}
-We have added a brief discussion of the complexity (which is the same as standard Gibbs sampler for the full rank model).
+There is a brief discussion of the computational complexity in the final section of the paper. There is not much to say -- it is of the same order for the full rank and degenerate models. We do not see much value in including a detailed operation count, since the dominating factor will be the difference in autocorrelation and the resulting difference in the necessary length of the chain, which will vary by model and data set.
 \end{response}
 
 \begin{review}
@@ -117,7 +123,7 @@ This manuscript studies the problem of Gibbs sampling in the estimation of degen
 \end{review}
 
 \begin{response}
- \meta{Bullshit}
+ There is a very large body of literature focussed on models where the observation depends only on the current latent state, including most of the papers we have cited. It is usually possible to convert such a non-Markovian model into a Markovian one by augmenting the latent state with additional components. We disagree that this should be considered a limitation of the proposed method.
 \end{response}
 
 \begin{review}
@@ -149,7 +155,7 @@ This manuscript studies the problem of Gibbs sampling in the estimation of degen
 \end{review}
 
 \begin{response}
- \meta{No effect provided $P_1$ and $F$ not singular. Add this to paper.}
+ The procedure for sampling the state trajectories is unchanged by the singularity of $Q$. We have noted this in the text and also added a short appendix discussing this point and providing the equations for the forward-filtering-backward-sampling algorithm.
 \end{response}
 
 \begin{review}
@@ -161,11 +167,11 @@ This manuscript studies the problem of Gibbs sampling in the estimation of degen
 \end{response}
 
 \begin{review}
-7.  In simulations, the Metropolis-Hastings step should also be applied to the full rank linear model if not. 
+7.  In simulations, the Metropolis-Hastings step should also be applied to the full rank linear model if not.
 \end{review}
 
 \begin{response}
- \meta{What? Does this mean include the random walk steps? Is that useful?}
+This comment is not entirely clear to us. We could indeed apply the random walk MH steps to the full rank model, but what would be the point? These steps are essential only in the degenerate case to ensure the reducibility of the Markov chain. The mixing due to the MH steps is much slower than that due to the Gibbs steps, so including them in the full rank algorithm has a negligible effect on the autocorrelation.
 \end{response}
 
 \begin{review}
@@ -181,7 +187,7 @@ I suggest the authors to address these problems and to submit it to IEEE Signal 
 \end{review}
 
 \begin{response}
- \meta{Not appropriate for letters.}
+ We considered submitting this as a letters paper but we do not believe it meets, or could be made to meet, the requirements for either length or content.
 \end{response}
 
 
