@@ -11,6 +11,7 @@
 \usepackage{hyperref}
 \usepackage[caption=false]{subfig}
 \usepackage{cite}
+\usepackage{setspace}
 
 \usepackage{tikz}
 \usepackage{pgfplots}
@@ -21,6 +22,9 @@
  \usepgfplotslibrary{external}
  \tikzexternalize[prefix=tikz/]
 
+\renewcommand{\algorithmicrequire}{\textbf{Input:}}
+\renewcommand{\algorithmicensure}{\textbf{Output:}}
+ 
 \input{linear-system-learning-macros.tex}
 \newcommand{\meta}[1]{{\color{red}\em #1}}
 
@@ -132,7 +136,7 @@ $\priordof\in\reals, \priordof>\lsd-1$. $\priorscalematrix$ and $\priorcolumnvar
 
 \subsection{Gibbs Sampling for Basic Linear Gaussian Models}
 
-Our principal interest is to learn the system matrices $\lgtm$ and $\lgtv$ from a sequence of observations $\ob{1:\timax}$. The posterior distribution over these variables $\den(\lgtm, \lgtv | \ob{1:\timax})$ is not amenable to MCMC sampling because there is no analytic expression for the density. Instead we introduce the latent state sequence $\ls{1:\timax}$ as a nuisance variable and target the joint posterior,
+Our principal interest is to learn the system matrices $\lgtm$ and $\lgtv$ from a sequence of observations $\ob{1:\timax}$. The posterior distribution over these variables $\postden(\lgtm, \lgtv) = \den(\lgtm, \lgtv | \ob{1:\timax})$ is not amenable to MCMC sampling because there is no analytic expression for the density. Instead we introduce the latent state sequence $\ls{1:\timax}$ as a nuisance variable and target the joint posterior,
 %
 \begin{IEEEeqnarray}{rCl}
  \postden(\lgtm, \lgtv, \ls{1:\timax}) & = & \den(\lgtm, \lgtv, \ls{1:\timax} | \ob{1:\timax}) \\
@@ -189,7 +193,7 @@ A commonly encountered variation on the basic linear Gaussian state space model 
  \tn{\ti} & \sim & \normalden{\tn{\ti}}{0}{\idmat}      ,
 \end{IEEEeqnarray}
 %
-in which $\tn{\ti}$ as dimension $\rk$, and $\lgdm$ is $\lsd\times\rk$. This is almost equivalent to the previous case, with $\lgtv=\lgdm\lgdm\tr$. However, whereas before $\lgtv$ was required to be positive definite, this is no longer the case. When this occurs, the conventional transition density $\den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgdm)$ is not defined, and the sampling operations underlying our Gibbs sampler are no longer valid. Degenerate models such as these arise in tracking applications (see \cite{Maskell2004} for a discussion of this phenomenon); when non-Markovian models, such as autoregressive process, are converted to state space form; and when it is natural to parameterise a system with more latent states than there are degrees of freedom (see section~\ref{sec:mocap}). In this section, we introduce suitable parameterisations for such degenerate transition models, and show how MCMC moves may be implemented for learning. Here we treat $\rk$ as fixed and known; in the following section mechanisms will be introduced to learn this too.
+in which $\tn{\ti}$ as dimension $\rk$, and $\lgdm$ is $\lsd\times\rk$. This is almost equivalent to the model in the previous section, with $\lgtv=\lgdm\lgdm\tr$. However, in the previous model $\lgtv$ was positive definite by definition, whereas here it may not be full rank. When this occurs, the conventional transition density $\den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgdm)$ is not defined, and the sampling operations underlying our Gibbs sampler are no longer valid. Degenerate models such as these arise in tracking applications (see \cite{Maskell2004} for a discussion of this phenomenon); when non-Markovian models, such as autoregressive process, are converted to state space form; and when it is natural to parameterise a system with more latent states than there are degrees of freedom (see section~\ref{sec:mocap}). In this section, we introduce suitable parameterisations for such degenerate transition models, and show how MCMC moves may be implemented for learning. Here we treat $\rk$ as fixed and known; in the following section mechanisms will be introduced to learn this too.
 
 The matrix $\lgdm$ is not uniquely identifiable from the state sequence, because the distribution of $\lgdm\tn{\ti}$ is identical to that of $\lgdm \Xi \tn{\ti}$ where $\Xi$ is an arbitrary orthogonal matrix. This ambiguity does not affect $\lgtv$, since,
 %
@@ -201,7 +205,12 @@ For this reason, we treat $\lgtv$ as fundamental, as before. $\lgdm$ may be defi
 
 There are two difficulties with extending the methodology from the basic model to the degenerate case. First, the conjugate matrix normal--inverse Wishart distribution becomes singular. This places an undesirable constraint on the transition matrix which needs to be removed. Second, each transition, $(\ls{\ti}-\lgtm\ls{\ti-1})$, is now constrained to lie in a particular $\rk$-dimensional subspace within the state space; specifically, within the column space of $\lgdm$. This subspace is fixed conditional on any sampled state trajectory $\ls{1:\timax}$ (provided that $\timax>\rk$). This makes standard Gibbs sampling from $\postden(\lgtm, \lgtv|\ls{1:\timax})$ insufficient, since there are values of $\lgtm$ and $\lgtv$ which can never be reached.
 
-There is an obvious way to avoid being constrained to a particular subspace by the sampled state trajectory; simply return to targeting the marginal posterior $\postden(\lgtm, \lgtv|\ob{1:\timax})$ and fall back to using a generic Metropolis-Hastings approach. However, with a complex and high dimensional parameter space, designing efficient proposal distributions for Metropolis-Hastings is difficult. We would prefer to attain the automated, fast-mixing properties displayed by the Gibbs sampler on the full rank model. We will show how a Gibbs kernel may still be applied to sample a component of the parameters, with the remainder handled using Metropolis-Hastings.
+There is an obvious way to avoid being constrained to a particular subspace by the sampled state trajectory; simply return to targeting the marginal posterior $\postden(\lgtm, \lgtv)$ and fall back to using any generic Metropolis-Hastings approach. However, with a complex and high dimensional parameter space, designing efficient proposal distributions for Metropolis-Hastings is difficult. We would prefer to attain the automated, fast-mixing properties displayed by the Gibbs sampler on the full rank model.
+
+The solution we propose here is to use Metropolis-Hastings steps targeting the marginal to ensure irreducibility of the sampler, combined with constrained Gibbs sampling steps, which can only modify a component of the parameters, to accelerate the mixing of the chain. As in the full rank case, the target distribution will be the posterior over parameters and the state trajectory $\postden(\lgtm, \lgtv, \ls{1:\timax})$. This means that each of the Metropolis-Hastings steps targeting the marginal posterior $\postden(\lgtm, \lgtv)$ must be followed by a draw from the state conditional $\postden(\ls{1:\timax}|\lgtm, \lgtv)$ in order to complete the iteration. The two two steps together comprise a collapsed Gibbs move \cite{Dyk2008}. Note that the forward-filtering-backward-sampling procedure can be used without modification to draw from the state conditional. See appendix~\ref{app:state-sampling}.
+
+
+\subsection{Covariance Decompositions}
 
 In formulating an MCMC algorithm for degenerate transition models, we will make use of two factorisations of the transition covariance matrix. First, an eigendecomposition,
 %
@@ -255,137 +264,13 @@ Using this prior, we need a mechanism for choosing $\priorextratpval$. These ext
 
 
 
-\subsection{Constrained Gibbs Sampling for Degenerate Transitions}
+\subsection{Metropolis-Hastings for the Posterior Marginal}
 
-As discussed, standard Gibbs sampling where we alternately sample from the state and parameter conditionals does not allow the Markov chain to fully explore the parameter space because of the constraint that each transition $(\ls{\ti}-\lgtm\ls{\ti-1})$ must lie in the $\rk$-dimensional column space of $\lgdm$. Nevertheless, we can sample from these distributions exactly, and doing so allows the chain to efficiently explore values of the transition matrix and transition covariance within the permitted regions. These constrained Gibbs sampling steps rely on the Givens decomposition \eqref{eq:givens_decomposition}.
+In this section we introduce two Metropolis-Hastings kernels which target the marginal posterior $\postden(\lgtm,\lgtv)$. Sampling from each of these should be followed by a draw of the state trajectory from $\postden(\ls{1:\timax}|\lgtm,\lgtv)$. Together, this constitutes a collapsed Gibbs move for the target joint posterior distribution \cite{Dyk2008}.
 
-Note that the forward-filtering-backward-sampling procedure can be used as before to draw from the state conditional. See appendix~\ref{app:state-sampling}. The parameter conditional, on the other hand, will require some modifications.
+These moves are needed in order to ensure that the sampler can attain any possible values in the parameter space. However, the resulting Markov chain are liable to mix very poorly, since the proposals are dumb random walks. In the following section, we will describe how to draw from the parameter conditional distribution exactly, which greatly accelerates the mixing of the chain.
 
-\subsubsection{Likelihood and Subspace Constraints}
-There is no transition density over $\reals^{\lsd}$ for the degenerate model. However, a density does exist with respect to an appropriate measure on the reachable subspace, which provides us with a likelihood function \cite{Diaz-Garcia2006}. We can derive this from the underlying state transition equation,
-%
-\begin{IEEEeqnarray}{rCl}
- \ls{\ti} &=& \lgtm \ls{\ti-1} + \tvrot \tvfull\msqrt \tn{\ti} \nonumber
- \end{IEEEeqnarray}
- \begin{IEEEeqnarray}{rCl}
- \Rightarrow \tvrot\tr(\ls{\ti}-\lgtm\ls{\ti-1}) &\sim& \normaldist{\zmat}{\tvfull} \nonumber
-\end{IEEEeqnarray}
-\begin{IEEEeqnarray}{l}
- \den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgtv) \propto \determ{\tvfull}^{-\half}  \\
- \times \exp\left(-\half (\ls{\ti}-\lgtm\ls{\ti-1})\tr \tvrot \tvfull\inv \tvrot\tr (\ls{\ti}-\lgtm\ls{\ti-1}) \right) \nonumber     .
-\end{IEEEeqnarray}
-%
-This is defined over the subspace,
-%
-\begin{IEEEeqnarray}{rCl}
- \{\ls{\ti} : \ls{\ti} = \lgtm \ls{\ti-1} + \tvrot z, z \in \reals^{\rk}\}     .
-\end{IEEEeqnarray}
-
-The likelihood function for the entire state trajectory is thus,
-%
-\begin{IEEEeqnarray}{rCl}
- \IEEEeqnarraymulticol{3}{l}{ \den(\ls{1:\timax}|\lgtm, \lgtv) \propto \prod_{t=2}^{\timax} \den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgtv) } \nonumber \\
- &\propto& \determ{\tvfull}^{-\half(\timax-1)} \exp\Bigg( -\half \sum_{t=2}^{\timax} (\ls{\ti}-\lgtm\ls{\ti-1})\tr \tvrot \nonumber \\
- && \qquad\qquad\qquad\qquad\qquad\qquad\qquad \tvfull\inv \tvrot\tr (\ls{\ti}-\lgtm\ls{\ti-1}) \Bigg) \nonumber \\
- %&=& \determ{\tvfull}^{-\half(\timax-1)} \exp\left(-\half\trace\left[ \tvfull\inv \tvrot\tr \sum_{t=2}^{\timax} (\ls{\ti}-\lgtm\ls{\ti-1})(\ls{\ti}-\lgtm\ls{\ti-1})\tr \tvrot \right]\right) \nonumber \\
- %&=& \determ{\tvfull}^{-\half\suffstats{0}} \exp\left(-\half\trace\left[ \tvfull\inv \left( \tvrot\tr \lgtm \suffstats{1} \lgtm\tr \tvrot - \tvrot\tr \lgtm \suffstats{2}\tr \tvrot - \tvrot\tr \suffstats{2} \lgtm\tr \tvrot + \tvrot\tr \suffstats{3} \tvrot \right) \right]\right) \\
- &=& \determ{\tvfull}^{-\half\suffstats{0}} \exp\bigg(-\half\trace \big[ \tvfull\inv ( \lgtmrot \suffstats{1} \lgtmrot\tr - \lgtmrot \suffstats{2}\tr \tvrot \nonumber \\
- & & \qquad\qquad\qquad\qquad\qquad -\: \tvrot\tr \suffstats{2} \lgtmrot\tr + \tvrot\tr \suffstats{3} \tvrot ) \big] \bigg)
-\end{IEEEeqnarray}
-%
-in which the sufficient statistics are as before and,
-%
-\begin{equation}
- \lgtmrot = \tvrot\tr \lgtm      .
-\end{equation}
-
-Writing all the subspace constraints concisely in a single equation,
-%
-\begin{IEEEeqnarray}{rCl}
- \LS{2:\timax} &=& \lgtm \LS{1:\timax-1} + \tvrot Z
-\end{IEEEeqnarray}
-%
-where $Z \in \reals^{\rk\times(\timax-1)}$ and 
-%
-\begin{IEEEeqnarray}{rCl}
- \LS{2:\timax} &=& \begin{bmatrix} \ls{2} & \ls{3} & \hdots & \ls{\timax} \end{bmatrix}    .
-\end{IEEEeqnarray}
-
-Now introduce,
-%
-\begin{IEEEeqnarray}{rCl}
- \lgtmorth &=& (\idmat-\tvrot\tvrot\tr) \lgtm     ,
-\end{IEEEeqnarray}
-%
-such that the transition matrix may be decomposed into orthogonal components,
-%
-\begin{IEEEeqnarray}{rCl}
- \lgtm &=& \tvrot \lgtmrot + \lgtmorth    .
-\end{IEEEeqnarray}
-%
-Using this, the constraint equation becomes,
-%
-\begin{IEEEeqnarray}{rCl}
- \LS{2:\timax} &=& (\tvrot \lgtmrot + \lgtmorth) \LS{1:\timax-1} + \tvrot Z \nonumber \\
- \Rightarrow \LS{2:\timax} &=& \lgtmorth \LS{1:\timax-1} + \tvrot Z' \nonumber      .
-\end{IEEEeqnarray}
-%
-Notice that $\lgtmrot$ and $\tvfull$ do not appear in this equation, and thus may be freely altered by the sampler. In contrast, $\lgtmorth$ and $\tvrot$ are uniquely determined. Sampling from $\postden(\lgtm,\lgtv|\ls{1:\timax})$ thus entails drawing new values from $\postden(\lgtmrot,\tvfull|\lgtmorth,\tvrot,\ls{1:\timax})$.
-
-\subsubsection{Transforming the Prior}
-We will need the distribution on $\{\lgtmrot, \tvfull\}$ implied by the prior we chose for $\{\lgtm,\lgtv\}$. These follow from simple properties of the wishart and matrix normal distributions (see \cite{Muirhead1982}). For the matrix normal part,
-%
-\begin{IEEEeqnarray}{rCl}
- \lgtmrot|\tvrot,\tvfull &\sim& \matrixnormaldist{\tvrot\tr\priormeanmatrix}{\tvfull}{\priorcolumnvariance}     .
-\end{IEEEeqnarray}
-%
-For the inverse Wishart part,
-%
-\begin{IEEEeqnarray}{rCl}
- \tvfull|\tvrot &\sim& \iwishartdist{\rk}{(\tvrot\tr\priorscalematrix\inv\tvrot)\inv}     .
-\end{IEEEeqnarray}
-%
-Notice that this Inverse Wishart distribution is no longer singular, since $\tvfull$ is $\rk\times\rk$.
-
-
-\subsubsection{Sampling the Conditional}
-Using the constrained likelihood function and the transformed prior, we now obtain the required posterior conditional distribution $\postden(\lgtmrot,\tvfull|\lgtmorth,\tvrot,\ls{1:\timax})$. This follows the same algebraic steps as in the full rank case and leads to a similar matrix normal--inverse Wishart distribution,
-%
-\begin{align}
- \tvfull | \tvrot, \ls{1:\timax} &\sim \iwishartdist{\postdof}{\postscalematrix} \\
- \lgtmrot | \tvfull, \tvrot, \ls{1:\timax} &\sim \matrixnormaldist{\postmeanmatrix}{\lgtv}{\postcolumnvariance}     ,
-\end{align}
-%
-with the following updated hyperparameters,
-%
-\begin{IEEEeqnarray}{rCl}
- \postcolumnvariance\inv                 &=& \priorcolumnvariance\inv + \suffstats{1} \\
- \postmeanmatrix \postcolumnvariance\inv &=& \tvrot\tr\left( \priormeanmatrix \priorcolumnvariance\inv + \suffstats{2} \right) \\
- \postdof                                &=& \rk + \suffstats{0} \\
- \postscalematrix                        &=& (\tvrot\tr\priorscalematrix\inv\tvrot)\inv + \tvrot\tr\left( \suffstats{3} + \priormeanmatrix \priorcolumnvariance\inv \priormeanmatrix\tr \right)\tvrot \nonumber \\
- & & \qquad\qquad\qquad\qquad\qquad -\: \postmeanmatrix \postcolumnvariance\inv \postmeanmatrix\tr
-\end{IEEEeqnarray}
-
-Once new values of $\lgtmrot$ and $\tvfull$ have been sampled, the corresponding values of $\lgtm$ and $\lgtv$ may be calculated using the existing $\lgtmorth$ and $\tvrot$.
-
-
-
-
-
-%TODO: move this
-\subsubsection{Forward Filtering Backward Sampling}
-
-The forward-filtering-backward-sampling procedure for drawing from $\postden(\ls{1:\timax}|\lgtm, \lgtv)$ can be applied to a degenerate model without modification. The Kalman filter stage is 
-
-
-
-
-
-\subsection{Metropolis-Hastings on the Posterior Marginal}
-
-Gibbs sampling is very efficient and requires no algorithm tuning but it only allows the Markov chain to explore a subset of the parameter space. In this section we introduce two Metropolis-Hastings kernels which target the marginal posterior $\postden(\lgtm,\lgtv)$ and allow the sampler to fully explore the target distribution. These sampling operations are each followed by a draw of the state trajectory from $\postden(\ls{1:\timax}|\lgtm,\lgtv)$, thus constituting a collapsed Gibbs move \cite{Dyk2008}.
-
-\subsubsection{Covariance Random Walk}
+\subsubsection{Covariance Random Walk} \label{sec:mh-rw-transition-covariance}
 
 The covariance matrix is specified by its eigenvalues and eigenvectors. The sampler is already able to explore the possible eigenvalues using the constrained Gibbs moves, but the eigenvector matrix is partially fixed during this process. We can allow the sampler to reach any possible eigenvector matrix using a rotational random walk. Suppose the current value of the transition covariance is $\lgtv\mcold$, a new value is proposed using the following procedure:
 %
@@ -441,7 +326,7 @@ and use $\mhrot=\givmat{i}{j}{\givrot{}}$. This also has the property that $\giv
 
 
 
-\subsubsection{Transition Matrix Random Walk}
+\subsubsection{Transition Matrix Random Walk} \label{sec:mh-rw-transition-matrix}
 
 A more conventional Metropolis-Hastings kernel can be used for the transition matrix; for example, using a simple Gaussian random walk as the proposal distribution. If the current value is $\lgtm\mcold$, a new matrix is sampled from a matrix normal distribution,
 %
@@ -455,6 +340,120 @@ and accepted with probability,
  \mhap(\lgtm\mcold\to\lgtm\mcnew) & = & \min\left\{1, \frac{ \postden(\lgtm\mcnew, \lgtv) }{ \postden(\lgtm\mcold,\lgtv) } \right\} \\
   & = & \min\left\{1, \frac{\den(\ob{1:\timax}|\lgtm\mcnew,\lgtv)}{\den(\ob{1:\timax}|\lgtm\mcold,\lgtv)} \times \frac{\den(\lgtm\mcnew,\lgtv)}{\den(\lgtm\mcold,\lgtv)} \right\} \nonumber     .
 \end{IEEEeqnarray}
+
+
+\subsection{Constrained Gibbs Sampling for Degenerate Transitions}
+
+As discussed, standard Gibbs sampling where we alternately sample from the state and parameter conditionals does not allow the Markov chain to fully explore the parameter space because of the constraint that each transition $(\ls{\ti}-\lgtm\ls{\ti-1})$ must lie in the $\rk$-dimensional column space of $\lgdm$. Nevertheless, we can sample from these distributions exactly, and doing so allows the chain to efficiently explore values of the transition matrix and transition covariance within the permitted regions. These constrained Gibbs sampling steps rely on the Givens decomposition \eqref{eq:givens_decomposition}.
+
+
+\subsubsection{Likelihood and Subspace Constraints}
+There is no transition density over $\reals^{\lsd}$ for the degenerate model. However, a density does exist with respect to an appropriate measure on the reachable subspace, which provides us with a likelihood function \cite{Diaz-Garcia2006}. We can derive this from the underlying state transition equation,
+%
+\begin{IEEEeqnarray}{rCl}
+ \ls{\ti} &=& \lgtm \ls{\ti-1} + \tvrot \tvfull\msqrt \tn{\ti} \nonumber
+ \end{IEEEeqnarray}
+ \begin{IEEEeqnarray}{rCl}
+ \Rightarrow \tvrot\tr(\ls{\ti}-\lgtm\ls{\ti-1}) &\sim& \normaldist{\zmat}{\tvfull} \nonumber
+\end{IEEEeqnarray}
+\begin{IEEEeqnarray}{l}
+ \den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgtv) \propto \determ{\tvfull}^{-\half}  \\
+ \times \exp\left(-\half (\ls{\ti}-\lgtm\ls{\ti-1})\tr \tvrot \tvfull\inv \tvrot\tr (\ls{\ti}-\lgtm\ls{\ti-1}) \right) \nonumber     .
+\end{IEEEeqnarray}
+%
+This is defined over the subspace,
+%
+\begin{IEEEeqnarray}{rCl}
+ \{\ls{\ti} : \ls{\ti} = \lgtm \ls{\ti-1} + \tvrot z, z \in \reals^{\rk}\}     .
+\end{IEEEeqnarray}
+
+The likelihood function for the entire state trajectory is thus,
+%
+\begin{IEEEeqnarray}{rCl}
+ \IEEEeqnarraymulticol{3}{l}{ \den(\ls{1:\timax}|\lgtm, \lgtv) \propto \prod_{t=2}^{\timax} \den(\ls{\ti}|\ls{\ti-1},\lgtm,\lgtv) } \nonumber \\
+ &\propto& \determ{\tvfull}^{-\half(\timax-1)} \exp\Bigg( -\half \sum_{t=2}^{\timax} (\ls{\ti}-\lgtm\ls{\ti-1})\tr \tvrot \nonumber \\
+ && \qquad\qquad\qquad\qquad\qquad\qquad\qquad \tvfull\inv \tvrot\tr (\ls{\ti}-\lgtm\ls{\ti-1}) \Bigg) \nonumber \\
+ %&=& \determ{\tvfull}^{-\half(\timax-1)} \exp\left(-\half\trace\left[ \tvfull\inv \tvrot\tr \sum_{t=2}^{\timax} (\ls{\ti}-\lgtm\ls{\ti-1})(\ls{\ti}-\lgtm\ls{\ti-1})\tr \tvrot \right]\right) \nonumber \\
+ %&=& \determ{\tvfull}^{-\half\suffstats{0}} \exp\left(-\half\trace\left[ \tvfull\inv \left( \tvrot\tr \lgtm \suffstats{1} \lgtm\tr \tvrot - \tvrot\tr \lgtm \suffstats{2}\tr \tvrot - \tvrot\tr \suffstats{2} \lgtm\tr \tvrot + \tvrot\tr \suffstats{3} \tvrot \right) \right]\right) \\
+ &=& \determ{\tvfull}^{-\half\suffstats{0}} \exp\bigg(-\half\trace \big[ \tvfull\inv ( \lgtmrot \suffstats{1} \lgtmrot\tr - \lgtmrot \suffstats{2}\tr \tvrot \nonumber \\
+ & & \qquad\qquad\qquad\qquad\qquad -\: \tvrot\tr \suffstats{2} \lgtmrot\tr + \tvrot\tr \suffstats{3} \tvrot ) \big] \bigg)
+\end{IEEEeqnarray}
+%
+in which the sufficient statistics are as before and,
+%
+\begin{equation}
+ \lgtmrot = \tvrot\tr \lgtm \label{eq:transition_matrix_free}      .
+\end{equation}
+
+Writing all the subspace constraints concisely in a single equation,
+%
+\begin{IEEEeqnarray}{rCl}
+ \LS{2:\timax} &=& \lgtm \LS{1:\timax-1} + \tvrot Z
+\end{IEEEeqnarray}
+%
+where $Z \in \reals^{\rk\times(\timax-1)}$ and 
+%
+\begin{IEEEeqnarray}{rCl}
+ \LS{2:\timax} &=& \begin{bmatrix} \ls{2} & \ls{3} & \hdots & \ls{\timax} \end{bmatrix}    .
+\end{IEEEeqnarray}
+
+Now introduce,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgtmorth &=& (\idmat-\tvrot\tvrot\tr) \lgtm \label{eq:transition_matrix_fixed}    ,
+\end{IEEEeqnarray}
+%
+such that the transition matrix may be decomposed into orthogonal components,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgtm &=& \tvrot \lgtmrot + \lgtmorth \label{eq:transition_matrix_decomposition}    .
+\end{IEEEeqnarray}
+%
+Using this, the constraint equation becomes,
+%
+\begin{IEEEeqnarray}{rCl}
+ \LS{2:\timax} &=& (\tvrot \lgtmrot + \lgtmorth) \LS{1:\timax-1} + \tvrot Z \nonumber \\
+ \Rightarrow \LS{2:\timax} &=& \lgtmorth \LS{1:\timax-1} + \tvrot Z' \nonumber      .
+\end{IEEEeqnarray}
+%
+Notice that $\lgtmrot$ and $\tvfull$ do not appear in this equation, and thus may be freely altered by the sampler. In contrast, $\lgtmorth$ and $\tvrot$ are uniquely determined. Sampling from $\postden(\lgtm,\lgtv|\ls{1:\timax})$ thus entails drawing new values from $\postden(\lgtmrot,\tvfull|\lgtmorth,\tvrot,\ls{1:\timax})$.
+
+\subsubsection{Transforming the Prior}
+We will need the distribution on $\{\lgtmrot, \tvfull\}$ implied by the prior we chose for $\{\lgtm,\lgtv\}$. These follow from simple properties of the wishart and matrix normal distributions (see \cite{Muirhead1982}). For the matrix normal part,
+%
+\begin{IEEEeqnarray}{rCl}
+ \lgtmrot|\tvrot,\tvfull &\sim& \matrixnormaldist{\tvrot\tr\priormeanmatrix}{\tvfull}{\priorcolumnvariance}     .
+\end{IEEEeqnarray}
+%
+For the inverse Wishart part,
+%
+\begin{IEEEeqnarray}{rCl}
+ \tvfull|\tvrot &\sim& \iwishartdist{\rk}{(\tvrot\tr\priorscalematrix\inv\tvrot)\inv}     .
+\end{IEEEeqnarray}
+%
+Notice that this Inverse Wishart distribution is no longer singular, since $\tvfull$ is $\rk\times\rk$.
+
+
+\subsubsection{Sampling the Conditional}
+Using the constrained likelihood function and the transformed prior, we now obtain the required posterior conditional distribution $\postden(\lgtmrot,\tvfull|\lgtmorth,\tvrot,\ls{1:\timax})$. This follows the same algebraic steps as in the full rank case and leads to a similar matrix normal--inverse Wishart distribution,
+%
+\begin{align}
+ \tvfull | \tvrot, \ls{1:\timax} &\sim \iwishartdist{\postdof}{\postscalematrix} \nonumber \\
+ \lgtmrot | \tvfull, \tvrot, \ls{1:\timax} &\sim \matrixnormaldist{\postmeanmatrix}{\lgtv}{\postcolumnvariance} \label{eq:constrained_parameter_conditional}      ,
+\end{align}
+%
+with the following updated hyperparameters,
+%
+\begin{IEEEeqnarray}{rCl}
+ \postcolumnvariance\inv                 &=& \priorcolumnvariance\inv + \suffstats{1} \\
+ \postmeanmatrix \postcolumnvariance\inv &=& \tvrot\tr\left( \priormeanmatrix \priorcolumnvariance\inv + \suffstats{2} \right) \\
+ \postdof                                &=& \rk + \suffstats{0} \\
+ \postscalematrix                        &=& (\tvrot\tr\priorscalematrix\inv\tvrot)\inv + \tvrot\tr\left( \suffstats{3} + \priormeanmatrix \priorcolumnvariance\inv \priormeanmatrix\tr \right)\tvrot \nonumber \\
+ & & \qquad\qquad\qquad\qquad\qquad -\: \postmeanmatrix \postcolumnvariance\inv \postmeanmatrix\tr
+\end{IEEEeqnarray}
+
+Once new values of $\lgtmrot$ and $\tvfull$ have been sampled, the corresponding values of $\lgtm$ and $\lgtv$ may be calculated using the existing $\lgtmorth$ and $\tvrot$.
+
 
 
 
@@ -478,7 +477,7 @@ where $\diracden{j}{i}$ is a probability point mass at $j=i$, and $\sum_i \prior
  \postden(\lgtm, \lgtv, \rk) &\propto& \den(\ob{1:\timax}|\lgtm, \lgtv) \den(\lgtm, \lgtv|\rk) \den(\rk)    .
 \end{IEEEeqnarray}
 
-\subsection{Reversible Jump for Rank Learning}
+\subsection{Reversible Jump for Rank Learning} \label{sec:rjmcmc-covariance-rank}
 
 A reversible jump sampler is an MCMC algorithm on a family of probability distributions on spaces of different dimensions. Sampling operations are designed in pairs which allow the sampler to move between the different distributions. Each move begins by sampling additional variables (if required) and then applying a reversible transformation. Finally the newly proposed state is accepted or rejected according to a Metropolis-Hastings acceptance probability.
 
@@ -487,7 +486,7 @@ For this problem, there is a distribution for each possible value of the rank. T
 The reversible transformation can be accomplished in terms of eigenvectors and eigenvalues. Suppose the current value of the transition covariance is $\lgtv = \tvvec \tvval \tvvec\tr$, which has rank $\rk$. To increase the rank, first we sample an additional eigenvalue $\eval{\rk+1} \in [0,\eval{\rk}]$ (recall that the elements of $\tvval$ are sorted in decreasing order of magnitude, so $\eval{\rk+1} < \eval{\rk} < \dots < \eval{1}$) and a corresponding eigenvector $\evec{\rk+1} \in \evecset{\rk+1}$, from the set of vectors which could legitimately be appended to $\tvvec$ (i.e. orthonormal to the existing eigenvectors with positive sign of the first element),
 %
 \begin{IEEEeqnarray}{rCl}
- \evecset{\rk+1} &=& \{\evec{} : |\evec{}|=1,\:\tvvec\tr\evec{}=0,\:\sign(\evec{\rk+1,1}=+1 \}    .
+ \evecset{\rk+1} &=& \{\evec{} : |\evec{}|=1,\:\tvvec\tr\evec{}=0,\:\sign(\evec{\rk+1,1})=+1 \}    .
 \end{IEEEeqnarray}
 %
 A new covariance matrix is then generated using the transformation,
@@ -556,15 +555,38 @@ Repeating this for $\lgtv\mcnew$ and taking the ratio of the two, we obtain,
 
 \section{The Complete Algorithm}
 
-\meta{Pseudo-code here}
+There are many ways in which the various Markov kernels could be combined to produce a complete MCMC sampler. Our suggested scheme is shown in algorithm~\ref{alg:complete-degenerate-model-algorithm}. A Markov chain is generated by repeatedly sampling according to this procedure and storing the values returned each iteration. Steps~\ref{step:mh-start} to~\ref{step:mh-end} constitute the collapsed Gibbs move, and steps~\ref{step:gibbs-start} to~\ref{step:gibbs-end} comprise a draw from the constrained parameter conditional.  Each iteration requires a pass of the Kalman filter to calculate the marginal likelihood $\den(\ob{1:\timax}|\lgtm\mcint, \lgtv\mcint)$, plus an additional pass for each Metropolis-Hastings step conducted.
+
+\begin{algorithm}
+\small
+\onehalfspacing
+\begin{algorithmic}[1]
+\REQUIRE $\lgtm\mcold, \lgtv\mcold, \ls{1:\timax}\mcold$.
+\FOR{each of the Metropolis-Hastings kernels targeting $\postden(\lgtm, \lgtv)$, detailed in sections~\ref{sec:mh-rw-transition-matrix},~\ref{sec:mh-rw-transition-covariance},~and~\ref{sec:rjmcmc-covariance-rank}}
+%
+\STATE \label{step:mh-start} Propose new parameter values $\lgtm\mcnew, \lgtv\mcnew$.
+\STATE With the appropriate acceptance probability, set $\lgtm\mcold \leftarrow \lgtm\mcnew$, $\lgtv\mcold \leftarrow \lgtv\mcnew$.
+\STATE \label{step:mh-end} Sample $\ls{1:\timax}\mcold \sim \postden(\ls{1:\timax}|\lgtm\mcold, \lgtv\mcold)$.
+%
+\STATE \label{step:gibbs-start} Calculate $\tvfull\mcold, \tvrot\mcold$, the Givens decomposition of $\lgtv\mcold$.
+\STATE Calculate $\lgtmrot\mcold, \lgtmorth\mcold$, the orthogonal components of $\lgtm\mcold$, using \eqref{eq:transition_matrix_free} \& \eqref{eq:transition_matrix_fixed}.
+\STATE Sample $\lgtmrot\mcint, \tvfull\mcint \sim \postden(\lgtmrot,\tvfull|\lgtmorth\mcold,\tvrot\mcold,\ls{1:\timax}\mcold)$, the constrained parameter conditional given in \eqref{eq:constrained_parameter_conditional}.
+\STATE \label{step:gibbs-end} Calculate $\lgtm\mcint$ and $\lgtv\mcint$ from $\lgtmrot\mcint, \lgtmorth\mcold, \tvfull\mcint, \tvrot\mcold$ using \eqref{eq:givens_decomposition} \& \eqref{eq:transition_matrix_decomposition}.
+%
+\ENDFOR
+%
+\ENSURE $\lgtm\mcint, \lgtv\mcint, \ls{1:\timax}\mcint$.
+\end{algorithmic}
+\caption{\small MCMC kernel for degenerate linear state space models}
+\label{alg:complete-degenerate-model-algorithm}
+\end{algorithm}
 
 
 
 
 \section{Simulations} \label{sec:simulations}
 
-
-In the previous sections, we have assumed that $\lgom$ and $\lgov$ are fixed and known a prior. In practice, $\lgov$ will often be unknown. In both the following examples we use models which have,
+In the previous sections, we have assumed that $\lgom$ and $\lgov$ are fixed and known a priori. In practice, $\lgov$ will often be unknown. In both the following examples we use models which have,
 \begin{IEEEeqnarray}{rCl}
  \lgov &=& \xi_{\ob{}} \idmat     ,
 \end{IEEEeqnarray}
@@ -774,6 +796,7 @@ The forward-filtering-backward-sampling procedure draws a sample from $\den(\ls{
 %
 \begin{IEEEeqnarray}{l}
  \den(\ls{\ti}|\ls{\ti+1}, \ob{1:\ti}, \lgtm, \lgtv) \nonumber \\
+ \quad \propto \den(\ls{\ti+1}|\ls{\ti}, \lgtm, \lgtv) \den(\ls{\ti}| \ob{1:\ti}, \lgtm, \lgtv) \nonumber \\
  \quad = \normalden{\ls{\ti}}{ \lsfmn{\ti} + K_t (\ls{\ti+1}-\lgtm\lsfmn{\ti}) }{ \lspvr{\ti} - K_t \lgtm \lsfvr{\ti} }      ,
 \end{IEEEeqnarray}
 %
@@ -805,7 +828,7 @@ where $\givrot{} \in [-\pi/2,\pi/2]$ is a rotation in the plane of the $i$ and $
 &\times& \left[\givmat{1}{d}{\givrot{1,d}} \dotsm \givmat{d-1}{d}{\givrot{d-1,d}} \right] \label{eq:standard_givens}     ,
 \end{IEEEeqnarray}
 %
-where $\tvsign$ is a diagonal matrix in which the diagonal elements are $\pm1$. This factorisation may be derived (and also calculated) by iteratively left multiplying the original matrix by a (transposed) Givens rotation matrix such that one element is set to $0$. The matrix remaining once all the elements below the diagonal have been eliminated is $\tvsign$, and the factorisation above results from a straightforward rearrangement. See \cite{Anderson1987} for details. This factorisation is not unique. Any order of Givens matrices may be used provided each operation does not interfere with the elements zeroed by the preceding operations. Furthermore, we can also zero an element of the matrix by right multiplication by a Givens matrix, so the rotations may be split into two blocks, one each side of the sign matrix.
+where $\tvsign$ is a diagonal matrix in which the diagonal elements are $\pm1$. This factorisation may be derived (and also calculated) by repeatedly left-multiplying the original matrix by a (transposed) Givens rotation matrix such that one element is set to $0$. The matrix remaining once all the elements below the diagonal have been eliminated is $\tvsign$, and the factorisation above results from a straightforward rearrangement. See \cite{Anderson1987} for details. This factorisation is not unique. Any order of Givens matrices may be used provided each operation does not interfere with the elements zeroed by the preceding operations. Furthermore, we can also zero an element of the matrix by right multiplication by a Givens matrix, so the rotations may be split into two blocks, one each side of the sign matrix.
 
 Now consider instead a $d \times r$ matrix of orthogonal columns. This can be factorised using the same mechanism. First right multiply by Givens matrices to zero the elements on the first $r$ rows below the main diagonal. Then left multiply by Givens matrices to zero all the elements on rows $r+1$ to $d$. After rearranging, the resulting factorisation is,
 %

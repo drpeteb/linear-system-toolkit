@@ -38,9 +38,8 @@ Thank you for taking the time to review our paper. Here is our responses to the 
 \begin{itemize}
  \item different parameter settings for toy model
  \item change the rank after burn in to show not stuck
+ \item leave out parameter conditional moves
  \item plots
- \item collapsed Gibbs
- \item pseudo-code algorithm
  \item Givens
  \item Reviewer 2
  \item Reviewer 3
@@ -84,7 +83,7 @@ There is no complexity analysis.
 \end{review}
 
 \begin{response}
-There is a brief discussion of the computational complexity in the final section of the paper. There is not much to say -- it is of the same order for the full rank and degenerate models. We do not see much value in including a detailed operation count, since the dominating factor will be the difference in autocorrelation and the resulting difference in the necessary length of the chain, which will vary by model and data set.
+There is a brief discussion of the computational complexity in the final section of the paper. There is not much to say -- it is of the same order for the full rank and degenerate models but with a higher cost per iteration. We do not see much value in including a detailed operation count, since the dominating factor when considering processing time will be the difference in autocorrelation and the resulting difference in the necessary length of the chain, which will vary by model and data set.
 \end{response}
 
 \begin{review}
@@ -200,7 +199,7 @@ Even if I found the paper well organized, I think that the authors should summar
 \end{review}
 
 \begin{response}
- \meta{Do this. At least, list the steps of each kernel.}
+ A good point. We have added algorithm pseudo-code describing the steps of the complete MCMC kernel. It was an oversight to leave this out.
 \end{response}
 
 \begin{review}
@@ -208,7 +207,11 @@ In Section III-C, the authors propose to use a collapsed Gibbs move to more effi
 \end{review}
 
 \begin{response}
- \meta{Good idea. Do this. Or perhaps just reference the paper more.}
+ There is a misunderstanding here, probably due to the confusing terminology. The ``collapsed Gibbs move'' simply means the composition of first targeting $\pi(F, Q)$ with Metropolis-Hastings followed by a draw from $\pi(x_{1:T}|F, Q)$. These moves are essential for the sampler to be irreducible, and they are woefully inefficient. To speed things up, we also include exact draws from the the parameter conditional $\pi(F, Q|x_{1:T})$. These are inspired by the Gibbs sampler for the full rank algorithm, but cannot fully explore the parameter space, so we refer to them as constrained Gibbs moves.
+ 
+ It does not make sense to run the sampler without the Metropolis-Hastings/constrained-Gibbs moves. It will be stuck in whatever subspace we happen to initialise it in. We {\em could} run it without the draws from the parameter conditional, but our python implementation would take literally years to converge.
+ 
+ We have substantially re-arranged section III and added further explanation of these concepts. We hope it is clearer now.
 \end{response}
 
 \begin{review}
@@ -236,7 +239,7 @@ moves by showing the performance of the sampler with vs without this strategy.
 \end{review}
 
 \begin{response}
- \meta{Maybe...}
+ \meta{Try running without parameter conditional draws on toy model. Very slow, right?!}
 \end{response}
 
 \begin{review}
@@ -249,14 +252,20 @@ I personally think that the proposed algorithm should be illustrated with at lea
 
 \begin{review}
 List of minor remarks/typos:
-\begin{itemize}
- \item Just after Eq. (16), the authors should be more precise on the following sentence to avoid any confusion: ``However, whereas before $Q$ was required to be positive definite, this is no longer the case'' (I would add) for unknown $G$.
- \item Please correct in Section V first sentence ... known a prior. by ... known a priori.
-\end{itemize}
+
+Just after Eq. (16), the authors should be more precise on the following sentence to avoid any confusion: ``However, whereas before $Q$ was required to be positive definite, this is no longer the case'' (I would add) for unknown $G$.
 \end{review}
 
 \begin{response}
- \meta{Fix all these.}
+ We have re-written this sentence. 
+\end{response}
+
+\begin{review}
+Please correct in Section V first sentence ... known a prior. by ... known a priori.
+\end{review}
+
+\begin{response}
+This has been corrected.
 \end{response}
 
 
