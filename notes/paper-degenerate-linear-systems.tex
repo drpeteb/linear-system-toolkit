@@ -222,13 +222,56 @@ in which $\tvval$ is a diagonal $\rk\times\rk$ matrix with $\rk = \rank(\lgtv)$,
 
 Note that we can find a set of $\lsd-\rk$ additional vectors orthonormal to $\tvvec$ using the Gram-Schmidt procedure. We denote the matrix of these vectors $\tvvecorth$. This matrix is not unique in general.
 
-A further factorisation will also be useful, which we will refer to as the Givens decomposition (on account of its method of computation),
+A second decomposition will also be useful. Any positive semi-definite can be factorised in the following way,
 %
 \begin{IEEEeqnarray}{rCl}
- \lgtv &=& \tvrot \tvfull \tvrot\tr     , \label{eq:givens_decomposition} %&=& \begin{bmatrix}\tvrot & \tvrotorth\end{bmatrix} \begin{bmatrix}\tvfull & \zmat \\ \zmat & \zmat\end{bmatrix} \begin{bmatrix}\tvrot\tr \\ \tvrotorth\tr\end{bmatrix}
+ \lgtv &=& \tvrot \tvfull \tvrot\tr     , \label{eq:givens_decomposition}
 \end{IEEEeqnarray}
 %
-where $\tvfull$ is an $\rk\times\rk$ positive definite matrix and $\tvrot$ is a $\lsd\times\rk$ matrix of orthonormal vectors subject to certain constraints. The transformation from $\lgtv$ to $\{\tvfull, \tvrot\}$ is also bijective. See appendix~\ref{app:givens-factorisation} for details.
+where $\tvfull$ is an $\rk\times\rk$ positive definite matrix and $\tvrot$ is a $\lsd\times\rk$ matrix of orthonormal vectors with a particular structure. The transformation from $\lgtv$ to $\{\tvfull, \tvrot\}$ is also bijective. This factorisation is constructed using Givens rotations and thus we refer to it as the Givens decomposition. A Givens rotation matrix has the following structure,
+%
+\begin{IEEEeqnarray}{rCl}
+ \left[\givmat{i}{j}{\givrot{}} - \idmat\right]_{k,l} & = & \begin{cases}
+                                                    \cos(\givrot{})-1 & k=l=i \text{ or } k=l=j \\
+                                                    \sin(\givrot{}) & k=i,l=j \\
+                                                    -\sin(\givrot{}) & k=j,l=i \\
+                                                    0 & \text{ otherwise}     ,
+                                                 \end{cases}
+\end{IEEEeqnarray}
+%
+where $\givrot{} \in [-\pi/2,\pi/2]$ is a rotation in the plane of the $i$ and $j$ coordinate directions.
+
+The Givens decomposition is important because $\tvrot$ is uniquely determined by the state trajectory, whereas $\tvfull$ is free to vary. We provide here the algorithm for conducting the Givens decomposition. The computational complexity is $\bigo{\rk\times(\lsd-\rk)}$. (Note that multiplication by a Givens matrix is $\bigo{1}$ due to sparsity.) Details and further discussion is included in appendix~\ref{app:givens-factorisation}.
+
+\begin{algorithm}
+\onehalfspacing
+\small
+\begin{algorithmic}[1]
+ \REQUIRE Eigvenvalues and eigenvectors $\tvval,\tvvec$ of positive semi-definite matrix $\lgtv$.
+ \STATE Set $\tvcross \leftarrow \idmat[\lsd\times\lsd]$, $\tvrow \leftarrow \idmat[\rk\times\rk]$, $\tvsign \leftarrow \tvvec$.
+ \FOR{$i = \rk,\dots,1$}
+   \FOR{$j = 1,\dots,\rk-1$}
+      \STATE Calculate the rotation $\givrot{i,j} = \tan^{-1}(\tvsign_{i,j} / \tvsign_{i,i})$.
+      \STATE Construct the Givens matrix $\givmat{i}{j}{\givrot{i,j}}$.
+      \STATE Set $\tvsign \leftarrow \tvsign \: \givmat{i}{j}{\givrot{i,j}}$, $\tvrow \leftarrow \givmat{i}{j}{\givrot{i,j}}\tr \tvrow$.
+   \ENDFOR
+ \ENDFOR
+  \FOR{$j = 1,\dots,\rk$}
+   \FOR{$i = \lsd,\dots,\rk+1$}
+      \STATE Calculate the rotation $\givrot{i,j} = \tan^{-1}(\tvsign_{j,j} / \tvsign_{i,j})$.
+      \STATE Construct the Givens matrix $\givmat{i}{j}{\givrot{i,j}}$.
+      \STATE Set $\tvsign \leftarrow \givmat{i}{j}{\givrot{i,j}} \tvsign$, $\tvcross \leftarrow \tvcross \givmat{i}{j}{\givrot{i,j}}\tr$.
+   \ENDFOR
+ \ENDFOR
+ \STATE Extract $\tvsigndiag$, the first $\rk$ rows of $\tvsign$, and $\tvrot$, the first $\rk$ columns of $\tvcross$.
+ \STATE Calculate $\tvfull = \tvsigndiag \tvrow \tvval \tvrow\tr \tvsigndiag\tr$.
+ \ENSURE $\tvrot, \tvfull$.
+\end{algorithmic}
+\caption{Givens decomposition}
+\label{alg:givens-decomposition}
+\end{algorithm}
+
+
 
 
 \subsection{Degenerate Transition Priors}
@@ -644,7 +687,6 @@ The move probabilities were set to,
 \begin{IEEEeqnarray}{rCl}
  P(\rk \to\rk+1) = P(\rk\to\rk+1) = \half     .
 \end{IEEEeqnarray}
-\meta{CHECK THIS!}
 
 The simulation results demonstrate several important features of the degenerate model and the associated MCMC algorithm.
 \begin{itemize}
@@ -823,12 +865,12 @@ A Givens rotation matrix has the following structure,
 where $\givrot{} \in [-\pi/2,\pi/2]$ is a rotation in the plane of the $i$ and $j$ coordinate directions. Any orthogonal $d\times d$ matrix may be written as a product of $\half d(d-1)$ such rotations in the following way \cite{Anderson1987},
 %
 \begin{IEEEeqnarray}{rCl}
-\tvvec = \tvsign &\times& \left[ \givmat{1}{2}{\givrot{1,2}}\right] \times \dotsm \nonumber\\
+\tvvec = \tvsigndiag &\times& \left[ \givmat{1}{2}{\givrot{1,2}}\right] \times \dotsm \nonumber\\
 &\times& \left[\givmat{1}{d-1}{\givrot{1,d-1}} \dotsm \givmat{d-2}{d-1}{\givrot{d-2,d-1}} \right] \nonumber\\
 &\times& \left[\givmat{1}{d}{\givrot{1,d}} \dotsm \givmat{d-1}{d}{\givrot{d-1,d}} \right] \label{eq:standard_givens}     ,
 \end{IEEEeqnarray}
 %
-where $\tvsign$ is a diagonal matrix in which the diagonal elements are $\pm1$. This factorisation may be derived (and also calculated) by repeatedly left-multiplying the original matrix by a (transposed) Givens rotation matrix such that one element is set to $0$. The matrix remaining once all the elements below the diagonal have been eliminated is $\tvsign$, and the factorisation above results from a straightforward rearrangement. See \cite{Anderson1987} for details. This factorisation is not unique. Any order of Givens matrices may be used provided each operation does not interfere with the elements zeroed by the preceding operations. Furthermore, we can also zero an element of the matrix by right multiplication by a Givens matrix, so the rotations may be split into two blocks, one each side of the sign matrix.
+where $\tvsigndiag$ is a diagonal matrix in which the diagonal elements are $\pm1$. This factorisation may be derived (and also calculated) by repeatedly left-multiplying the original matrix by a (transposed) Givens rotation matrix such that one element is set to $0$. The matrix remaining once all the elements below the diagonal have been eliminated is $\tvsigndiag$, and the factorisation above results from a straightforward rearrangement. See \cite{Anderson1987} for details. This factorisation is not unique. Any order of Givens matrices may be used provided each operation does not interfere with the elements zeroed by the preceding operations. Furthermore, we can also zero an element of the matrix by right multiplication by a Givens matrix, so the rotations may be split into two blocks, one each side of the sign matrix.
 
 Now consider instead a $d \times r$ matrix of orthogonal columns. This can be factorised using the same mechanism. First right multiply by Givens matrices to zero the elements on the first $r$ rows below the main diagonal. Then left multiply by Givens matrices to zero all the elements on rows $r+1$ to $d$. After rearranging, the resulting factorisation is,
 %
@@ -846,7 +888,7 @@ where
  & & \qquad\qquad \times \left[\givmat{r}{r+1}{\givrot{r,r+1}} \dots \givmat{r}{d}{\givrot{r,d}}\right]      ,
 \end{IEEEeqnarray}
 %
-and $\tvsign$ is as before, with the following structure,
+and $\tvsign$ has the following structure,
 %
 \begin{IEEEeqnarray}{rCl}
  \tvsign & = & \begin{bmatrix}
@@ -854,8 +896,10 @@ and $\tvsign$ is as before, with the following structure,
                   \zmat[(d-r)\times r]
                  \end{bmatrix} \nonumber      .
 \end{IEEEeqnarray}
+%
+where $\tvsigndiag$, as before, is diagonal with elements $\pm1$.
 
-Now consider a rank-$r$ positive semi-definite matrix $\psd$ for which the non-singular part of the eigendecomposition is,
+Finally consider a rank-$r$ positive semi-definite matrix $\psd$ for which the non-singular part of the eigendecomposition is,
 %
 \begin{IEEEeqnarray}{rCl}
  \psd &=& \tvvec \tvval \tvvec\tr     . 
@@ -878,7 +922,7 @@ in which $\tvrot$ consists of the first $r$ columns of $\tvcross$, and,
  \tvfull &=& \tvsigndiag \tvrow \tvval \tvrow\tr \tvsigndiag\tr    .
 \end{IEEEeqnarray}
 %
-Comparing with \eqref{eq:standard_givens}, we see that $\tvsigndiag \tvrow$ is an unconstrained $r\times r$ orthogonal matrix and hence $\tvfull$ is a unique positive definite matrix.
+Comparing with \eqref{eq:standard_givens}, we see that $\tvsigndiag \tvrow$ can represent any $r\times r$ orthogonal matrix and hence $\tvfull$ is a unique positive definite matrix.
 
 
 \bibliographystyle{IEEEtran}
