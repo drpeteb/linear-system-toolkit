@@ -2,6 +2,7 @@ from copy import deepcopy
 import pickle
 
 import numpy as np
+import scipy.linalg as la
 from matplotlib import pyplot as plt
 
 from kalman import GaussianDensity
@@ -27,24 +28,28 @@ class MCMCLearnerD(BaseMCMCLearner,
 plt.close('all')
 np.random.seed(0)
 
-test_data_file = 'toy-test-data.p'
-model_type = 'basic'
-K = 200
+test_data_file = 'toy2-test-data.p'
+model_type = 'degenerate'
+K = 100
 num_warm = 100
 num_iter = 10000
 num_burn = int(num_iter/2)
 
 
-ds = 4
-do = 4
+ds = 6
+do = 6
 params = dict()
-params['F'] = np.array([[0.95,0.8,0.8,0.0],[0,0.95,-0.5,0.1],[0,0,1.6,-0.8],[0.0,0.0,1.0,0.0]])
-params['rank'] = np.array([2])
-params['val'] = np.array([1.5,0.5])
-params['vec'] = np.array([[0.5,0.5,0.5,0.5],[1.0/np.sqrt(2),-1.0/np.sqrt(2),0.0,0.0]]).T
-params['Q'] = np.dot(params['vec'], np.dot(np.diag(params['val']), params['vec'].T))
+params['F'] = 0.99*np.identity(ds)
+params['rank'] = np.array([3])
+
+A = np.round(np.random.randn(ds,params['rank']),2)
+print(A)
+Q = np.dot(A,A.T)
+params['val'], params['vec'] = la.eigh(Q)
+params['Q'] = Q
+
 params['H'] = np.identity(do)
-params['R'] = 0.03*np.identity(do)
+params['R'] = 10*np.identity(do)
 prior = GaussianDensity(np.zeros(ds), 10*np.identity(ds))
 
 model = DegenerateLinearModel(ds, do, prior, params)
@@ -62,8 +67,8 @@ fh.close()
 
 est_params = deepcopy(params)
 est_params['F'] = 0.5*np.identity(ds)
-est_params['rank'] = np.array([4])
-est_params['val'] = np.array([4.0,3.0,2.0,1.0])
+est_params['rank'] = np.array([ds])
+est_params['val'] = 1 + 0.2*np.random.randn(ds)
 est_params['vec'] = np.identity(ds)
 est_params['Q'] = np.dot(est_params['vec'], np.dot(np.diag(est_params['val']), est_params['vec'].T))
 est_params['R'] = np.identity(do)
@@ -146,5 +151,5 @@ if model_type == 'degenerate':
     learner.plot_chain_accept()
     learner.plot_chain_adapt()
 
-filename = './results/toy-mcmc-{}.p'.format(model_type)
+filename = './results/toy2-mcmc-{}.p'.format(model_type)
 learner.save(filename)

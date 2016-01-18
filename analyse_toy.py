@@ -120,3 +120,37 @@ for ii in range(ds):
         ax.set_yticklabels([])
         ax.set_xticks([Qmin[ii,jj],Qmax[ii,jj]])
 plt.gcf().savefig(figure_path+'toy-degenerate-Q-hist.pdf', bbox_inches='tight')
+
+
+
+degen_F_samples = np.array([pp['F'] for pp in degenerate_learner.chain_model])
+
+spread = [0.025,0.25,0.7,0.7]
+
+fig, axs, coords =  degenerate_learner._create_2d_plot_axes(model.parameters['F'])
+for idx in np.ndindex(coords.shape):
+    samples = [pp[coords[idx]] for pp in degen_F_samples]
+    axs[idx].plot(samples, color='k')
+    xlims = axs[idx].get_xlim()
+    axs[idx].plot(xlims, [model.parameters['F'][coords[idx]]]*2, 'r',
+                                                          linewidth=2)
+    axs[idx].set_xlim(xlims)
+    ylims = axs[idx].get_ylim()
+    axs[idx].locator_params(nbins=4)
+    axs[idx].set_ylim(model.parameters['F'][coords[idx]]+spread[idx[1]]*np.array([-1,+1]))
+plt.tight_layout()
+plt.gcf().savefig(figure_path+'toy-degenerate-F-trace.pdf', bbox_inches='tight')
+
+fig, axs, coords =  degenerate_learner._create_2d_plot_axes(model.parameters['Q'])
+for idx in np.ndindex(coords.shape):
+    samples = [pp[coords[idx]] for pp in degen_Q_samples]
+    axs[idx].plot(samples, color='k')
+    xlims = axs[idx].get_xlim()
+    axs[idx].plot(xlims, [model.parameters['Q'][coords[idx]]]*2, 'r',
+                                                          linewidth=2)
+    axs[idx].set_xlim(xlims)
+    ylims = axs[idx].get_ylim()
+    axs[idx].locator_params(nbins=2)
+    axs[idx].set_ylim([-0.2,1.5])
+plt.tight_layout()
+plt.gcf().savefig(figure_path+'toy-degenerate-Q-trace.pdf', bbox_inches='tight')

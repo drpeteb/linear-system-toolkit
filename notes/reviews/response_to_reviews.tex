@@ -32,20 +32,7 @@
 
 \maketitle
 
-Thank you for taking the time to review our paper. Here is our responses to the points raised.
-
-\meta{
-\begin{itemize}
- \item Add trace plots for the transition matrix.
- \item change the observation noise so the rank is not so certain.
- \item Add rank posterior histograms.
- \item leave out parameter conditional moves?
- \item plots
- \item Reviewer 3
- \item Proof read, aiming to (i) clarify (2) correct typos (c) define everything when first used
-\end{itemize}
-
-}
+Thank you for taking the time to review our paper. We are sure it is a better paper as a result of your scrutiny and the consequent changes. Here is our responses to the points raised.
 
 \section*{Response to Reviewer 1}
 
@@ -208,7 +195,7 @@ In Section III-C, the authors propose to use a collapsed Gibbs move to more effi
 \begin{response}
  There is a misunderstanding here, probably due to the confusing terminology. The ``collapsed Gibbs move'' simply means the composition of first targeting $\pi(F, Q)$ with Metropolis-Hastings followed by a draw from $\pi(x_{1:T}|F, Q)$. These moves are essential for the sampler to be irreducible, and they are woefully inefficient. To speed things up, we also include exact draws from the the parameter conditional $\pi(F, Q|x_{1:T})$. These are inspired by the Gibbs sampler for the full rank algorithm, but cannot fully explore the parameter space, so we refer to them as constrained Gibbs moves.
  
- It does not make sense to run the sampler without the Metropolis-Hastings/constrained-Gibbs moves. It will be stuck in whatever subspace we happen to initialise it in. We {\em could} run it without the draws from the parameter conditional, but our python implementation would take literally years to converge.
+ It does not make sense to run the sampler without the Metropolis-Hastings moves. It will be stuck in whatever subspace we happen to initialise it in. Similarly, the constrained parameter conditional draws are necessary for sampling the covariance eigenvalues. In short, there is no step we could leave out without invalidating the sampler.
  
  We have substantially re-arranged section III and added further explanation of these concepts. We hope it is clearer now.
 \end{response}
@@ -220,7 +207,14 @@ Firstly, the comments are just a brief summary of results from the figures witho
 \end{review}
 
 \begin{response}
- \meta{Add more discussion and analysis}
+ We have made efforts to improve the simulations section. Our aims here are:
+ \begin{itemize}
+  \item To show that the sampler converges and mixes satisfactorily.
+  \item To show that the resulting posterior approximations are consistent with the true values.
+  \item To compare using the degenerate model with the full rank model (less error but slower mixing).
+  \item To demonstrate the utility of the algorithm on a practical application.
+ \end{itemize}
+We have added a paragraph at the start of the section explaining these aims and added some additional comments. We deliberately reserve the more general discussion of the algorithm for the final section, where we think it better belongs.
 \end{response}
 
 \begin{review}
@@ -229,16 +223,15 @@ The authors wrote that ``the sampler identifies the true rank.... and remains at
 \end{review}
 
 \begin{response}
- \meta{Explain this and improve in the paper. Add simple example of changing rank to show that it is not stuck.}
+We a bit zealous with trying to save space in the first draft by omitting certain figures. We have added trace plots and posterior histograms for $F$ and $Q$. We believe that the reason the sampler sits at one value of the rank throughout is simply that the posterior histogram is tightly concentrated on this value. However, as you rightly point out, this could be a sign that it is mixing poorly. We have added a second toy model in which the rank is less clearly determined by the observations, in order to demonstrate that the sampler is able to change values after convergence.
 \end{response}
 
 \begin{review}
-The authors could illustrate in the first toy example the benefit of the collapsed Gibbs
-moves by showing the performance of the sampler with vs without this strategy.
+The authors could illustrate in the first toy example the benefit of the collapsed Gibbs moves by showing the performance of the sampler with vs without this strategy.
 \end{review}
 
 \begin{response}
- \meta{Try running without parameter conditional draws on toy model. Very slow, right?!}
+ See earlier comments. It is not possible to omit any of the moves without the sampler becoming reducible, so this would not be a useful demonstration.
 \end{response}
 
 \begin{review}
@@ -246,7 +239,7 @@ I personally think that the proposed algorithm should be illustrated with at lea
 \end{review}
 
 \begin{response}
- \meta{Ok... if it will make you happy. Obviously it will work for some parameters and not others.}
+We do not feel that such a plot would be particularly informative, since this model is artificial and somewhat arbitrary. Inevitably, higher noise leads to larger errors... However we agree with the idea that the algorithm should be tested with some different parameter settings, which we have achieved by adding a second toy model (which also illustrates learning a posterior distribution for the rank with greater uncertainty).
 \end{response}
 
 \begin{review}
